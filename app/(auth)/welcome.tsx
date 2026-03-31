@@ -13,198 +13,134 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
-const FEATURES = [
-  { icon: 'trending-up-outline' as const, label: 'Track spending', color: '#C8F560', bg: '#C8F56020' },
-  { icon: 'pie-chart-outline' as const, label: 'Set budgets', color: '#6BA3FF', bg: '#6BA3FF20' },
-  { icon: 'notifications-outline' as const, label: 'Smart alerts', color: '#FFAD5C', bg: '#FFAD5C20' },
-  { icon: 'shield-checkmark-outline' as const, label: 'Secure data', color: '#3DD97B', bg: '#3DD97B20' },
-];
-
 export default function WelcomeScreen() {
   const router = useRouter();
 
-  // Staggered fade-in values
-  const blobAnim = useRef(new Animated.Value(0)).current;
-  const logoAnim = useRef(new Animated.Value(0)).current;
-  const contentAnim = useRef(new Animated.Value(0)).current;
-  const featuresAnim = useRef(new Animated.Value(0)).current;
+  // Animation values
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(new Animated.Value(0)).current;
+  const textAnim = useRef(new Animated.Value(0)).current;
   const ctaAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.stagger(120, [
-      Animated.timing(blobAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(contentAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(featuresAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(ctaAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+    Animated.stagger(150, [
+      Animated.timing(glowAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.spring(cardsAnim, { toValue: 1, tension: 40, friction: 8, useNativeDriver: true }),
+      Animated.spring(textAnim, { toValue: 1, tension: 50, friction: 9, useNativeDriver: true }),
+      Animated.spring(ctaAnim, { toValue: 1, tension: 50, friction: 9, useNativeDriver: true }),
     ]).start();
   }, []);
 
-  const fadeUp = (anim: Animated.Value, yOffset = 24) => ({
+  const slideUp = (anim: Animated.Value, yOffset = 30) => ({
     opacity: anim,
-    transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [yOffset, 0] }) }],
+    transform: [
+      {
+        translateY: anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [yOffset, 0],
+        }),
+      },
+    ],
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#111410' }}>
-      {/* ── Decorative blob layer ── */}
-      <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: height * 0.52 }, { opacity: blobAnim }]}>
-        {/* Large lime glow top-right */}
+    <View className="flex-1 bg-[#090B07]">
+      {/* ── Decorative Glows ── */}
+      <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, { opacity: glowAnim }]}>
         <View
-          style={{
-            position: 'absolute',
-            top: -width * 0.2,
-            right: -width * 0.15,
-            width: width * 0.75,
-            height: width * 0.75,
-            borderRadius: width * 0.375,
-            backgroundColor: '#C8F560',
-            opacity: 0.08,
-          }}
+          className="absolute -top-32 -right-20 rounded-full"
+          style={{ width: width * 0.9, height: width * 0.9, backgroundColor: '#C8F560', opacity: 0.06 }}
         />
-        {/* Medium blue blob left */}
         <View
-          style={{
-            position: 'absolute',
-            top: height * 0.08,
-            left: -width * 0.2,
-            width: width * 0.6,
-            height: width * 0.6,
-            borderRadius: width * 0.3,
-            backgroundColor: '#6BA3FF',
-            opacity: 0.07,
-          }}
+          className="absolute top-1/4 -left-32 rounded-full"
+          style={{ width: width * 0.7, height: width * 0.7, backgroundColor: '#6BA3FF', opacity: 0.05 }}
         />
-        {/* Small orange accent */}
-        <View
-          style={{
-            position: 'absolute',
-            top: height * 0.22,
-            right: width * 0.1,
-            width: width * 0.25,
-            height: width * 0.25,
-            borderRadius: width * 0.125,
-            backgroundColor: '#FFAD5C',
-            opacity: 0.12,
-          }}
-        />
-
-        {/* Floating category cards */}
-        <Animated.View style={[{ position: 'absolute', top: height * 0.06, left: 28 }, fadeUp(blobAnim, 16)]}>
-          <View style={{ backgroundColor: '#1A1E14', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#2C3122', flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#3DD97B20', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="restaurant-outline" size={16} color="#3DD97B" />
-            </View>
-            <View>
-              <Text style={{ color: '#8A8F7C', fontSize: 10 }}>Food & Dining</Text>
-              <Text style={{ color: '#EDF0E4', fontSize: 13, fontWeight: '600' }}>₱2,400</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        <Animated.View style={[{ position: 'absolute', top: height * 0.14, right: 24 }, fadeUp(blobAnim, 20)]}>
-          <View style={{ backgroundColor: '#1A1E14', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#2C3122', flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#6BA3FF20', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="car-outline" size={16} color="#6BA3FF" />
-            </View>
-            <View>
-              <Text style={{ color: '#8A8F7C', fontSize: 10 }}>Transport</Text>
-              <Text style={{ color: '#EDF0E4', fontSize: 13, fontWeight: '600' }}>₱850</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        <Animated.View style={[{ position: 'absolute', top: height * 0.26, left: 40 }, fadeUp(blobAnim, 12)]}>
-          <View style={{ backgroundColor: '#1A1E14', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#2C3122', flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#C8F56020', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="trending-up-outline" size={16} color="#C8F560" />
-            </View>
-            <View>
-              <Text style={{ color: '#8A8F7C', fontSize: 10 }}>Saved this month</Text>
-              <Text style={{ color: '#C8F560', fontSize: 13, fontWeight: '600' }}>+₱5,200</Text>
-            </View>
-          </View>
-        </Animated.View>
       </Animated.View>
 
-      {/* ── Main content ── */}
-      <SafeAreaView style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <View style={{ paddingHorizontal: 24, paddingBottom: 36 }}>
+      {/* ── Hero UI Composition ── */}
+      <View className="flex-1 items-center justify-center pt-12">
+        <Animated.View style={[{ position: 'relative', alignItems: 'center', justifyContent: 'center' }, slideUp(cardsAnim, 50)]}>
+          
+          {/* Main Mock Card */}
+          <View className="bg-[#1A1E14] border border-[#2C3122] rounded-[32px] p-6 w-64 shadow-2xl items-center z-10">
+            <View className="w-12 h-12 bg-budgy-lime/10 rounded-2xl items-center justify-center mb-4">
+              <Ionicons name="wallet" size={24} color="#C8F560" />
+            </View>
+            <Text className="text-[#8A8F7C] text-xs font-bold uppercase tracking-widest mb-1">Total Balance</Text>
+            <Text className="text-[#EDF0E4] text-4xl font-extrabold tracking-tighter">₱24,500</Text>
+            <View className="flex-row items-center gap-1.5 mt-4 bg-[#3DD97B]/10 px-3 py-1.5 rounded-full border border-[#3DD97B]/20">
+              <Ionicons name="trending-up" size={14} color="#3DD97B" />
+              <Text className="text-[#3DD97B] text-xs font-bold">+12.5% this month</Text>
+            </View>
+          </View>
 
-          {/* Logo */}
-          <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 24 }, fadeUp(logoAnim)]}>
-            <Image
-              source={require('@/assets/images/logo2.png')}
-              style={{ width: 56, height: 56 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: 36, fontWeight: '800', color: '#EDF0E4', letterSpacing: -1 }}>budgy</Text>
-          </Animated.View>
+          {/* Floating Element: Expense */}
+          <View className="absolute -bottom-6 -left-12 bg-[#252A1C] border border-[#3A4030] rounded-2xl p-3 flex-row items-center gap-3 shadow-xl z-20">
+            <View className="w-10 h-10 bg-[#FF6B6B]/10 rounded-xl items-center justify-center">
+              <Ionicons name="restaurant" size={18} color="#FF6B6B" />
+            </View>
+            <View className="pr-2">
+              <Text className="text-[#EDF0E4] text-sm font-bold">Dining</Text>
+              <Text className="text-[#FF6B6B] text-xs font-bold tracking-tight">-₱850.00</Text>
+            </View>
+          </View>
 
-          {/* Headline */}
-          <Animated.View style={[{ marginBottom: 28 }, fadeUp(contentAnim)]}>
-            <Text style={{ fontSize: 30, fontWeight: '800', color: '#EDF0E4', lineHeight: 38, letterSpacing: -0.5 }}>
+          {/* Floating Element: Goal */}
+          <View className="absolute -top-4 -right-10 bg-[#1A1E14] border border-[#2C3122] rounded-2xl p-3 flex-row items-center gap-3 shadow-xl z-0">
+            <View className="w-10 h-10 bg-[#6BA3FF]/10 rounded-xl items-center justify-center">
+              <Ionicons name="airplane" size={18} color="#6BA3FF" />
+            </View>
+            <View className="pr-2">
+              <Text className="text-[#EDF0E4] text-sm font-bold">Travel Fund</Text>
+              <Text className="text-[#8A8F7C] text-xs font-medium">80% reached</Text>
+            </View>
+          </View>
+
+        </Animated.View>
+      </View>
+
+      {/* ── Main Content & CTA ── */}
+      <SafeAreaView className="justify-end bg-gradient-to-t from-[#090B07] via-[#090B07] to-transparent">
+        <View className="px-6 pb-8 pt-10">
+          
+          <Animated.View style={slideUp(textAnim)}>
+            <View className="flex-row items-center gap-2.5 mb-4">
+              <Image source={require('@/assets/images/logo2.png')} style={{ width: 32, height: 32 }} resizeMode="contain" />
+              <Text className="text-xl font-extrabold text-[#EDF0E4] tracking-tight">budgy</Text>
+            </View>
+
+            <Text className="text-[40px] font-extrabold text-[#EDF0E4] leading-[46px] tracking-tighter mb-4">
               Take control of{'\n'}
-              <Text style={{ color: '#C8F560' }}>your money.</Text>
+              <Text className="text-budgy-lime">your money.</Text>
             </Text>
-            <Text style={{ fontSize: 15, color: '#8A8F7C', marginTop: 10, lineHeight: 22 }}>
-              Budget smarter, spend better, and reach your financial goals — all in one place.
+            
+            <Text className="text-base text-[#8A8F7C] font-medium leading-relaxed mb-10 max-w-[90%]">
+              Budget smarter, track your spending seamlessly, and reach your financial goals faster.
             </Text>
           </Animated.View>
 
-          {/* Feature pills */}
-          <Animated.View style={[{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 36 }, fadeUp(featuresAnim)]}>
-            {FEATURES.map((f) => (
-              <View
-                key={f.label}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: f.bg,
-                  borderRadius: 100,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
-                  borderWidth: 1,
-                  borderColor: f.color + '30',
-                }}
-              >
-                <Ionicons name={f.icon} size={13} color={f.color} />
-                <Text style={{ color: f.color, fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
-              </View>
-            ))}
-          </Animated.View>
-
-          {/* CTA */}
-          <Animated.View style={[{ gap: 12 }, fadeUp(ctaAnim)]}>
+          <Animated.View style={slideUp(ctaAnim, 20)}>
             <TouchableOpacity
               onPress={() => router.push('/(auth)/signup')}
-              activeOpacity={0.88}
-              style={{
-                height: 56,
-                borderRadius: 18,
-                backgroundColor: '#C8F560',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-                gap: 8,
-              }}
+              activeOpacity={0.8}
+              className="h-14 rounded-2xl bg-budgy-lime items-center justify-center flex-row gap-2 shadow-lg"
             >
-              <Text style={{ color: '#111410', fontSize: 16, fontWeight: '700' }}>Get Started</Text>
-              <Ionicons name="arrow-forward" size={18} color="#111410" />
+              <Text className="text-[#111410] text-[17px] font-extrabold tracking-wide">Get Started</Text>
+              <Ionicons name="arrow-forward" size={20} color="#111410" />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => router.push('/(auth)/login')}
-              activeOpacity={0.75}
-              style={{ alignItems: 'center', paddingVertical: 10 }}
+              activeOpacity={0.7}
+              className="items-center py-5 mt-2"
             >
-              <Text style={{ color: '#8A8F7C', fontSize: 14 }}>
+              <Text className="text-[#8A8F7C] text-[15px] font-medium">
                 Already have an account?{' '}
-                <Text style={{ color: '#C8F560', fontWeight: '600' }}>Log in</Text>
+                <Text className="text-budgy-lime font-bold">Log in</Text>
               </Text>
             </TouchableOpacity>
           </Animated.View>
+
         </View>
       </SafeAreaView>
     </View>

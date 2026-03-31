@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -32,7 +24,7 @@ export default function Step2Balance() {
 
   const handleComplete = async () => {
     const amount = parseFloat(balance.replace(/,/g, ''));
-    if (isNaN(amount) || amount < 0) {
+    if (isNaN(amount)) {
       setError('Please enter a valid balance');
       return;
     }
@@ -42,15 +34,8 @@ export default function Step2Balance() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/profile/complete-onboarding`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session!.access_token}`,
-        },
-        body: JSON.stringify({
-          full_name: profile?.full_name ?? '',
-          currency,
-          balance: amount,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session!.access_token}` },
+        body: JSON.stringify({ full_name: profile?.full_name ?? '', currency, balance: amount }),
       });
 
       if (res.ok) {
@@ -68,7 +53,6 @@ export default function Step2Balance() {
   };
 
   const handleBalanceChange = (text: string) => {
-    // Allow only digits and one decimal point
     const cleaned = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
     setBalance(cleaned);
     setError('');
@@ -76,81 +60,56 @@ export default function Step2Balance() {
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View className="flex-1 px-6 pt-6">
-          {/* Progress */}
-          <View className="flex-row gap-2 mb-8">
-            <View className="flex-1 h-1 rounded-full bg-budgy-lime" />
-            <View className="flex-1 h-1 rounded-full bg-budgy-lime" />
+          
+          {/* Progress Indicator */}
+          <View className="flex-row items-center mb-8">
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} className="w-10 h-10 rounded-full bg-card border border-card-deep items-center justify-center mr-4 shadow-sm">
+              <Ionicons name="arrow-back" size={20} color="#9DA28F" />
+            </TouchableOpacity>
+            <View className="flex-1 flex-row gap-2">
+              <View className="h-1.5 flex-1 rounded-full bg-budgy-lime shadow-sm" />
+              <View className="h-1.5 flex-1 rounded-full bg-budgy-lime shadow-sm" />
+            </View>
+            <Text className="text-secondary text-xs font-extrabold ml-4 tracking-widest uppercase">Step 2 of 2</Text>
           </View>
 
-          {/* Back */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            className="flex-row items-center gap-1 mb-6 self-start"
-          >
-            <Ionicons name="chevron-back" size={20} color="#9DA28F" />
-            <Text className="text-secondary text-sm">Back</Text>
-          </TouchableOpacity>
-
-          {/* Header */}
-          <Text className="text-text text-2xl font-bold mb-1">What's your current balance?</Text>
-          <Text className="text-secondary text-base mb-10">
-            Enter the total amount across all your accounts
+          <Text className="text-text text-4xl font-extrabold tracking-tight mb-3">Current Balance</Text>
+          <Text className="text-secondary text-base font-medium mb-12 leading-relaxed">
+            Enter the total amount across all your accounts to start fresh.
           </Text>
 
-          {/* Balance Input */}
-          <View className="items-center mb-6">
-            <View className="flex-row items-center justify-center">
-              <Text className="text-tertiary text-4xl font-light mr-2">{symbol}</Text>
+          {/* Oversized Balance Input */}
+          <View className="items-center justify-center mb-10 flex-1">
+            <View className="flex-row items-center justify-center bg-card px-8 py-10 rounded-[32px] w-full border border-card-deep shadow-sm">
+              <Text className="text-secondary text-4xl font-semibold mr-2">{symbol}</Text>
               <TextInput
-                className="text-text text-5xl font-bold min-w-[80px] text-center"
+                className="text-text font-extrabold min-w-[100px] text-center"
                 value={balance}
                 onChangeText={handleBalanceChange}
-                placeholder="0"
+                placeholder="0.00"
                 placeholderTextColor="#9DA28F"
                 keyboardType="decimal-pad"
                 autoFocus
-                style={{ fontSize: balance.length > 6 ? 36 : 52 }}
+                style={{ fontSize: balance.length > 7 ? 40 : 56, letterSpacing: -1 }}
               />
             </View>
-            <Text className="text-secondary text-sm mt-3">{currency} · {currencyInfo?.name}</Text>
+            {error ? (
+              <View className="bg-budgy-red/10 border border-budgy-red/30 rounded-xl px-4 py-2 mt-6 flex-row items-center gap-2">
+                 <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
+                 <Text className="text-budgy-red text-sm font-medium">{error}</Text>
+              </View>
+            ) : (
+              <View className="mt-6 flex-row items-center gap-2 bg-card px-4 py-2 rounded-full border border-card-deep">
+                <Ionicons name="information-circle" size={16} color="#9DA28F" />
+                <Text className="text-secondary text-xs font-bold uppercase tracking-widest">{currency} · {currencyInfo?.name}</Text>
+              </View>
+            )}
           </View>
-
-          {error ? (
-            <View className="bg-budgy-red/10 border border-budgy-red rounded-2xl px-4 py-3 mb-4">
-              <Text className="text-budgy-red text-sm">{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Quick amount chips */}
-          <View className="flex-row flex-wrap gap-2 justify-center mb-8">
-            {['1000', '5000', '10000', '50000'].map((amt) => (
-              <TouchableOpacity
-                key={amt}
-                onPress={() => setBalance(amt)}
-                activeOpacity={0.75}
-                className="px-4 py-2 rounded-full bg-card border border-card-deep"
-              >
-                <Text className="text-secondary text-sm">
-                  {symbol}{parseInt(amt).toLocaleString()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View className="flex-1" />
 
           <View className="pb-2">
-            <Button
-              title="Complete Setup"
-              onPress={handleComplete}
-              loading={loading}
-            />
+            <Button title="Complete Setup" onPress={handleComplete} loading={loading} />
           </View>
         </View>
       </KeyboardAvoidingView>

@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -21,9 +13,7 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState('');
@@ -36,9 +26,7 @@ export default function SignupScreen() {
     if (!email.trim()) e.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Enter a valid email';
     if (!password) e.password = 'Password is required';
-    else if (password.length < 8) e.password = 'Password must be at least 8 characters';
-    if (!confirmPassword) e.confirmPassword = 'Please confirm your password';
-    else if (password !== confirmPassword) e.confirmPassword = 'Passwords do not match';
+    else if (password.length < 8) e.password = 'Must be at least 8 characters';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -52,42 +40,27 @@ export default function SignupScreen() {
     if (error) setApiError(error);
   };
 
-  const handleGoogle = async () => {
-    setApiError('');
-    setGoogleLoading(true);
-    const { error } = await signInWithGoogle();
-    setGoogleLoading(false);
-    if (error) setApiError(error);
-  };
-
   const clearError = (field: string) => setErrors((e) => { const n = { ...e }; delete n[field]; return n; });
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-bg"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerClassName="flex-grow justify-end pb-10"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+    <KeyboardAvoidingView className="flex-1 bg-bg" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        
         {/* Header */}
         <View className="px-6 pt-20 pb-8">
-          <Image
-            source={require('@/assets/images/logo2.png')}
-            style={{ width: 64, height: 64, marginBottom: 24 }}
-            resizeMode="contain"
-          />
-          <Text className="text-text text-3xl font-bold">Create account</Text>
-          <Text className="text-secondary text-base mt-2">Start your journey with Budgy</Text>
+          <View className="w-16 h-16 rounded-2xl bg-dark items-center justify-center mb-6">
+            <Ionicons name="sparkles" size={28} color="#C8F560" />
+          </View>
+          <Text className="text-text text-4xl font-extrabold tracking-tight">Create{'\n'}Account</Text>
+          <Text className="text-secondary text-base mt-3 leading-relaxed">Start tracking your expenses and goals with Budgy today.</Text>
         </View>
 
         {/* Form */}
-        <View className="px-6 gap-4">
+        <View className="px-6 gap-5">
           {apiError ? (
-            <View className="bg-budgy-red/10 border border-budgy-red rounded-2xl px-4 py-3">
-              <Text className="text-budgy-red text-sm">{apiError}</Text>
+            <View className="bg-budgy-red/10 border border-budgy-red/30 rounded-2xl px-4 py-3 flex-row items-center gap-3">
+              <Ionicons name="alert-circle" size={20} color="#FF6B6B" />
+              <Text className="text-budgy-red text-sm font-medium flex-1">{apiError}</Text>
             </View>
           ) : null}
 
@@ -99,11 +72,11 @@ export default function SignupScreen() {
             error={errors.fullName}
             autoCapitalize="words"
             autoComplete="name"
-            leftIcon={<Ionicons name="person-outline" size={18} color="#9DA28F" />}
+            leftIcon={<Ionicons name="person-outline" size={20} color="#9DA28F" />}
           />
 
           <Input
-            label="Email"
+            label="Email Address"
             placeholder="you@example.com"
             value={email}
             onChangeText={(t) => { setEmail(t); clearError('email'); }}
@@ -111,7 +84,7 @@ export default function SignupScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            leftIcon={<Ionicons name="mail-outline" size={18} color="#9DA28F" />}
+            leftIcon={<Ionicons name="mail-outline" size={20} color="#9DA28F" />}
           />
 
           <Input
@@ -121,38 +94,22 @@ export default function SignupScreen() {
             onChangeText={(t) => { setPassword(t); clearError('password'); }}
             error={errors.password}
             secureTextEntry={!showPassword}
-            leftIcon={<Ionicons name="lock-closed-outline" size={18} color="#9DA28F" />}
-            rightIcon={
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9DA28F" />
-            }
+            leftIcon={<Ionicons name="lock-closed-outline" size={20} color="#9DA28F" />}
+            rightIcon={<Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9DA28F" />}
             onRightIconPress={() => setShowPassword((v) => !v)}
           />
 
-          <Input
-            label="Confirm Password"
-            placeholder="Repeat your password"
-            value={confirmPassword}
-            onChangeText={(t) => { setConfirmPassword(t); clearError('confirmPassword'); }}
-            error={errors.confirmPassword}
-            secureTextEntry={!showConfirm}
-            leftIcon={<Ionicons name="lock-closed-outline" size={18} color="#9DA28F" />}
-            rightIcon={
-              <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9DA28F" />
-            }
-            onRightIconPress={() => setShowConfirm((v) => !v)}
-          />
-
-          <View className="gap-3 mt-2">
+          <View className="mt-4 gap-4">
             <Button title="Create Account" onPress={handleSignup} loading={loading} disabled={googleLoading} />
-            <Button title="Continue with Google" onPress={handleGoogle} variant="google" loading={googleLoading} disabled={loading} />
+            <Button title="Sign up with Google" onPress={signInWithGoogle} variant="google" loading={googleLoading} disabled={loading} />
           </View>
         </View>
 
         {/* Footer */}
-        <View className="flex-row justify-center mt-8 px-6">
-          <Text className="text-secondary text-sm">Already have an account? </Text>
+        <View className="flex-row justify-center mt-12 px-6">
+          <Text className="text-secondary text-sm font-medium">Already have an account? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')} activeOpacity={0.7}>
-            <Text className="text-budgy-lime text-sm font-semibold">Log in</Text>
+            <Text className="text-dark dark:text-budgy-lime text-sm font-bold ml-1">Log in</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
