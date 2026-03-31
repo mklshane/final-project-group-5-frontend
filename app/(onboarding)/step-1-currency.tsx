@@ -1,95 +1,96 @@
-import { useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, SafeAreaView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { CURRENCIES } from '@/constants/currencies';
-import { useOnboardingStore } from '@/hooks/useOnboardingStore';
-import { Button } from '@/components/ui/Button';
+import * as Haptics from 'expo-haptics';
+
+const CURRENCIES = [
+  { code: 'PHP', name: 'Philippine Peso', symbol: '₱' },
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'GBP', name: 'British Pound', symbol: '£' },
+  { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
+];
 
 export default function Step1Currency() {
   const router = useRouter();
-  const store = useOnboardingStore();
-  const [selected, setSelected] = useState(store.get().currency || 'PHP');
-  const [search, setSearch] = useState('');
-
-  const filtered = search
-    ? CURRENCIES.filter((c) => c.code.toLowerCase().includes(search.toLowerCase()) || c.name.toLowerCase().includes(search.toLowerCase()))
-    : CURRENCIES;
+  const [selected, setSelected] = useState(CURRENCIES[0]);
 
   const handleContinue = () => {
-    store.set({ currency: selected });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/(onboarding)/step-2-balance');
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
-      <View className="flex-1 px-6 pt-6">
-        
-        {/* Progress Indicator */}
-        <View className="flex-row items-center mb-8">
-          <View className="flex-1 flex-row gap-2">
-            <View className="h-1.5 flex-1 rounded-full bg-budgy-lime shadow-sm" />
-            <View className="h-1.5 flex-1 rounded-full bg-card border border-card-deep" />
-          </View>
-          <Text className="text-secondary text-xs font-extrabold ml-4 tracking-widest uppercase">Step 1 of 2</Text>
+    <SafeAreaView style={{ flex: 1 }} className="bg-bg relative">
+      <View className="px-6 pt-6 mb-4">
+        {/* Sleek SaaS Progress Bar */}
+        <View className="h-1.5 w-full bg-card rounded-full mb-8 overflow-hidden flex-row">
+          <View className="h-full w-1/2 bg-budgy-lime rounded-full" />
         </View>
 
-        <Text className="text-text text-4xl font-extrabold tracking-tight mb-3">Base Currency</Text>
-        <Text className="text-secondary text-base font-medium mb-8 leading-relaxed">
-          Select the main currency you want to use for tracking your finances.
+        <Text className="text-text text-3xl font-extrabold tracking-tight mb-2">
+          Choose your currency
         </Text>
+        <Text className="text-secondary text-base font-medium leading-relaxed">
+          Select the main currency for tracking your finances. You can't change this later.
+        </Text>
+      </View>
 
-        {/* Search Bar */}
-        <View className="flex-row items-center h-14 rounded-2xl bg-card border-[1.5px] border-card-deep px-4 mb-6">
-          <Ionicons name="search" size={20} color="#9DA28F" style={{ marginRight: 10 }} />
-          <TextInput
-            className="flex-1 text-text text-base font-medium h-full"
-            placeholder="Search currencies..."
-            placeholderTextColor="#9DA28F"
-            value={search}
-            onChangeText={setSearch}
-            autoCorrect={false}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} activeOpacity={0.7} className="p-1">
-              <Ionicons name="close-circle" size={20} color="#9DA28F" />
-            </TouchableOpacity>
-          )}
-        </View>
+      {/* Direct List Selection instead of a Modal */}
+      <ScrollView 
+        className="flex-1 px-6" 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120, gap: 12 }}
+      >
+        {CURRENCIES.map((item) => {
+          const isActive = item.code === selected.code;
+          return (
+            <Pressable
+              key={item.code}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSelected(item);
+              }}
+              className={`flex-row items-center p-4 rounded-[24px] border-[2px] transition-colors ${
+                isActive 
+                  ? 'bg-budgy-lime/10 border-budgy-lime' 
+                  : 'bg-card border-transparent'
+              }`}
+            >
+              <View className={`w-12 h-12 rounded-[16px] items-center justify-center mr-4 ${
+                isActive ? 'bg-budgy-lime' : 'bg-bg'
+              }`}>
+                <Text className={`text-xl font-extrabold ${isActive ? 'text-[#1A1E14]' : 'text-text'}`}>
+                  {item.symbol}
+                </Text>
+              </View>
+              
+              <View className="flex-1">
+                <Text className="text-text text-lg font-bold">{item.code}</Text>
+                <Text className="text-secondary text-sm font-medium">{item.name}</Text>
+              </View>
 
-        {/* Currency List */}
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.code}
-          showsVerticalScrollIndicator={false}
-          className="flex-1"
-          contentContainerClassName="gap-3 pb-6"
-          renderItem={({ item }) => {
-            const isSelected = item.code === selected;
-            return (
-              <TouchableOpacity
-                onPress={() => setSelected(item.code)}
-                activeOpacity={0.7}
-                className={`flex-row items-center px-5 py-4 rounded-[20px] border-[1.5px] transition-all ${
-                  isSelected ? 'bg-dark border-dark shadow-sm' : 'bg-card border-card-deep'
-                }`}
-              >
-                <View className={`w-12 h-12 rounded-xl items-center justify-center mr-4 ${isSelected ? 'bg-budgy-lime/20' : 'bg-bg'}`}>
-                  <Text className={`text-xl font-bold ${isSelected ? 'text-budgy-lime' : 'text-secondary'}`}>{item.symbol}</Text>
-                </View>
-                <View className="flex-1">
-                  <Text className={`text-base font-bold ${isSelected ? 'text-bg' : 'text-text'}`}>{item.code}</Text>
-                  <Text className={`text-sm font-medium mt-0.5 ${isSelected ? 'text-bg/70' : 'text-secondary'}`}>{item.name}</Text>
-                </View>
-                {isSelected && <Ionicons name="checkmark-circle" size={24} color="#C8F560" />}
-              </TouchableOpacity>
-            );
-          }}
-        />
+              <View className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
+                isActive ? 'border-budgy-lime bg-budgy-lime' : 'border-card-deep bg-card'
+              }`}>
+                {isActive && <Ionicons name="checkmark" size={14} color="#1A1E14" />}
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
-        <View className="pt-4 pb-2">
-          <Button title="Continue" onPress={handleContinue} />
-        </View>
+      {/* Pinned Bottom Button */}
+      <View className="absolute bottom-0 left-0 right-0 p-6 bg-bg/95 pt-4">
+        <Pressable 
+          onPress={handleContinue}
+          className="w-full h-[56px] bg-budgy-lime rounded-2xl items-center justify-center shadow-sm active:opacity-80"
+        >
+          <Text className="text-[#1A1E14] text-[16px] font-extrabold tracking-wide">
+            Continue
+          </Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
