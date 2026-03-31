@@ -22,7 +22,7 @@ function RootLayoutNav() {
     const inApp = segments[0] === '(app)';
 
     if (!session) {
-      if (!inAuth) router.replace('/(auth)/login');
+      if (!inAuth) router.replace('/(auth)/welcome');
     } else if (profile) {
       if (!profile.onboarding_done && !inOnboarding) {
         router.replace('/(onboarding)/step-1-currency');

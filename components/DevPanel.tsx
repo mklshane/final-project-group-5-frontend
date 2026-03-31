@@ -20,6 +20,7 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: 'Auth',
     items: [
+      { label: 'Welcome', route: '/(auth)/welcome', icon: 'sparkles-outline' },
       { label: 'Login', route: '/(auth)/login', icon: 'log-in-outline' },
       { label: 'Sign Up', route: '/(auth)/signup', icon: 'person-add-outline' },
     ],

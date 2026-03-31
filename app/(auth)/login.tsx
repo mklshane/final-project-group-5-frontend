@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -65,9 +66,11 @@ export default function LoginScreen() {
       >
         {/* Header */}
         <View className="px-6 pt-20 pb-10">
-          <View className="w-16 h-16 rounded-2xl bg-budgy-lime items-center justify-center mb-6">
-            <Text className="text-2xl font-bold text-dark">B</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/logo2.png')}
+            style={{ width: 64, height: 64, marginBottom: 24 }}
+            resizeMode="contain"
+          />
           <Text className="text-text text-3xl font-bold">Welcome back</Text>
           <Text className="text-secondary text-base mt-2">Sign in to your account</Text>
         </View>
