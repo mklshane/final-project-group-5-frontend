@@ -486,6 +486,11 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       const id = createId();
       const version = 1;
       const date = input.date ?? nowIso();
+      const resolvedWalletId =
+        input.walletId ??
+        state.wallets.find((wallet) => wallet.is_default && !wallet.deleted_at)?.id ??
+        state.wallets.find((wallet) => !wallet.deleted_at)?.id ??
+        null;
 
       const record: TransactionRecord = {
         id,
@@ -493,11 +498,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         type: input.type,
         amount: input.amount,
         title: input.title,
-        wallet_id:
-          input.walletId ??
-          state.wallets.find((wallet) => wallet.is_default && !wallet.deleted_at)?.id ??
-          state.wallets.find((wallet) => !wallet.deleted_at)?.id ??
-          null,
+        wallet_id: resolvedWalletId,
         category_id: input.categoryId ?? null,
         date,
         note: input.note ?? null,
@@ -507,6 +508,21 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         deleted_at: null,
       };
 
+      const walletToAdjust =
+        record.wallet_id
+          ? state.wallets.find((wallet) => wallet.id === record.wallet_id && !wallet.deleted_at)
+          : undefined;
+      const walletDelta = record.type === 'income' ? record.amount : -record.amount;
+
+      const updatedWallet = walletToAdjust
+        ? {
+            ...walletToAdjust,
+            current_balance: toNumber(walletToAdjust.current_balance) + walletDelta,
+            version: Math.max(1, walletToAdjust.version + 1),
+            updated_at: date,
+          }
+        : null;
+
       const change: SyncChange = {
         table: 'transactions',
         action: 'create',
@@ -515,13 +531,26 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         version,
       };
 
+      const walletChange: SyncChange | null = updatedWallet
+        ? {
+            table: 'wallets',
+            action: 'update',
+            record_id: updatedWallet.id,
+            record: updatedWallet as unknown as Record<string, unknown>,
+            version: updatedWallet.version,
+          }
+        : null;
+
+      const syncChanges = walletChange ? [change, walletChange] : [change];
+
       setState((prev) => ({
         ...prev,
         transactions: upsertById(prev.transactions, record),
-        pendingChanges: [...prev.pendingChanges, change],
+        wallets: updatedWallet ? upsertById(prev.wallets, updatedWallet) : prev.wallets,
+        pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      await runSync(syncChanges, state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt, state.wallets]
   );
@@ -531,6 +560,20 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       const existing = state.transactions.find((tx) => tx.id === id);
       if (!existing) return;
 
+      const walletToAdjust =
+        existing.wallet_id
+          ? state.wallets.find((wallet) => wallet.id === existing.wallet_id && !wallet.deleted_at)
+          : undefined;
+      const walletDelta = existing.type === 'income' ? -existing.amount : existing.amount;
+      const updatedWallet = walletToAdjust
+        ? {
+            ...walletToAdjust,
+            current_balance: toNumber(walletToAdjust.current_balance) + walletDelta,
+            version: Math.max(1, walletToAdjust.version + 1),
+            updated_at: nowIso(),
+          }
+        : null;
+
       const change: SyncChange = {
         table: 'transactions',
         action: 'delete',
@@ -538,15 +581,28 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         version: Math.max(1, existing.version + 1),
       };
 
+      const walletChange: SyncChange | null = updatedWallet
+        ? {
+            table: 'wallets',
+            action: 'update',
+            record_id: updatedWallet.id,
+            record: updatedWallet as unknown as Record<string, unknown>,
+            version: updatedWallet.version,
+          }
+        : null;
+
+      const syncChanges = walletChange ? [change, walletChange] : [change];
+
       setState((prev) => ({
         ...prev,
         transactions: prev.transactions.filter((tx) => tx.id !== id),
-        pendingChanges: [...prev.pendingChanges, change],
+        wallets: updatedWallet ? upsertById(prev.wallets, updatedWallet) : prev.wallets,
+        pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      await runSync(syncChanges, state.lastSyncedAt);
     },
-    [runSync, state.transactions, state.lastSyncedAt]
+    [runSync, state.lastSyncedAt, state.transactions, state.wallets]
   );
 
   const addCategory = useCallback(

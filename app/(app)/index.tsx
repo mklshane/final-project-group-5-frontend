@@ -11,15 +11,18 @@ import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const { profile } = useAuth();
-  const { addTransaction, deleteTransaction } = useFinanceData();
+  const { state, addTransaction, deleteTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
+  const [entryVisible, setEntryVisible] = useState(false);
 
   const isDark = colorScheme === 'dark';
   const palette = {
@@ -52,18 +55,28 @@ export default function HomeScreen() {
   };
 
   const handleAddExpense = async () => {
-    await addTransaction({
-      title: 'Manual expense',
-      amount: 120,
-      type: 'expense',
-    });
+    setEntryMode('expense');
+    setEntryVisible(true);
   };
 
   const handleAddIncome = async () => {
+    setEntryMode('income');
+    setEntryVisible(true);
+  };
+
+  const handleSubmitEntry = async (input: {
+    title: string;
+    amount: number;
+    type: 'expense' | 'income';
+    walletId: string | null;
+    categoryId: string | null;
+  }) => {
     await addTransaction({
-      title: 'Manual income',
-      amount: 500,
-      type: 'income',
+      title: input.title,
+      amount: input.amount,
+      type: input.type,
+      walletId: input.walletId,
+      categoryId: input.categoryId,
     });
   };
 
@@ -86,8 +99,14 @@ export default function HomeScreen() {
   const greetingSub = finance.month.spentTotal
     ? `You are at ${Math.max(0, Math.min(100, Math.round((finance.today.spentTotal / finance.month.spentTotal) * 100)))}% of this month's spend today.`
     : 'Start tracking expenses to unlock insights and patterns.';
-  const walletPreview = finance.wallets.slice(0, 3);
-  const hasMoreWallets = finance.wallets.length > 3;
+  const walletPreview = finance.wallets.slice(0, 4);
+  const hasMoreWallets = finance.wallets.length > 4;
+  const walletRows = useMemo(() => {
+    if (walletPreview.length === 0) return [] as typeof walletPreview[];
+    if (walletPreview.length <= 2) return [walletPreview];
+    if (walletPreview.length === 3) return [[walletPreview[0]], [walletPreview[1], walletPreview[2]]];
+    return [walletPreview.slice(0, 2), walletPreview.slice(2, 4)];
+  }, [walletPreview]);
 
   return (
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: palette.screenBg }]}> 
@@ -133,54 +152,54 @@ export default function HomeScreen() {
               <Text style={[s.walletDistributionLabel, { color: palette.tertiary }]}>WALLETS</Text>
               {hasMoreWallets ? (
                 <Pressable onPress={() => router.push('/(app)/profile/manage-wallets')}>
-                  <Text style={[s.walletSeeAll, { color: palette.subtext }]}>See all</Text>
+                  <Text style={[s.walletSeeAll, { color: palette.subtext }]}>See all wallets</Text>
                 </Pressable>
               ) : null}
             </View>
-            <View style={s.walletDistributionRow}>
-              {walletPreview.map((wallet) => (
-                <View
-                  key={wallet.id}
-                  style={[
-                    s.walletItem,
-                    walletPreview.length === 1
-                      ? s.walletItemFull
-                      : walletPreview.length === 2
-                        ? s.walletItemHalf
-                        : s.walletItemThird,
-                    {
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
-                      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.08)',
-                    },
-                  ]}
-                >
-                  <View style={s.walletLeft}>
+            <View style={s.walletRowsWrap}>
+              {walletRows.map((row, rowIndex) => (
+                <View key={`wallet-row-${rowIndex}`} style={s.walletDistributionRow}>
+                  {row.map((wallet) => (
                     <View
+                      key={wallet.id}
                       style={[
-                        s.walletIconWrap,
-                        { backgroundColor: isDark ? 'rgba(200,245,96,0.14)' : 'rgba(26,30,20,0.07)' },
+                        s.walletItem,
+                        row.length === 1 ? s.walletItemFull : s.walletItemHalf,
+                        {
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
+                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.08)',
+                        },
                       ]}
                     >
-                      <Ionicons
-                        name={WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap}
-                        size={13}
-                        color={isDark ? '#C8F560' : '#1A1E14'}
-                      />
-                    </View>
+                      <View style={s.walletLeft}>
+                        <View
+                          style={[
+                            s.walletIconWrap,
+                            { backgroundColor: isDark ? 'rgba(200,245,96,0.14)' : 'rgba(26,30,20,0.07)' },
+                          ]}
+                        >
+                          <Ionicons
+                            name={WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap}
+                            size={13}
+                            color={isDark ? '#C8F560' : '#1A1E14'}
+                          />
+                        </View>
 
-                    <View style={s.walletTextWrap}>
-                      <Text style={[s.walletName, { color: palette.heading }]} numberOfLines={1}>
-                        {wallet.name}
-                      </Text>
-                      <Text style={[s.walletType, { color: palette.subtext }]} numberOfLines={1}>
-                        {wallet.typeLabel ?? wallet.type}
+                        <View style={s.walletTextWrap}>
+                          <Text style={[s.walletName, { color: palette.heading }]} numberOfLines={1}>
+                            {wallet.name}
+                          </Text>
+                          <Text style={[s.walletType, { color: palette.subtext }]} numberOfLines={1}>
+                            {wallet.typeLabel ?? wallet.type}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={[s.walletAmount, { color: palette.heading }]} numberOfLines={1}>
+                        {finance.formatCurrency(wallet.current_balance)}
                       </Text>
                     </View>
-                  </View>
-
-                  <Text style={[s.walletAmount, { color: palette.heading }]} numberOfLines={1}>
-                    {finance.formatCurrency(wallet.current_balance)}
-                  </Text>
+                  ))}
                 </View>
               ))}
             </View>
@@ -247,6 +266,15 @@ export default function HomeScreen() {
         onQuickScan={handleQuickScan}
         onAddExpense={handleAddExpense}
         onAddIncome={handleAddIncome}
+      />
+
+      <TransactionEntryModal
+        visible={entryVisible}
+        mode={entryMode}
+        wallets={finance.wallets}
+        categories={state.categories}
+        onClose={() => setEntryVisible(false)}
+        onSubmit={handleSubmitEntry}
       />
     </View>
   );
@@ -334,6 +362,9 @@ const s = StyleSheet.create({
   walletDistributionRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
+    gap: 8,
+  },
+  walletRowsWrap: {
     gap: 8,
   },
   walletItem: {
@@ -460,10 +491,11 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   recentTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '800',
     color: '#9DA28F',
-    letterSpacing: 2,
+    letterSpacing: 1.5,
+    opacity: 0.85,
   },
   transactionList: {
     gap: 12,

@@ -93,12 +93,26 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
     });
   };
 
+  const closeFabMenu = () => {
+    setOpen(false);
+    Animated.spring(iconAnim, {
+      toValue: 0,
+      stiffness: 280,
+      damping: 18,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
   const onActionPress = async (handler?: QuickActionHandler) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (handler) {
-      await handler();
+    try {
+      if (handler) {
+        await handler();
+      }
+    } finally {
+      closeFabMenu();
     }
-    setOpen(false);
   };
 
   return (

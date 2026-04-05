@@ -5,11 +5,14 @@ import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 
 export default function ActivityScreen() {
-  const { addTransaction, deleteTransaction } = useFinanceData();
+  const { state, addTransaction, deleteTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
+  const [entryVisible, setEntryVisible] = useState(false);
 
   const deleteTarget = useMemo(
     () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
@@ -25,18 +28,28 @@ export default function ActivityScreen() {
   };
 
   const handleAddExpense = async () => {
-    await addTransaction({
-      title: 'Manual expense',
-      amount: 120,
-      type: 'expense',
-    });
+    setEntryMode('expense');
+    setEntryVisible(true);
   };
 
   const handleAddIncome = async () => {
+    setEntryMode('income');
+    setEntryVisible(true);
+  };
+
+  const handleSubmitEntry = async (input: {
+    title: string;
+    amount: number;
+    type: 'expense' | 'income';
+    walletId: string | null;
+    categoryId: string | null;
+  }) => {
     await addTransaction({
-      title: 'Manual income',
-      amount: 500,
-      type: 'income',
+      title: input.title,
+      amount: input.amount,
+      type: input.type,
+      walletId: input.walletId,
+      categoryId: input.categoryId,
     });
   };
 
@@ -104,6 +117,15 @@ export default function ActivityScreen() {
         onQuickScan={handleQuickScan}
         onAddExpense={handleAddExpense}
         onAddIncome={handleAddIncome}
+      />
+
+      <TransactionEntryModal
+        visible={entryVisible}
+        mode={entryMode}
+        wallets={finance.wallets}
+        categories={state.categories}
+        onClose={() => setEntryVisible(false)}
+        onSubmit={handleSubmitEntry}
       />
     </>
   );
