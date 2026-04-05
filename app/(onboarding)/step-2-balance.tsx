@@ -1,26 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable
+  View, Text, TextInput, Pressable, StyleSheet,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useOnboardingStore } from '@/hooks/useOnboardingStore';
 import { CURRENCIES } from '@/constants/currencies';
-import { Button } from '@/components/ui/Button';
-import * as Haptics from 'expo-haptics';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 export default function Step2Balance() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, refreshProfile } = useAuth();
   const store = useOnboardingStore();
 
@@ -33,15 +29,15 @@ export default function Step2Balance() {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  // Auto-focus for a seamless transition between steps
+  // Auto-focus for a seamless transition
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 150);
+    setTimeout(() => inputRef.current?.focus(), 400);
   }, []);
 
   const handleComplete = async () => {
     const amount = parseFloat(balance.replace(/,/g, ''));
     if (isNaN(amount) || amount < 0) {
-      setError('Please enter a valid balance');
+      setError('Please enter a valid balance.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -68,6 +64,7 @@ export default function Step2Balance() {
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data?.error ?? 'Something went wrong. Please try again.');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch {
       setError('Network error. Check your connection.');
@@ -83,90 +80,171 @@ export default function Step2Balance() {
   };
 
   return (
-   <SafeAreaView style={{ flex: 1 }} className="bg-bg relative">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#F4F5E9' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {/* ── Dark header ─────────────────────────────── */}
+      <Animated.View
+        entering={FadeIn.duration(400)}
+        style={[s.header, { paddingTop: insets.top + 20 }]}
       >
-        <View className="flex-1 px-6 pt-6">
-          
-          {/* Completed Progress Bar */}
-          <View className="h-1.5 w-full bg-card rounded-full mb-6 overflow-hidden flex-row">
-            <View className="h-full w-full bg-budgy-lime rounded-full" />
+        <View style={s.headerTop}>
+          <Pressable onPress={() => router.back()} hitSlop={15} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={18} color="#EDF0E4" />
+          </Pressable>
+          <View style={s.progressTrack}>
+            <View style={[s.progressFill, { width: '100%' }]} />
           </View>
-
-          {/* Clean Header with embedded back button */}
-          <View className="flex-row items-center mb-8">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-              className="w-10 h-10 bg-card border border-card-deep rounded-full items-center justify-center mr-4"
-            >
-              <Ionicons name="chevron-back" size={20} color="#9DA28F" />
-            </TouchableOpacity>
-            <Text className="text-text text-xl font-extrabold flex-1">
-              Initial Balance
-            </Text>
-          </View>
-
-          {/* Centered Massive Input Area */}
-          <View className="flex-1 justify-center items-center -mt-16">
-            <Text className="text-secondary text-sm font-bold uppercase tracking-widest mb-4">
-              {currencyInfo?.name} ({currency})
-            </Text>
-
-            <View className="flex-row items-center justify-center w-full">
-              <Text className={`text-5xl font-bold mr-1 ${balance ? 'text-text' : 'text-card-deep'}`}>
-                {symbol}
-              </Text>
-              <TextInput
-                ref={inputRef}
-                className="text-text font-extrabold text-center min-w-[80px]"
-                style={{ fontSize: balance.length > 6 ? 48 : 64, height: 80 }}
-                value={balance}
-                onChangeText={handleBalanceChange}
-                placeholder="0"
-                placeholderTextColor="#2A3022"
-                keyboardType="decimal-pad"
-                selectionColor="#C8F560"
-              />
-            </View>
-
-            {error ? (
-              <View className="bg-red-500/10 border border-red-500/30 px-4 py-2 rounded-xl mt-6">
-                <Text className="text-red-400 text-sm font-medium">{error}</Text>
-              </View>
-            ) : null}
-
-            {/* Quick Amount Chips styled as rounded tags */}
-            <View className="flex-row flex-wrap gap-3 justify-center mt-10 w-full px-4">
-              {['1000', '5000', '10000', '50000'].map((amt) => (
-                <Pressable
-                  key={amt}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setBalance(amt);
-                  }}
-                  className="px-5 py-3 rounded-full bg-card border border-card-deep active:bg-budgy-lime/10 active:border-budgy-lime transition-all"
-                >
-                  <Text className="text-text font-bold">
-                    +{symbol}{parseInt(amt).toLocaleString()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          {/* Bottom Action */}
-          <View className="pb-4 pt-2">
-            <Button
-              title="Complete Setup"
-              onPress={handleComplete}
-              loading={loading}
-            />
-          </View>
+          <Text style={s.stepText}>STEP 2 OF 2</Text>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+          <Text style={s.headerTitle}>Current{'\n'}balance.</Text>
+          <Text style={s.headerSub}>How much do you have right now?</Text>
+        </Animated.View>
+      </Animated.View>
+
+      {/* ── Content ─────────────────────────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[s.form, { paddingBottom: insets.bottom + 100 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {error ? (
+          <Animated.View entering={FadeInDown.duration(300)} style={s.errorBanner}>
+            <Ionicons name="alert-circle-outline" size={16} color="#FF6B6B" />
+            <Text style={s.errorText}>{error}</Text>
+          </Animated.View>
+        ) : null}
+
+        <View style={s.inputWrap}>
+          <Text style={[s.inputSymbol, !balance && { color: '#C8CCB8' }]}>{symbol}</Text>
+          <TextInput
+            ref={inputRef}
+            value={balance}
+            onChangeText={handleBalanceChange}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor="#C8CCB8"
+            selectionColor="#1A1E14"
+            style={s.massiveInput}
+          />
+        </View>
+
+        <View style={s.chipRow}>
+          {['1000', '5000', '10000', '50000'].map(amt => (
+             <Pressable 
+               key={amt} 
+               onPress={() => { 
+                 Haptics.selectionAsync(); 
+                 setBalance(amt); 
+                 setError('');
+               }} 
+               style={s.chip}
+             >
+               <Text style={s.chipText}>+{symbol}{parseInt(amt).toLocaleString()}</Text>
+             </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* ── Pinned Footer ────────────────────────────── */}
+      <View style={[s.footerFloat, { paddingBottom: insets.bottom || 24 }]}>
+        <Pressable 
+          onPress={handleComplete} 
+          disabled={loading}
+          style={[s.primaryBtn, loading && { opacity: 0.7 }]}
+        >
+          {loading 
+            ? <ActivityIndicator color="#1A1E14" /> 
+            : <Text style={s.primaryBtnText}>Complete Setup</Text>
+          }
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const s = StyleSheet.create({
+  header: {
+    backgroundColor: '#1A1E14',
+    paddingHorizontal: 28,
+    paddingBottom: 36,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    zIndex: 10,
+  },
+  headerTop: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 32, gap: 16,
+  },
+  backBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#2C3122',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  progressTrack: {
+    flex: 1, height: 4, backgroundColor: '#2C3122', borderRadius: 2, overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%', backgroundColor: '#C8F560', borderRadius: 2,
+  },
+  stepText: {
+    color: '#9DA28F', fontSize: 10, fontWeight: '800', letterSpacing: 2,
+  },
+  headerTitle: {
+    color: '#EDF0E4', fontSize: 40, fontWeight: '800',
+    letterSpacing: -1, lineHeight: 46, marginBottom: 10,
+  },
+  headerSub: {
+    color: '#585D4C', fontSize: 14, fontWeight: '500', lineHeight: 21,
+  },
+
+  form: { paddingHorizontal: 28, paddingTop: 36 },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,107,107,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,107,107,0.2)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    marginBottom: 24,
+  },
+  errorText: { color: '#FF6B6B', fontSize: 13, fontWeight: '500', flex: 1 },
+
+  inputWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    borderBottomWidth: 2, borderBottomColor: '#E4E6D6',
+    paddingBottom: 8, marginBottom: 32, marginTop: 12,
+  },
+  inputSymbol: {
+    fontSize: 48, fontWeight: '800', color: '#1A1E14', marginRight: 12,
+  },
+  massiveInput: {
+    flex: 1, fontSize: 48, fontWeight: '800', color: '#1A1E14',
+    height: 64, padding: 0, margin: 0,
+  },
+
+  chipRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+  },
+  chip: {
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 100, borderWidth: 1.5, borderColor: '#E4E6D6',
+  },
+  chipText: {
+    fontSize: 14, fontWeight: '700', color: '#585D4C',
+  },
+
+  footerFloat: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 28, paddingTop: 16,
+    backgroundColor: 'rgba(244,245,233,0.95)',
+  },
+  primaryBtn: {
+    backgroundColor: '#C8F560', borderRadius: 16, height: 56,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  primaryBtnText: { 
+    color: '#1A1E14', fontSize: 16, fontWeight: '800', letterSpacing: 0.1 
+  },
+});
