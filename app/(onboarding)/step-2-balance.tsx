@@ -21,7 +21,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 export default function Step2Balance() {
   const router = useRouter();
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, refreshProfile } = useAuth();
   const store = useOnboardingStore();
 
   const { currency } = store.get();
@@ -56,7 +56,6 @@ export default function Step2Balance() {
           Authorization: `Bearer ${session!.access_token}`,
         },
         body: JSON.stringify({
-          full_name: profile?.full_name ?? '',
           currency,
           balance: amount,
         }),

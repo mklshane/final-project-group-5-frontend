@@ -2,8 +2,10 @@ import React from 'react';
 import { View, Text, Pressable, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle, configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+
+configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
 
 const { width } = Dimensions.get('window');
 

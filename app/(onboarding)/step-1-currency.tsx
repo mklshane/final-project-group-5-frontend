@@ -3,6 +3,7 @@ import { View, Text, Pressable, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useOnboardingStore } from '@/hooks/useOnboardingStore';
 
 const CURRENCIES = [
   { code: 'PHP', name: 'Philippine Peso', symbol: '₱' },
@@ -15,9 +16,11 @@ const CURRENCIES = [
 export default function Step1Currency() {
   const router = useRouter();
   const [selected, setSelected] = useState(CURRENCIES[0]);
+  const store = useOnboardingStore();
 
   const handleContinue = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    store.set({ currency: selected.code });
     router.push('/(onboarding)/step-2-balance');
   };
 
