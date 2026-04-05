@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { DEFAULT_SYSTEM_CATEGORIES } from '@/constants/defaultCategories';
 import { useAuth } from '@/context/AuthContext';
 import type {
   BudgetRecord,
@@ -30,6 +31,23 @@ interface AddTransactionInput {
   note?: string;
 }
 
+interface AddCategoryInput {
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  type?: 'expense' | 'income' | 'both';
+  sortOrder?: number;
+}
+
+interface UpdateCategoryInput {
+  id: string;
+  name?: string;
+  icon?: string | null;
+  color?: string | null;
+  type?: 'expense' | 'income' | 'both';
+  sortOrder?: number;
+}
+
 interface FinanceDataContextValue {
   state: FinanceDataState;
   loading: boolean;
@@ -38,6 +56,9 @@ interface FinanceDataContextValue {
   syncNow: () => Promise<void>;
   addTransaction: (input: AddTransactionInput) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  addCategory: (input: AddCategoryInput) => Promise<void>;
+  updateCategory: (input: UpdateCategoryInput) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
 }
 
 const FinanceDataContext = createContext<FinanceDataContextValue | null>(null);
@@ -206,6 +227,24 @@ const parseCachedFinanceState = (raw: string | null): FinanceDataState => {
   }
 };
 
+const createDefaultCategoryRecords = (userId: string): CategoryRecord[] => {
+  const timestamp = nowIso();
+  return DEFAULT_SYSTEM_CATEGORIES.map((category) => ({
+    id: createId(),
+    user_id: userId,
+    name: category.name,
+    icon: category.icon,
+    color: category.color,
+    type: category.type,
+    is_default: true,
+    sort_order: category.sortOrder,
+    version: 1,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+  }));
+};
+
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const [state, setState] = useState<FinanceDataState>(defaultFinanceState);
@@ -213,6 +252,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
+  const [defaultsSeededForUserId, setDefaultsSeededForUserId] = useState<string | null>(null);
 
   const runSync = useCallback(
     async (changes: SyncChange[], lastSyncedAt: string | null) => {
@@ -268,6 +308,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       setLoading(false);
       setError(null);
       setHydratedUserId(null);
+      setDefaultsSeededForUserId(null);
       return;
     }
 
@@ -295,6 +336,33 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       cancelled = true;
     };
   }, [session, runSync]);
+
+  useEffect(() => {
+    if (!session || loading) return;
+    if (defaultsSeededForUserId === session.user.id) return;
+    if (state.categories.length > 0) {
+      setDefaultsSeededForUserId(session.user.id);
+      return;
+    }
+
+    const defaultRecords = createDefaultCategoryRecords(session.user.id);
+    const defaultChanges: SyncChange[] = defaultRecords.map((record) => ({
+      table: 'categories',
+      action: 'create',
+      record_id: record.id,
+      record: record as unknown as Record<string, unknown>,
+      version: record.version,
+    }));
+
+    setState((prev) => ({
+      ...prev,
+      categories: defaultRecords,
+      pendingChanges: [...prev.pendingChanges, ...defaultChanges],
+    }));
+    setDefaultsSeededForUserId(session.user.id);
+
+    void runSync(defaultChanges, state.lastSyncedAt);
+  }, [defaultsSeededForUserId, loading, runSync, session, state.categories.length, state.lastSyncedAt]);
 
   useEffect(() => {
     if (!session || hydratedUserId !== session.user.id) return;
@@ -371,6 +439,141 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     [runSync, state.transactions, state.lastSyncedAt]
   );
 
+  const addCategory = useCallback(
+    async (input: AddCategoryInput) => {
+      if (!session) return;
+
+      const trimmedName = input.name.trim();
+      if (!trimmedName) return;
+
+      const id = createId();
+      const version = 1;
+      const date = nowIso();
+      const safeType = input.type ?? 'expense';
+
+      const maxOrder = state.categories.reduce((max, category) => {
+        const current = Number(category.sort_order ?? 0);
+        return current > max ? current : max;
+      }, 0);
+
+      const record: CategoryRecord = {
+        id,
+        user_id: session.user.id,
+        name: trimmedName,
+        icon: input.icon ?? null,
+        color: input.color ?? null,
+        type: safeType,
+        is_default: false,
+        sort_order: input.sortOrder ?? maxOrder + 1,
+        version,
+        created_at: date,
+        updated_at: date,
+        deleted_at: null,
+      };
+
+      const change: SyncChange = {
+        table: 'categories',
+        action: 'create',
+        record_id: id,
+        record: record as unknown as Record<string, unknown>,
+        version,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        categories: upsertById(prev.categories, record),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, session, state.categories, state.lastSyncedAt]
+  );
+
+  const updateCategory = useCallback(
+    async (input: UpdateCategoryInput) => {
+      const existing = state.categories.find((category) => category.id === input.id && !category.deleted_at);
+      if (!existing) return;
+
+      const nextName = input.name !== undefined ? input.name.trim() : existing.name;
+      if (!nextName) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const updatedAt = nowIso();
+
+      const updated: CategoryRecord = {
+        ...existing,
+        name: nextName,
+        icon: input.icon !== undefined ? input.icon : existing.icon,
+        color: input.color !== undefined ? input.color : existing.color,
+        type: input.type ?? existing.type ?? 'expense',
+        sort_order: input.sortOrder ?? existing.sort_order ?? 0,
+        version: nextVersion,
+        updated_at: updatedAt,
+      };
+
+      const change: SyncChange = {
+        table: 'categories',
+        action: 'update',
+        record_id: updated.id,
+        record: updated as unknown as Record<string, unknown>,
+        version: nextVersion,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        categories: upsertById(prev.categories, updated),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.categories, state.lastSyncedAt]
+  );
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      const existing = state.categories.find((category) => category.id === id && !category.deleted_at);
+      if (!existing) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const deletedRecord: CategoryRecord = {
+        ...existing,
+        version: nextVersion,
+        deleted_at: nowIso(),
+        updated_at: nowIso(),
+      };
+
+      const change: SyncChange = {
+        table: 'categories',
+        action: 'delete',
+        record_id: id,
+        version: nextVersion,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        categories: prev.categories.filter((category) => category.id !== id),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      await runSync(
+        [
+          {
+            table: 'categories',
+            action: 'update',
+            record_id: id,
+            record: deletedRecord as unknown as Record<string, unknown>,
+            version: nextVersion,
+          },
+          change,
+        ],
+        state.lastSyncedAt
+      );
+    },
+    [runSync, state.categories, state.lastSyncedAt]
+  );
+
   const value = useMemo<FinanceDataContextValue>(
     () => ({
       state,
@@ -380,8 +583,22 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       syncNow,
       addTransaction,
       deleteTransaction,
+      addCategory,
+      updateCategory,
+      deleteCategory,
     }),
-    [state, loading, syncing, error, syncNow, addTransaction, deleteTransaction]
+    [
+      state,
+      loading,
+      syncing,
+      error,
+      syncNow,
+      addTransaction,
+      deleteTransaction,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+    ]
   );
 
   return <FinanceDataContext.Provider value={value}>{children}</FinanceDataContext.Provider>;

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColorScheme } from 'nativewind';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type QuickActionHandler = () => void | Promise<void>;
 
@@ -16,12 +16,14 @@ interface ActionItem {
   id: 'quick-scan' | 'add-expense' | 'add-income';
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  accentColor: string;
   handler?: QuickActionHandler;
 }
 
 export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: QuickActionFabProps) {
   const { colorScheme } = useColorScheme();
   const [open, setOpen] = useState(false);
+  const iconAnim = useRef(new Animated.Value(0)).current;
   const isDark = colorScheme === 'dark';
 
   const palette = {
@@ -34,16 +36,61 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
 
   const actions = useMemo<ActionItem[]>(
     () => [
-      { id: 'quick-scan', label: 'Quick scan', icon: 'scan-circle-outline', handler: onQuickScan },
-      { id: 'add-expense', label: 'Add expense', icon: 'remove-circle-outline', handler: onAddExpense },
-      { id: 'add-income', label: 'Add income', icon: 'add-circle-outline', handler: onAddIncome },
+      {
+        id: 'quick-scan',
+        label: 'Quick scan',
+        icon: 'scan-circle-outline',
+        accentColor: '#E68A2E',
+        handler: onQuickScan,
+      },
+      {
+        id: 'add-expense',
+        label: 'Add expense',
+        icon: 'remove-circle-outline',
+        accentColor: '#E35D5D',
+        handler: onAddExpense,
+      },
+      {
+        id: 'add-income',
+        label: 'Add income',
+        icon: 'add-circle-outline',
+        accentColor: '#51A351',
+        handler: onAddIncome,
+      },
     ],
     [onQuickScan, onAddExpense, onAddIncome]
   );
 
+  const iconStyle = {
+    transform: [
+      {
+        rotate: iconAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', '45deg'],
+        }),
+      },
+      {
+        scale: iconAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 0.92, 1],
+        }),
+      },
+    ],
+  };
+
   const onToggle = async () => {
     await Haptics.selectionAsync();
-    setOpen((prev) => !prev);
+    setOpen((prev) => {
+      const next = !prev;
+      Animated.spring(iconAnim, {
+        toValue: next ? 1 : 0,
+        stiffness: 280,
+        damping: 18,
+        mass: 0.8,
+        useNativeDriver: true,
+      }).start();
+      return next;
+    });
   };
 
   const onActionPress = async (handler?: QuickActionHandler) => {
@@ -66,8 +113,8 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
               }}
               style={[s.menuItem, { backgroundColor: palette.menuBg, borderColor: palette.menuBorder }]}
             >
-              <View style={s.menuIconCircle}>
-                <Ionicons name={action.icon} size={18} color="#8FAF2B" />
+              <View style={[s.menuIconCircle, { backgroundColor: `${action.accentColor}22` }]}>
+                <Ionicons name={action.icon} size={18} color={action.accentColor} />
               </View>
               <Text style={[s.menuLabel, { color: palette.label }]}>{action.label}</Text>
             </Pressable>
@@ -76,12 +123,9 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
       )}
 
       <Pressable onPress={() => void onToggle()} style={[s.fab, { backgroundColor: palette.fabBg }]}> 
-        <Ionicons
-          name="add"
-          size={30}
-          color={palette.fabIcon}
-          style={open ? s.fabOpenIcon : undefined}
-        />
+        <Animated.View style={iconStyle}>
+          <Ionicons name="add" size={30} color={palette.fabIcon} />
+        </Animated.View>
       </Pressable>
     </View>
   );
@@ -140,8 +184,5 @@ const s = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 12,
     elevation: 10,
-  },
-  fabOpenIcon: {
-    transform: [{ rotate: '45deg' }],
   },
 });
