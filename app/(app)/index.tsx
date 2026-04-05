@@ -91,6 +91,18 @@ export default function HomeScreen() {
   };
 
   const firstName = (profile?.full_name ?? 'there').split(' ')[0];
+  const greetingMeta = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const salutation = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    const dateLabel = now.toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return { salutation, dateLabel };
+  }, []);
   const spentTodayLabel = finance.formatCurrency(finance.today.spentTotal);
   const todaySubtitle = `${finance.today.transactionsCount} transaction${
     finance.today.transactionsCount === 1 ? '' : 's'
@@ -121,9 +133,7 @@ export default function HomeScreen() {
               <Image source={require('../../assets/images/logo2.png')} style={s.logoImage} resizeMode="contain" />
             </View>
             <Text style={[s.brandText, { color: palette.heading }]}>Budgy</Text>
-            <View style={[s.betaBadge, { backgroundColor: palette.betaBg }]}> 
-              <Text style={[s.betaText, { color: palette.betaText }]}>BETA</Text>
-            </View>
+            
           </View>
           
           {/* We can add profile picture or notification icon here if needed later */}
@@ -131,7 +141,8 @@ export default function HomeScreen() {
 
         {/* ── Greeting ──────────────────────────────────── */}
         <View style={s.greetingContainer}>
-          <Text style={[s.greetingTitle, { color: palette.heading }]}>Hey, {firstName}</Text>
+          <Text style={[s.greetingDate, { color: palette.subtext }]}>{greetingMeta.dateLabel}</Text>
+          <Text style={[s.greetingTitle, { color: palette.heading }]}>{greetingMeta.salutation}, {firstName}</Text>
           <Text style={[s.greetingSub, { color: palette.subtext }]}>{greetingSub}</Text>
         </View>
 
@@ -428,7 +439,16 @@ const s = StyleSheet.create({
     fontWeight: '800',
     color: '#1A1E14',
     letterSpacing: -1,
-    marginBottom: 6,
+    marginBottom: 2,
+  },
+  greetingDate: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6B7060',
+    opacity: 0.8,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 1,
   },
   greetingSub: {
     fontSize: 13,
