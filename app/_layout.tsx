@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { FinanceDataProvider } from '@/context/FinanceDataContext';
+import { AppPreferencesProvider } from '@/context/AppPreferencesContext';
 import { SplashScreenView } from '@/components/SplashScreenView';
 import { DevPanel } from '@/components/DevPanel';
 import { devStore } from '@/lib/devStore';
@@ -49,7 +51,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <FinanceDataProvider>
+        <AppPreferencesProvider>
+          <RootLayoutNav />
+        </AppPreferencesProvider>
+      </FinanceDataProvider>
     </AuthProvider>
   );
 }

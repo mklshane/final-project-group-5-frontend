@@ -3,22 +3,41 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useAuth } from '@/context/AuthContext';
+import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 
-// Mock data matching the screenshot
-const TRANSACTIONS = [
-  { id: '1', title: 'Grab ride', category: 'Transport', amount: '₱185', time: 'Today', icon: 'car-outline', iconColor: '#E68A2E', iconBg: 'rgba(230, 138, 46, 0.1)', isIncome: false },
-  { id: '2', title: 'Jollibee', category: 'Food', amount: '₱249', time: 'Today', icon: 'fast-food-outline', iconColor: '#E65C5C', iconBg: 'rgba(230, 92, 92, 0.1)', isIncome: false },
-  { id: '3', title: 'Freelance payment', category: 'Income', amount: '+₱5,000', time: 'Today', icon: 'logo-usd', iconColor: '#7DBA00', iconBg: 'rgba(200, 245, 96, 0.3)', isIncome: true },
-  { id: '4', title: 'Electric bill', category: 'Bills', amount: '₱2,650', time: 'Yesterday', icon: 'document-text-outline', iconColor: '#4A90E2', iconBg: 'rgba(74, 144, 226, 0.1)', isIncome: false },
-];
+const categoryStyles: Record<string, { icon: keyof typeof Ionicons.glyphMap; iconColor: string; iconBg: string }> = {
+  Transport: { icon: 'car-outline', iconColor: '#E68A2E', iconBg: 'rgba(230, 138, 46, 0.1)' },
+  Food: { icon: 'fast-food-outline', iconColor: '#E65C5C', iconBg: 'rgba(230, 92, 92, 0.1)' },
+  Bills: { icon: 'document-text-outline', iconColor: '#4A90E2', iconBg: 'rgba(74, 144, 226, 0.1)' },
+  Income: { icon: 'logo-usd', iconColor: '#7DBA00', iconBg: 'rgba(200, 245, 96, 0.3)' },
+  Uncategorized: { icon: 'ellipsis-horizontal', iconColor: '#8A8F7C', iconBg: 'rgba(138, 143, 124, 0.16)' },
+};
+
+const styleForCategory = (label: string, isIncome: boolean) => {
+  if (isIncome) return categoryStyles.Income;
+  return categoryStyles[label] ?? categoryStyles.Uncategorized;
+};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
+  const finance = useFinanceSelectors();
 
   const handleAddPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Action to open add transaction modal
   };
+
+  const firstName = (profile?.full_name ?? 'there').split(' ')[0];
+  const spentTodayLabel = finance.formatCurrency(finance.today.spentTotal);
+  const todaySubtitle = `${finance.today.transactionsCount} transaction${
+    finance.today.transactionsCount === 1 ? '' : 's'
+  } today`;
+
+  const greetingSub = finance.month.spentTotal
+    ? `You are at ${Math.max(0, Math.min(100, Math.round((finance.today.spentTotal / finance.month.spentTotal) * 100)))}% of this month's spend today.`
+    : 'Start tracking expenses to unlock insights and patterns.';
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -43,8 +62,8 @@ export default function HomeScreen() {
 
         {/* ── Greeting ──────────────────────────────────── */}
         <View style={s.greetingContainer}>
-          <Text style={s.greetingTitle}>Hey, Shane</Text>
-          <Text style={s.greetingSub}>You've spent 23% less on food this week. Keep it up!</Text>
+          <Text style={s.greetingTitle}>Hey, {firstName}</Text>
+          <Text style={s.greetingSub}>{greetingSub}</Text>
         </View>
 
         {/* ── Main Card ─────────────────────────────────── */}
@@ -54,8 +73,8 @@ export default function HomeScreen() {
           <View style={s.cardDeco2} />
 
           <Text style={s.cardLabel}>SPENT TODAY</Text>
-          <Text style={s.cardAmount}>₱434</Text>
-          <Text style={s.cardSub}>2 transactions today</Text>
+          <Text style={s.cardAmount}>{spentTodayLabel}</Text>
+          <Text style={s.cardSub}>{todaySubtitle}</Text>
         </View>
 
         {/* ── Recent Transactions ───────────────────────── */}
@@ -64,23 +83,39 @@ export default function HomeScreen() {
         </View>
 
         <View style={s.transactionList}>
-          {TRANSACTIONS.map((tx) => (
+          {finance.loading ? (
+            <View style={s.loadingStateCard}>
+              <Text style={s.loadingStateText}>Loading transactions...</Text>
+            </View>
+          ) : finance.recentTransactions.length === 0 ? (
+            <View style={s.emptyStateCard}>
+              <Text style={s.emptyStateTitle}>No transactions yet</Text>
+              <Text style={s.emptyStateBody}>Start tracking by adding your first expense or income.</Text>
+            </View>
+          ) : (
+            finance.recentTransactions.map((tx) => {
+              const visual = styleForCategory(tx.categoryName, tx.type === 'income');
+              const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
+
+              return (
             <View key={tx.id} style={s.txItem}>
-              <View style={[s.txIconWrapper, { backgroundColor: tx.iconBg }]}>
-                <Ionicons name={tx.icon as any} size={20} color={tx.iconColor} />
+              <View style={[s.txIconWrapper, { backgroundColor: visual.iconBg }]}> 
+                <Ionicons name={visual.icon} size={20} color={visual.iconColor} />
               </View>
               <View style={s.txInfo}>
                 <Text style={s.txTitle}>{tx.title}</Text>
-                <Text style={s.txCategory}>{tx.category}</Text>
+                <Text style={s.txCategory}>{tx.categoryName}</Text>
               </View>
               <View style={s.txRight}>
-                <Text style={[s.txAmount, tx.isIncome && s.txAmountIncome]}>
-                  {tx.amount}
+                <Text style={[s.txAmount, tx.type === 'income' && s.txAmountIncome]}>
+                  {amountLabel}
                 </Text>
-                <Text style={s.txTime}>{tx.time}</Text>
+                <Text style={s.txTime}>{tx.relativeDay}</Text>
               </View>
             </View>
-          ))}
+              );
+            })
+          )}
         </View>
       </ScrollView>
 
@@ -273,6 +308,47 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#9DA28F',
+  },
+
+  // Empty / loading states
+  loadingStateCard: {
+    backgroundColor: 'transparent',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 30, 20, 0.12)',
+    borderStyle: 'dashed',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingStateText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#9DA28F',
+  },
+  emptyStateCard: {
+    backgroundColor: 'transparent',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(26, 30, 20, 0.12)',
+    borderStyle: 'dashed',
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  emptyStateTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A1E14',
+    marginBottom: 4,
+  },
+  emptyStateBody: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#9DA28F',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 
   // FAB
