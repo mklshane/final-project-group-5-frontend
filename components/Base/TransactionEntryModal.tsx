@@ -10,11 +10,13 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
+import * as Haptics from 'expo-haptics';
 import type { CategoryRecord, WalletRecord } from '@/types/finance';
 
 type TransactionMode = 'expense' | 'income';
@@ -38,15 +40,15 @@ interface TransactionEntryModalProps {
 }
 
 const KEYPAD_ROWS: KeyLabel[][] = [
-  ['7', '8', '9', '+'],
-  ['4', '5', '6', '-'],
-  ['1', '2', '3', '='],
-  ['.', '0', 'DEL', 'CLR'],
+  ['7', '8', '9', 'DEL'],
+  ['4', '5', '6', '+'],
+  ['1', '2', '3', '-'],
+  ['.', '0', 'CLR', '='],
 ];
 
 const formatCurrency = (value: number, symbol: string) => {
   const rounded = Math.round(value * 100) / 100;
-  return `${rounded < 0 ? '-' : ''}${symbol}${Math.abs(rounded).toLocaleString(undefined, {
+  return `${rounded < 0 ? '-' : ''}${Math.abs(rounded).toLocaleString(undefined, {
     minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
     maximumFractionDigits: 2,
   })}`;
@@ -128,7 +130,7 @@ export function TransactionEntryModal({
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [insufficientFundsVisible, setInsufficientFundsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [activeField, setActiveField] = useState<ActiveField>('title');
+  const [activeField, setActiveField] = useState<ActiveField>('amount');
 
   const currencySymbol = useMemo(
     () => CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? '₱',
@@ -153,7 +155,7 @@ export function TransactionEntryModal({
     setSelectedCategoryId(defaultCategoryId);
     setCategoryDropdownOpen(false);
     setInsufficientFundsVisible(false);
-    setActiveField('title');
+    setActiveField('amount');
     Keyboard.dismiss();
   }, [visible, mode, wallets, availableCategories]);
 
@@ -161,6 +163,7 @@ export function TransactionEntryModal({
     () => availableCategories.find((category) => category.id === selectedCategoryId) ?? null,
     [availableCategories, selectedCategoryId]
   );
+  
   const selectedWallet = useMemo(
     () => wallets.find((wallet) => wallet.id === selectedWalletId) ?? null,
     [wallets, selectedWalletId]
@@ -177,6 +180,8 @@ export function TransactionEntryModal({
     title.trim().length > 0;
 
   const onKeyPress = (key: KeyLabel) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     if (key === 'CLR') {
       setExpression('0');
       setHistoryExpression('');
@@ -247,12 +252,14 @@ export function TransactionEntryModal({
     const availableBalance = toNumber(selectedWallet?.current_balance);
     const isOverBalance = mode === 'expense' && computedAmount > availableBalance;
     if (isOverBalance) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setInsufficientFundsVisible(true);
       return;
     }
 
     setSubmitting(true);
     try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await onSubmit({
         title: title.trim(),
         amount: computedAmount,
@@ -266,109 +273,85 @@ export function TransactionEntryModal({
     }
   };
 
-  const palette = {
-    backdrop: 'rgba(0,0,0,0.45)',
-    cardBg: isDark ? '#12150F' : '#F5F6EE',
-    cardBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.12)',
-    heading: isDark ? '#F1F4E8' : '#1A1E14',
-    subtext: isDark ? '#8F9583' : '#6E7463',
-    amount: isDark ? '#F1F4E8' : '#1A1E14',
-    inputBg: isDark ? '#1A1E16' : '#FFFFFF',
-    inputBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.14)',
-    keyBg: isDark ? '#1A1F16' : '#FFFFFF',
-    keyBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.12)',
-    actionBg: '#93BC39',
-    actionText: '#1A1E14',
-    actionDisabledBg: isDark ? '#3E4335' : '#B5BAAA',
-    chipBg: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(26,30,20,0.03)',
-    chipActiveBg: isDark ? 'rgba(147,188,57,0.22)' : 'rgba(147,188,57,0.18)',
-    chipText: isDark ? '#E8ECDF' : '#1A1E14',
-    chipActiveText: '#1A1E14',
-    keypadPanelBg: isDark ? '#151A12' : '#EEF1E3',
-    secondaryButtonBg: isDark ? '#2B3025' : '#E5E8DA',
-    secondaryButtonText: isDark ? '#DCE1D1' : '#37422A',
-    badgeBg: isDark ? 'rgba(147,188,57,0.24)' : 'rgba(147,188,57,0.2)',
+  // Premium SaaS Fintech Palette
+  const theme = {
+    bg: isDark ? '#1A1E14' : '#F4F5E9',
+    surface: isDark ? '#222618' : '#FFFFFF',
+    surfaceAlt: isDark ? '#2C3122' : '#F8FAF2',
+    border: isDark ? '#2C3122' : '#E4E6D6',
+    borderHighlight: isDark ? '#3A402D' : '#D1D4C2',
+    text: isDark ? '#EDF0E4' : '#1A1E14',
+    secondary: isDark ? '#8A8F7C' : '#9DA28F',
+    lime: '#C8F560',
+    red: '#FF6B6B',
+    green: '#3DD97B',
+    keypadBg: isDark ? '#151810' : '#EEF0E2',
+    keyBg: isDark ? '#222618' : '#FFFFFF',
+    keypadText: isDark ? '#EDF0E4' : '#1A1E14',
+    keyBorder: isDark ? '#333A28' : '#D9DDC8',
+    keyDeleteBg: isDark ? 'rgba(255,107,107,0.14)' : 'rgba(255,107,107,0.12)',
+    backdrop: 'rgba(0,0,0,0.65)',
   };
 
+  const isExpense = mode === 'expense';
+  const modeColor = isExpense ? theme.red : theme.green;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <Pressable style={[styles.backdrop, { backgroundColor: palette.backdrop }]} onPress={onClose} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={[s.backdrop, { backgroundColor: theme.backdrop }]} onPress={onClose} />
 
-        <View style={[styles.sheet, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.sheetContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.headerRow}>
-              <View>
-                <Text style={[styles.modalTitle, { color: palette.heading }]}> 
-                  {mode === 'expense' ? 'Add Expense' : 'Add Income'}
-                </Text>
-                <Text style={[styles.modalSubtitle, { color: palette.subtext }]}> 
-                  Use calculator input and assign wallet + category
+        <View style={[s.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {/* Drag Indicator */}
+          <View style={s.dragHandleWrap}>
+            <View style={[s.dragHandle, { backgroundColor: theme.borderHighlight }]} />
+          </View>
+
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={s.headerRow}>
+              <View style={s.headerTitleWrap}>
+                <View style={[s.modeDot, { backgroundColor: modeColor }]} />
+                <Text style={[s.modalTitle, { color: theme.text }]}>
+                  New {isExpense ? 'Expense' : 'Income'}
                 </Text>
               </View>
-
-              <View style={styles.headerActions}>
-                <View style={[styles.modeBadge, { backgroundColor: palette.badgeBg }]}> 
-                  <Text style={styles.modeBadgeText}>{mode === 'expense' ? 'Expense' : 'Income'}</Text>
-                </View>
-                <Pressable onPress={onClose} style={[styles.closeButton, { borderColor: palette.inputBorder }]}> 
-                  <Ionicons name="close" size={16} color={palette.heading} />
-                </Pressable>
-              </View>
+              <Pressable onPress={onClose} hitSlop={15} style={s.closeButton}>
+                <Ionicons name="close" size={24} color={theme.secondary} />
+              </Pressable>
             </View>
 
-            <Pressable
-              onPress={activateAmountInput}
-              style={[
-                styles.amountPanel,
-                {
-                  backgroundColor: palette.inputBg,
-                  borderColor: activeField === 'amount' ? palette.actionBg : palette.inputBorder,
-                },
-              ]}
-            >
-              <Text style={[styles.amountLabel, { color: palette.subtext }]}>Amount</Text>
-              <Text style={[styles.amountText, { color: palette.amount }]}>
-                {formatCurrency(computedAmount, currencySymbol)}
+            {/* Massive Amount Input */}
+            <Pressable onPress={activateAmountInput} style={s.amountContainer}>
+              <Text style={[s.currencySymbol, { color: activeField === 'amount' ? theme.text : theme.secondary }]}>
+                {currencySymbol}
               </Text>
-              {expressionText ? (
-                <Text style={[styles.expressionText, { color: palette.subtext }]} numberOfLines={1}>
-                  {expressionText}
-                </Text>
-              ) : (
-                <Text style={[styles.expressionHint, { color: palette.subtext }]}>Tap to edit amount</Text>
-              )}
+              <Text 
+                style={[s.amountText, { color: activeField === 'amount' ? theme.text : theme.secondary }]} 
+                numberOfLines={1} 
+                adjustsFontSizeToFit
+              >
+                {expressionText ? expressionText : formatCurrency(computedAmount, '')}
+              </Text>
             </Pressable>
 
-            <View style={[styles.sectionCard, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
-              <Text style={[styles.selectorLabel, { color: palette.subtext }]}>Title</Text>
+            {/* Title Input */}
+            <View style={[s.inputRow, { borderBottomColor: activeField === 'title' ? theme.text : theme.border }]}>
               <TextInput
                 value={title}
                 onChangeText={setTitle}
                 onFocus={() => setActiveField('title')}
-                placeholder={mode === 'expense' ? 'What did you spend on?' : 'Income source'}
-                placeholderTextColor={palette.subtext}
-                style={[
-                  styles.titleInput,
-                  {
-                    backgroundColor: isDark ? '#121610' : '#F8FAF2',
-                    borderColor: activeField === 'title' ? palette.actionBg : palette.inputBorder,
-                    color: palette.heading,
-                  },
-                ]}
+                placeholder="What was this for?"
+                placeholderTextColor={theme.secondary}
+                style={[s.titleInput, { color: theme.text }]}
+                selectionColor={theme.lime}
               />
             </View>
 
-            <View style={[styles.sectionCard, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
-              <Text style={[styles.selectorLabel, { color: palette.subtext }]}>Wallet</Text>
-              <View style={styles.chipsWrap}>
+            {/* Wallet Selection */}
+            <View style={s.section}>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>Wallet</Text>
+              <View style={s.walletGrid}>
                 {wallets.map((wallet) => {
                   const active = selectedWalletId === wallet.id;
                   return (
@@ -376,17 +359,25 @@ export function TransactionEntryModal({
                       key={wallet.id}
                       onPress={() => setSelectedWalletId(wallet.id)}
                       style={[
-                        styles.walletChip,
+                        s.walletCard,
                         {
-                          backgroundColor: active ? palette.chipActiveBg : palette.chipBg,
-                          borderColor: active ? palette.actionBg : palette.inputBorder,
+                          backgroundColor: active ? (isDark ? 'rgba(200,245,96,0.08)' : theme.surface) : theme.surfaceAlt,
+                          borderColor: active ? theme.lime : theme.border,
                         },
                       ]}
                     >
-                      <Text style={[styles.chipText, { color: active ? palette.chipActiveText : palette.chipText }]}> 
+                      <View style={s.walletCardTop}>
+                        <Ionicons 
+                          name="wallet" 
+                          size={18} 
+                          color={active ? theme.lime : theme.secondary} 
+                        />
+                        {active && <Ionicons name="checkmark-circle" size={16} color={theme.lime} />}
+                      </View>
+                      <Text style={[s.walletCardName, { color: active ? theme.text : theme.secondary }]} numberOfLines={1}>
                         {wallet.name}
                       </Text>
-                      <Text style={[styles.chipSubtext, { color: active ? '#2F3B18' : palette.subtext }]}> 
+                      <Text style={[s.walletCardBalance, { color: active ? theme.text : theme.secondary }]}>
                         {formatCurrency(wallet.current_balance ?? 0, currencySymbol)}
                       </Text>
                     </Pressable>
@@ -395,79 +386,60 @@ export function TransactionEntryModal({
               </View>
             </View>
 
-            <View style={[styles.sectionCard, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
-              <Text style={[styles.selectorLabel, { color: palette.subtext }]}>Category</Text>
+            {/* Category Dropdown */}
+            <View style={s.section}>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>Category</Text>
               <Pressable
-                onPress={() => setCategoryDropdownOpen((prev) => !prev)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setCategoryDropdownOpen(!categoryDropdownOpen);
+                }}
                 style={[
-                  styles.dropdownTrigger,
+                  s.dropdownTrigger,
                   {
-                    backgroundColor: categoryDropdownOpen ? palette.chipActiveBg : palette.chipBg,
-                    borderColor: categoryDropdownOpen ? palette.actionBg : palette.inputBorder,
-                  },
+                    backgroundColor: categoryDropdownOpen ? (isDark ? 'rgba(200,245,96,0.05)' : theme.surfaceAlt) : theme.surface,
+                    borderColor: categoryDropdownOpen ? theme.lime : theme.border,
+                  }
                 ]}
               >
-                <View style={styles.dropdownValueWrap}>
+                <View style={s.dropdownValueWrap}>
                   {selectedCategory ? (
                     <>
-                      <View
-                        style={[
-                          styles.categoryIconWrap,
-                          { backgroundColor: `${selectedCategory.color ?? '#9DA28F'}22` },
-                        ]}
-                      >
-                        {toIoniconName(selectedCategory.icon) ? (
-                          <Ionicons
-                            name={toIoniconName(selectedCategory.icon)!}
-                            size={12}
-                            color={selectedCategory.color ?? '#9DA28F'}
-                          />
-                        ) : (
-                          <View style={[styles.categoryDot, { backgroundColor: selectedCategory.color ?? '#9DA28F' }]} />
-                        )}
+                      <View style={[s.categoryIconWrap, { backgroundColor: `${selectedCategory.color ?? '#9DA28F'}20` }]}>
+                        <Ionicons name={toIoniconName(selectedCategory.icon) ?? 'pricetag'} size={14} color={selectedCategory.color ?? theme.text} />
                       </View>
-                      <Text style={[styles.dropdownValueText, { color: palette.chipText }]} numberOfLines={1}>
-                        {selectedCategory.name}
-                      </Text>
+                      <Text style={[s.dropdownValueText, { color: theme.text }]}>{selectedCategory.name}</Text>
                     </>
                   ) : (
                     <>
-                      <View style={[styles.categoryDot, { backgroundColor: '#9DA28F' }]} />
-                      <Text style={[styles.dropdownValueText, { color: palette.chipText }]}>Uncategorized</Text>
+                      <View style={[s.categoryDot, { backgroundColor: theme.secondary }]} />
+                      <Text style={[s.dropdownValueText, { color: theme.secondary }]}>Select a category...</Text>
                     </>
                   )}
                 </View>
-
-                <Ionicons
-                  name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={palette.subtext}
-                />
+                <Ionicons name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
               </Pressable>
 
-              {categoryDropdownOpen ? (
-                <View style={[styles.dropdownMenu, { borderColor: palette.inputBorder, backgroundColor: palette.inputBg }]}> 
+              {/* Dropdown Menu Items */}
+              {categoryDropdownOpen && (
+                <View style={[s.dropdownMenu, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <Pressable
                     onPress={() => {
                       setSelectedCategoryId(null);
                       setCategoryDropdownOpen(false);
                     }}
-                    style={[
-                      styles.dropdownOption,
-                      {
-                        backgroundColor: selectedCategoryId === null ? palette.chipActiveBg : 'transparent',
-                      },
-                    ]}
+                    style={[s.dropdownOption, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}
                   >
-                    <View style={[styles.categoryDot, { backgroundColor: '#9DA28F' }]} />
-                    <Text style={[styles.dropdownOptionText, { color: palette.chipText }]}>Uncategorized</Text>
+                    <View style={[s.categoryDot, { backgroundColor: theme.secondary }]} />
+                    <Text style={[s.dropdownOptionText, { color: theme.text }]}>Uncategorized</Text>
                   </Pressable>
-
-                  {availableCategories.map((category) => {
-                    const active = selectedCategoryId === category.id;
-                    const categoryColor = category.color ?? '#9DA28F';
-                    const iconName = toIoniconName(category.icon);
-
+                  
+                  {availableCategories.map((category, index) => {
+                    const isLast = index === availableCategories.length - 1;
+                    const iconName = toIoniconName(category.icon) ?? 'pricetag';
+                    const isActive = selectedCategoryId === category.id;
+                    const catColor = category.color ?? theme.text;
+                    
                     return (
                       <Pressable
                         key={category.id}
@@ -476,61 +448,66 @@ export function TransactionEntryModal({
                           setCategoryDropdownOpen(false);
                         }}
                         style={[
-                          styles.dropdownOption,
-                          {
-                            backgroundColor: active ? palette.chipActiveBg : 'transparent',
-                          },
+                          s.dropdownOption,
+                          !isLast && { borderBottomColor: theme.border, borderBottomWidth: 1 },
+                          isActive && { backgroundColor: isDark ? 'rgba(200,245,96,0.05)' : 'rgba(200,245,96,0.1)' }
                         ]}
                       >
-                        <View style={[styles.categoryIconWrap, { backgroundColor: `${categoryColor}22` }]}> 
-                          {iconName ? (
-                            <Ionicons name={iconName} size={12} color={categoryColor} />
-                          ) : (
-                            <View style={[styles.categoryDot, { backgroundColor: categoryColor }]} />
-                          )}
+                        <View style={[s.categoryIconWrap, { backgroundColor: `${catColor}20` }]}>
+                          <Ionicons name={iconName} size={14} color={catColor} />
                         </View>
-                        <Text style={[styles.dropdownOptionText, { color: palette.chipText }]} numberOfLines={1}>
+                        <Text style={[s.dropdownOptionText, { color: isActive ? theme.lime : theme.text }]}>
                           {category.name}
                         </Text>
+                        {isActive && <Ionicons name="checkmark" size={18} color={theme.lime} style={{ marginLeft: 'auto' }} />}
                       </Pressable>
                     );
                   })}
                 </View>
-              ) : null}
+              )}
             </View>
 
-            {activeField === 'amount' ? (
-              <View style={[styles.keypadWrap, { backgroundColor: palette.keypadPanelBg, borderColor: palette.inputBorder }]}> 
+            {/* Keypad */}
+            {activeField === 'amount' && (
+              <View style={[s.keypadWrap, { backgroundColor: theme.keypadBg, borderColor: theme.borderHighlight }]}> 
                 {KEYPAD_ROWS.map((row, rowIndex) => (
-                  <View key={`row-${rowIndex}`} style={styles.keypadRow}>
-                    {row.map((key) => {
-                      const isAction = key === '=';
+                  <View key={`row-${rowIndex}`} style={s.keypadRow}>
+                    {row.map((key, keyIndex) => {
+                      const isAction = key === '=' || key === '+' || key === '-';
                       const isDelete = key === 'DEL' || key === 'CLR';
+                      
+                      let keyColor = theme.keypadText;
+                      let bg = theme.keyBg;
+                      let border = theme.keyBorder;
+
+                      if (isAction) {
+                        keyColor = '#1A1E14';
+                        bg = theme.lime;
+                        border = theme.lime;
+                      }
+                      if (isDelete) {
+                        keyColor = theme.red;
+                        bg = theme.keyDeleteBg;
+                        border = isDark ? 'rgba(255,107,107,0.35)' : 'rgba(255,107,107,0.42)';
+                      }
 
                       return (
                         <Pressable
                           key={key}
+                          accessibilityRole="button"
                           onPress={() => onKeyPress(key)}
-                          style={[
-                            styles.keyButton,
-                            {
-                              backgroundColor: isAction ? palette.actionBg : palette.keyBg,
-                              borderColor: isAction ? palette.actionBg : palette.keyBorder,
-                            },
+                          style={({ pressed }) => [
+                            s.keyButton,
+                            keyIndex < row.length - 1 && s.keyButtonRightSpacing,
+                            rowIndex < KEYPAD_ROWS.length - 1 && s.keyButtonBottomSpacing,
+                            { backgroundColor: bg, borderColor: border },
+                            isDelete && s.keyDeleteButton,
+                            isAction && s.keyActionButton,
+                            !isAction && !isDelete && s.keyDefaultButton,
+                            pressed && s.keyPressed,
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.keyLabel,
-                              {
-                                color: isAction
-                                  ? palette.actionText
-                                  : isDelete
-                                    ? '#CF615E'
-                                    : palette.heading,
-                              },
-                            ]}
-                          >
+                          <Text style={[s.keyLabel, { color: keyColor }]} numberOfLines={1}>
                             {key}
                           </Text>
                         </Pressable>
@@ -539,35 +516,36 @@ export function TransactionEntryModal({
                   </View>
                 ))}
               </View>
-            ) : null}
+            )}
 
-            <View style={styles.footerActions}>
-              <Pressable
-                onPress={onClose}
-                style={[styles.cancelButton, { backgroundColor: palette.secondaryButtonBg }]}
-              >
-                <Text style={[styles.cancelLabel, { color: palette.secondaryButtonText }]}>Cancel</Text>
-              </Pressable>
-
+            {/* Actions */}
+            <View style={s.footerActions}>
               <Pressable
                 onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                   void submit();
                 }}
                 disabled={!canSave}
                 style={[
-                  styles.submitButton,
-                  { backgroundColor: canSave ? palette.actionBg : palette.actionDisabledBg },
+                  s.submitButton,
+                  { backgroundColor: canSave ? theme.lime : theme.surfaceAlt },
+                  !canSave && { borderWidth: 1, borderColor: theme.border }
                 ]}
               >
-                <Text style={[styles.submitLabel, { color: palette.actionText }]}> 
-                  {submitting ? 'Saving...' : mode === 'expense' ? 'Save Expense' : 'Save Income'}
-                </Text>
+                {submitting ? (
+                  <ActivityIndicator color={canSave ? "#1A1E14" : theme.secondary} />
+                ) : (
+                  <Text style={[s.submitLabel, { color: canSave ? '#1A1E14' : theme.secondary }]}>
+                    Save {isExpense ? 'Expense' : 'Income'}
+                  </Text>
+                )}
               </Pressable>
             </View>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
 
+      {/* Warning Modal */}
       <Modal
         visible={insufficientFundsVisible}
         transparent
@@ -575,25 +553,30 @@ export function TransactionEntryModal({
         onRequestClose={() => setInsufficientFundsVisible(false)}
       >
         <Pressable
-          style={[styles.warningBackdrop, { backgroundColor: palette.backdrop }]}
+          style={[s.warningBackdrop, { backgroundColor: theme.backdrop }]}
           onPress={() => setInsufficientFundsVisible(false)}
         />
-        <View style={styles.warningContainer}>
-          <View style={[styles.warningCard, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}> 
-            <Text style={[styles.warningTitle, { color: palette.heading }]}>Insufficient balance</Text>
-            <Text style={[styles.warningBody, { color: palette.subtext }]}> 
-              This expense is higher than the available balance in
-              {selectedWallet ? ` ${selectedWallet.name}` : ' the selected wallet'}.
+        <View style={s.warningContainer}>
+          <View style={[s.warningCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={s.warningIconWrap}>
+               <Ionicons name="alert-circle" size={32} color={theme.red} />
+            </View>
+            <Text style={[s.warningTitle, { color: theme.text }]}>Insufficient Balance</Text>
+            <Text style={[s.warningBody, { color: theme.secondary }]}>
+              This expense is higher than the available balance in {selectedWallet?.name ?? 'the selected wallet'}.
             </Text>
-            <Text style={[styles.warningDetail, { color: palette.heading }]}> 
-              Available: {formatCurrency(toNumber(selectedWallet?.current_balance), currencySymbol)}
-            </Text>
+            <View style={[s.warningDetailBox, { backgroundColor: theme.bg }]}>
+               <Text style={[s.warningDetailLabel, { color: theme.secondary }]}>Available Balance</Text>
+               <Text style={[s.warningDetailAmount, { color: theme.text }]}>
+                 {formatCurrency(toNumber(selectedWallet?.current_balance), currencySymbol)}
+               </Text>
+            </View>
 
             <Pressable
-              style={[styles.warningButton, { backgroundColor: palette.actionBg }]}
+              style={[s.warningButton, { backgroundColor: theme.lime }]}
               onPress={() => setInsufficientFundsVisible(false)}
             >
-              <Text style={[styles.warningButtonText, { color: palette.actionText }]}>Got it</Text>
+              <Text style={s.warningButtonText}>Got it</Text>
             </Pressable>
           </View>
         </View>
@@ -607,7 +590,7 @@ const toNumber = (value: number | null | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   flex: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -616,245 +599,246 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   sheet: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 20,
-    maxHeight: '93%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderTopWidth: 1,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 32,
+    maxHeight: '94%',
   },
-  sheetContent: {
-    paddingBottom: 10,
+  dragHandleWrap: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dragHandle: {
+    width: 48,
+    height: 5,
+    borderRadius: 2.5,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   modalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  modalSubtitle: {
-    marginTop: 3,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modeBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  modeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2C3913',
+    letterSpacing: -0.5,
   },
   closeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
+    padding: 4,
+  },
+  amountContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 16,
+    marginBottom: 16,
   },
-  amountLabel: {
-    fontSize: 11,
+  currencySymbol: {
+    fontSize: 32,
     fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  amountPanel: {
-    marginTop: 2,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    marginRight: 8,
+    marginTop: -8,
   },
   amountText: {
-    fontSize: 36,
+    fontSize: 64,
     fontWeight: '800',
-    letterSpacing: -1,
+    letterSpacing: -2,
   },
-  expressionText: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  expressionHint: {
-    marginTop: 4,
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.9,
-  },
-  sectionCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    marginTop: 10,
+  inputRow: {
+    borderBottomWidth: 1.5,
+    paddingBottom: 12,
+    marginBottom: 32,
   },
   titleInput: {
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '600',
-    marginTop: 6,
+    padding: 0,
+    margin: 0,
+    textAlign: 'center',
   },
-  selectorLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 6,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  section: {
+    marginBottom: 32,
   },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  walletChip: {
-    minWidth: '47%',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  categoryChip: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  chipText: {
+  sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 16,
   },
-  chipSubtext: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+  
+  // Wallet Grid
+  walletGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  categoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  walletCard: {
+    flex: 1,
+    minWidth: '46%',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
   },
-  categoryIconWrap: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+  walletCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
+    marginBottom: 12,
   },
-  categoryIconText: {
-    fontSize: 11,
-    lineHeight: 12,
+  walletCardName: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
   },
+  walletCardBalance: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Category Dropdown
   dropdownTrigger: {
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    height: 60,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
   },
   dropdownValueWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,
+    gap: 12,
   },
   dropdownValueText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
-    flexShrink: 1,
+  },
+  categoryDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginLeft: 6,
+    marginRight: 6,
+  },
+  categoryIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dropdownMenu: {
     marginTop: 8,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
     overflow: 'hidden',
   },
   dropdownOption: {
-    minHeight: 42,
-    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 16,
+    height: 60,
+    gap: 12,
   },
   dropdownOptionText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
-    flexShrink: 1,
   },
+
+  // Keypad
   keypadWrap: {
-    marginTop: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 10,
-    gap: 8,
+    borderRadius: 24,
+    width: '100%',
+    alignSelf: 'stretch',
+    padding: 12,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    marginBottom: 32,
   },
   keypadRow: {
     flexDirection: 'row',
-    gap: 8,
+    width: '100%',
   },
   keyButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    minHeight: 48,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  keyButtonRightSpacing: {
+    marginRight: 10,
+  },
+  keyButtonBottomSpacing: {
+    marginBottom: 10,
+  },
+  keyActionButton: {
+    shadowColor: '#A2C94A',
+    shadowOpacity: 0.42,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  keyDefaultButton: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  keyDeleteButton: {
+    shadowColor: '#C8F560',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 2,
+  },
+  keyPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.965 }],
   },
   keyLabel: {
-    fontSize: 17,
+    fontSize: 22,
     fontWeight: '700',
   },
+  
+  // Actions
   footerActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  cancelButton: {
-    minHeight: 50,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  cancelLabel: {
-    fontSize: 15,
-    fontWeight: '700',
+    marginTop: 8,
   },
   submitButton: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 14,
+    height: 60,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitLabel: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
+
+  // Warning Modal
   warningBackdrop: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -866,34 +850,61 @@ const styles = StyleSheet.create({
   },
   warningCard: {
     width: '100%',
-    borderRadius: 16,
+    borderRadius: 32,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  warningIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,107,107,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   warningTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   warningBody: {
     fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
     lineHeight: 20,
-    marginTop: 8,
+    marginBottom: 20,
   },
-  warningDetail: {
-    fontSize: 14,
+  warningDetailBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  warningDetailLabel: {
+    fontSize: 11,
     fontWeight: '700',
-    marginTop: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  warningDetailAmount: {
+    fontSize: 24,
+    fontWeight: '800',
   },
   warningButton: {
-    marginTop: 14,
-    minHeight: 44,
-    borderRadius: 12,
+    width: '100%',
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   warningButtonText: {
-    fontSize: 14,
+    color: '#1A1E14',
+    fontSize: 15,
     fontWeight: '800',
   },
 });
