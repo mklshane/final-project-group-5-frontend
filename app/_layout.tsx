@@ -27,10 +27,11 @@ function RootLayoutNav() {
       if (!profile.onboarding_done && !inOnboarding) {
         router.replace('/(onboarding)/step-1-currency');
       } else if (profile.onboarding_done && !inApp) {
-        router.replace('/(app)/home');
+        router.replace('/(app)');
       }
     } else {
-      // Session exists but profile fetch failed — retry
+      // Session exists but profile fetch is pending/failed; keep users out of auth screens.
+      if (inAuth) router.replace('/(app)');
       refreshProfile();
     }
   }, [session, profile, loading]);
