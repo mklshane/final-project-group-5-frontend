@@ -1,8 +1,10 @@
+import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import '../global.css';
 import { useEffect } from 'react';
 import { useColorScheme } from 'nativewind';
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FinanceDataProvider } from '@/context/FinanceDataContext';
@@ -62,14 +64,16 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <FinanceDataProvider>
-        <AppPreferencesProvider>
-          <ThemePreferenceBridge>
-            <RootLayoutNav />
-          </ThemePreferenceBridge>
-        </AppPreferencesProvider>
-      </FinanceDataProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <FinanceDataProvider>
+          <AppPreferencesProvider>
+            <ThemePreferenceBridge>
+              <RootLayoutNav />
+            </ThemePreferenceBridge>
+          </AppPreferencesProvider>
+        </FinanceDataProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

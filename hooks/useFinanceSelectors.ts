@@ -87,9 +87,8 @@ export function useFinanceSelectors() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const categoriesById = categoryMap(state.categories);
 
-    const todayExpenses = activeTransactions.filter(
-      (tx) => tx.type === 'expense' && isWithin(tx.date, dayStart, dayEnd)
-    );
+    const todayTransactions = activeTransactions.filter((tx) => isWithin(tx.date, dayStart, dayEnd));
+    const todayExpenses = todayTransactions.filter((tx) => tx.type === 'expense');
 
     const monthTransactions = activeTransactions.filter((tx) => isWithin(tx.date, monthStart, monthEnd));
     const monthlyExpenseTotal = monthTransactions
@@ -99,7 +98,7 @@ export function useFinanceSelectors() {
       .filter((tx) => tx.type === 'income')
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    const recentTransactions = activeTransactions.slice(0, 8).map((tx) => {
+    const recentTransactions = activeTransactions.slice(0, 5).map((tx) => {
       const category = tx.category_id ? categoriesById.get(tx.category_id) : undefined;
       return {
         ...tx,
@@ -148,7 +147,7 @@ export function useFinanceSelectors() {
       recentTransactions,
       today: {
         spentTotal: todayExpenses.reduce((sum, tx) => sum + tx.amount, 0),
-        transactionsCount: todayExpenses.length,
+        transactionsCount: todayTransactions.length,
       },
       month: {
         spentTotal: monthlyExpenseTotal,

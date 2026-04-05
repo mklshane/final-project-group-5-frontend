@@ -1,30 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
+import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
-
-const categoryStyles: Record<string, { icon: keyof typeof Ionicons.glyphMap; iconColor: string; iconBg: string }> = {
-  Transport: { icon: 'car-outline', iconColor: '#E68A2E', iconBg: 'rgba(230, 138, 46, 0.1)' },
-  Food: { icon: 'fast-food-outline', iconColor: '#E65C5C', iconBg: 'rgba(230, 92, 92, 0.1)' },
-  Bills: { icon: 'document-text-outline', iconColor: '#4A90E2', iconBg: 'rgba(74, 144, 226, 0.1)' },
-  Income: { icon: 'logo-usd', iconColor: '#7DBA00', iconBg: 'rgba(200, 245, 96, 0.3)' },
-  Uncategorized: { icon: 'ellipsis-horizontal', iconColor: '#8A8F7C', iconBg: 'rgba(138, 143, 124, 0.16)' },
-};
-
-const styleForCategory = (label: string, isIncome: boolean) => {
-  if (isIncome) return categoryStyles.Income;
-  return categoryStyles[label] ?? categoryStyles.Uncategorized;
-};
+import { QuickActionFab } from '@/components/Base/QuickActionFab';
+import { TransactionCard } from '@/components/Base/TransactionCard';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const { profile } = useAuth();
+  const { addTransaction, deleteTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const isDark = colorScheme === 'dark';
   const palette = {
@@ -40,14 +32,46 @@ export default function HomeScreen() {
     betaText: '#8AAB32',
     heroBg: isDark ? '#222618' : '#222618',
     heroSub: isDark ? '#8A8F7C' : '#8A8F7C',
-    fabBg: isDark ? '#C8F560' : '#1A1E14',
-    fabIcon: isDark ? '#1A1E14' : '#C8F560',
     loadingBorder: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(26, 30, 20, 0.12)',
   };
 
-  const handleAddPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Action to open add transaction modal
+  const deleteTarget = useMemo(
+    () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
+    [finance.allTransactions, deleteTargetId]
+  );
+
+  const handleQuickScan = async () => {
+    await addTransaction({
+      title: 'Quick scan receipt',
+      amount: 250,
+      type: 'expense',
+    });
+  };
+
+  const handleAddExpense = async () => {
+    await addTransaction({
+      title: 'Manual expense',
+      amount: 120,
+      type: 'expense',
+    });
+  };
+
+  const handleAddIncome = async () => {
+    await addTransaction({
+      title: 'Manual income',
+      amount: 500,
+      type: 'income',
+    });
+  };
+
+  const requestDelete = (id: string) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    await deleteTransaction(deleteTargetId);
+    setDeleteTargetId(null);
   };
 
   const firstName = (profile?.full_name ?? 'there').split(' ')[0];
@@ -115,35 +139,48 @@ export default function HomeScreen() {
             </View>
           ) : (
             finance.recentTransactions.map((tx) => {
-              const visual = styleForCategory(tx.categoryName, tx.type === 'income');
               const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
+              const normalized = tx.title.toLowerCase();
+              const kind = normalized.includes('scan')
+                ? 'scan'
+                : tx.type === 'income'
+                  ? 'income'
+                  : 'expense';
 
               return (
-            <View key={tx.id} style={[s.txItem, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}> 
-              <View style={[s.txIconWrapper, { backgroundColor: visual.iconBg }]}> 
-                <Ionicons name={visual.icon} size={20} color={visual.iconColor} />
-              </View>
-              <View style={s.txInfo}>
-                <Text style={[s.txTitle, { color: palette.heading }]}>{tx.title}</Text>
-                <Text style={[s.txCategory, { color: palette.subtext }]}>{tx.categoryName}</Text>
-              </View>
-              <View style={s.txRight}>
-                <Text style={[s.txAmount, { color: palette.heading }, tx.type === 'income' && s.txAmountIncome]}>
-                  {amountLabel}
-                </Text>
-                <Text style={[s.txTime, { color: palette.tertiary }]}>{tx.relativeDay}</Text>
-              </View>
-            </View>
+                <TransactionCard
+                  key={tx.id}
+                  title={tx.title}
+                  categoryName={tx.categoryName}
+                  amountLabel={amountLabel}
+                  timeLabel={tx.relativeDay}
+                  kind={kind}
+                  onDeletePress={() => requestDelete(tx.id)}
+                />
               );
             })
           )}
         </View>
       </ScrollView>
 
-      {/* ── Floating Action Button ────────────────────── */}
-      <Pressable style={[s.fab, { backgroundColor: palette.fabBg }]} onPress={handleAddPress}>
-        <Ionicons name="add" size={32} color={palette.fabIcon} />
-      </Pressable>
+      <ConfirmDeleteModal
+        visible={Boolean(deleteTargetId)}
+        message={
+          deleteTarget
+            ? `Delete \"${deleteTarget.title}\"? This action cannot be undone.`
+            : 'Delete this transaction? This action cannot be undone.'
+        }
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+      />
+
+      <QuickActionFab
+        onQuickScan={handleQuickScan}
+        onAddExpense={handleAddExpense}
+        onAddIncome={handleAddIncome}
+      />
     </View>
   );
 }
@@ -279,60 +316,6 @@ const s = StyleSheet.create({
   transactionList: {
     gap: 12,
   },
-  txItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(26, 30, 20, 0.06)',
-    padding: 16,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  txIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  txInfo: {
-    flex: 1,
-  },
-  txTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1E14',
-    marginBottom: 4,
-  },
-  txCategory: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#8A8F7C',
-  },
-  txRight: {
-    alignItems: 'flex-end',
-  },
-  txAmount: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1A1E14',
-    marginBottom: 4,
-  },
-  txAmountIncome: {
-    color: '#51A351', // Bright green for income
-  },
-  txTime: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#9DA28F',
-  },
-
   // Empty / loading states
   loadingStateCard: {
     backgroundColor: 'transparent',
@@ -374,21 +357,4 @@ const s = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // FAB
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#1A1E14',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
 });

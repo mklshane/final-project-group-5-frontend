@@ -1,46 +1,108 @@
+import { useMemo, useState } from 'react';
 import { View, Text, SafeAreaView, FlatList } from 'react-native';
+import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import { QuickActionFab } from '@/components/Base/QuickActionFab';
+import { TransactionCard } from '@/components/Base/TransactionCard';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 
 export default function ActivityScreen() {
+  const { addTransaction, deleteTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  const deleteTarget = useMemo(
+    () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
+    [finance.allTransactions, deleteTargetId]
+  );
+
+  const handleQuickScan = async () => {
+    await addTransaction({
+      title: 'Quick scan receipt',
+      amount: 250,
+      type: 'expense',
+    });
+  };
+
+  const handleAddExpense = async () => {
+    await addTransaction({
+      title: 'Manual expense',
+      amount: 120,
+      type: 'expense',
+    });
+  };
+
+  const handleAddIncome = async () => {
+    await addTransaction({
+      title: 'Manual income',
+      amount: 500,
+      type: 'income',
+    });
+  };
+
+  const requestDelete = (id: string) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    await deleteTransaction(deleteTargetId);
+    setDeleteTargetId(null);
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
-      <View className="px-6 pt-4 pb-3">
-        <Text className="text-text text-3xl font-extrabold tracking-tight">Activity</Text>
-        <Text className="text-secondary mt-1 text-sm">Recent transactions across all categories.</Text>
-      </View>
+    <>
+      <SafeAreaView className="flex-1 bg-bg">
+        <View className="px-6 pt-4 pb-3">
+          <Text className="text-text text-3xl font-extrabold tracking-tight">Activity</Text>
+          <Text className="text-secondary mt-1 text-sm">Recent transactions across all categories.</Text>
+        </View>
 
-      {finance.loading ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-secondary text-base">Loading transactions...</Text>
-        </View>
-      ) : finance.allTransactions.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-secondary text-center text-base">No activity yet. Add your first transaction from the Home screen.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={finance.allTransactions}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24, gap: 12 }}
-          renderItem={({ item }) => (
-            <View className="rounded-2xl border border-card-deep bg-card px-4 py-3">
-              <View className="flex-row items-center justify-between">
-                <Text className="text-text text-base font-bold">{item.title}</Text>
-                <Text className={`text-base font-extrabold ${item.type === 'income' ? 'text-green-500' : 'text-text'}`}>
-                  {item.type === 'income' ? '+' : ''}
-                  {finance.formatCurrency(item.amount)}
-                </Text>
-              </View>
-              <View className="mt-1 flex-row items-center justify-between">
-                <Text className="text-secondary text-xs">{new Date(item.date).toLocaleDateString()}</Text>
-                <Text className="text-secondary text-xs">{item.type === 'income' ? 'Income' : 'Expense'}</Text>
-              </View>
-            </View>
-          )}
-        />
-      )}
-    </SafeAreaView>
+        {finance.loading ? (
+          <View className="flex-1 items-center justify-center px-8">
+            <Text className="text-secondary text-base">Loading transactions...</Text>
+          </View>
+        ) : finance.allTransactions.length === 0 ? (
+          <View className="flex-1 items-center justify-center px-8">
+            <Text className="text-secondary text-center text-base">No activity yet. Add your first transaction from the Home screen.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={finance.allTransactions}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24, gap: 12 }}
+            renderItem={({ item }) => (
+              <TransactionCard
+                title={item.title}
+                categoryName={item.type === 'income' ? 'Income' : 'Expense'}
+                amountLabel={`${item.type === 'income' ? '+' : ''}${finance.formatCurrency(item.amount)}`}
+                timeLabel={new Date(item.date).toLocaleDateString()}
+                kind={item.title.toLowerCase().includes('scan') ? 'scan' : item.type === 'income' ? 'income' : 'expense'}
+                onDeletePress={() => requestDelete(item.id)}
+              />
+            )}
+          />
+        )}
+      </SafeAreaView>
+
+      <ConfirmDeleteModal
+        visible={Boolean(deleteTargetId)}
+        message={
+          deleteTarget
+            ? `Delete \"${deleteTarget.title}\"? This action cannot be undone.`
+            : 'Delete this transaction? This action cannot be undone.'
+        }
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+      />
+
+      <QuickActionFab
+        onQuickScan={handleQuickScan}
+        onAddExpense={handleAddExpense}
+        onAddIncome={handleAddIncome}
+      />
+    </>
   );
 }
