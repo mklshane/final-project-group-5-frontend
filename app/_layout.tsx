@@ -1,14 +1,26 @@
 import 'react-native-url-polyfill/auto';
 import '../global.css';
 import { useEffect } from 'react';
+import { useColorScheme } from 'nativewind';
 import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FinanceDataProvider } from '@/context/FinanceDataContext';
-import { AppPreferencesProvider } from '@/context/AppPreferencesContext';
+import { AppPreferencesProvider, useAppPreferences } from '@/context/AppPreferencesContext';
 import { SplashScreenView } from '@/components/SplashScreenView';
 import { DevPanel } from '@/components/DevPanel';
 import { devStore } from '@/lib/devStore';
+
+function ThemePreferenceBridge({ children }: { children: React.ReactNode }) {
+  const { themeMode } = useAppPreferences();
+  const { setColorScheme } = useColorScheme();
+
+  useEffect(() => {
+    setColorScheme(themeMode);
+  }, [themeMode, setColorScheme]);
+
+  return <>{children}</>;
+}
 
 function RootLayoutNav() {
   const { session, profile, loading, refreshProfile } = useAuth();
@@ -53,7 +65,9 @@ export default function RootLayout() {
     <AuthProvider>
       <FinanceDataProvider>
         <AppPreferencesProvider>
-          <RootLayoutNav />
+          <ThemePreferenceBridge>
+            <RootLayoutNav />
+          </ThemePreferenceBridge>
         </AppPreferencesProvider>
       </FinanceDataProvider>
     </AuthProvider>

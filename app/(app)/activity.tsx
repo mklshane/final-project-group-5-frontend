@@ -8,16 +8,16 @@ export default function ActivityScreen() {
     <SafeAreaView className="flex-1 bg-bg">
       <View className="px-6 pt-4 pb-3">
         <Text className="text-text text-3xl font-extrabold tracking-tight">Activity</Text>
-        <Text className="text-text-sub mt-1 text-sm">Recent transactions across all categories.</Text>
+        <Text className="text-secondary mt-1 text-sm">Recent transactions across all categories.</Text>
       </View>
 
       {finance.loading ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-text-sub text-base">Loading transactions...</Text>
+          <Text className="text-secondary text-base">Loading transactions...</Text>
         </View>
       ) : finance.allTransactions.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-text-sub text-center text-base">No activity yet. Add your first transaction from the Home screen.</Text>
+          <Text className="text-secondary text-center text-base">No activity yet. Add your first transaction from the Home screen.</Text>
         </View>
       ) : (
         <FlatList
@@ -34,8 +34,8 @@ export default function ActivityScreen() {
                 </Text>
               </View>
               <View className="mt-1 flex-row items-center justify-between">
-                <Text className="text-text-sub text-xs">{new Date(item.date).toLocaleDateString()}</Text>
-                <Text className="text-text-sub text-xs">{item.type === 'income' ? 'Income' : 'Expense'}</Text>
+                <Text className="text-secondary text-xs">{new Date(item.date).toLocaleDateString()}</Text>
+                <Text className="text-secondary text-xs">{item.type === 'income' ? 'Income' : 'Expense'}</Text>
               </View>
             </View>
           )}

@@ -80,11 +80,12 @@ export function AppPreferencesProvider({ children }: { children: React.ReactNode
   }, [state, hydrated]);
 
   useEffect(() => {
-    if (!profile?.currency) return;
+    const nextCurrencyCode = profile?.currency;
+    if (!nextCurrencyCode) return;
 
     setState((prev) => {
-      if (prev.currencyCode === profile.currency) return prev;
-      return { ...prev, currencyCode: profile.currency };
+      if (prev.currencyCode === nextCurrencyCode) return prev;
+      return { ...prev, currencyCode: nextCurrencyCode };
     });
   }, [profile?.currency]);
 

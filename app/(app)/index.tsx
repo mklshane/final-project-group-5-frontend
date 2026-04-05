@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useColorScheme } from 'nativewind';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
@@ -21,8 +22,28 @@ const styleForCategory = (label: string, isIncome: boolean) => {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { colorScheme } = useColorScheme();
   const { profile } = useAuth();
   const finance = useFinanceSelectors();
+
+  const isDark = colorScheme === 'dark';
+  const palette = {
+    screenBg: isDark ? '#111410' : '#F4F5E9',
+    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
+    cardBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26, 30, 20, 0.12)',
+    heading: isDark ? '#EDF0E4' : '#1A1E14',
+    subtext: isDark ? '#8A8F7C' : '#6B7060',
+    tertiary: isDark ? '#585D4C' : '#9DA28F',
+    logoBg: isDark ? '#C8F560' : '#1A1E14',
+    logoIcon: isDark ? '#1A1E14' : '#C8F560',
+    betaBg: isDark ? 'rgba(200, 245, 96, 0.16)' : 'rgba(200, 245, 96, 0.3)',
+    betaText: '#8AAB32',
+    heroBg: isDark ? '#222618' : '#222618',
+    heroSub: isDark ? '#8A8F7C' : '#8A8F7C',
+    fabBg: isDark ? '#C8F560' : '#1A1E14',
+    fabIcon: isDark ? '#1A1E14' : '#C8F560',
+    loadingBorder: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(26, 30, 20, 0.12)',
+  };
 
   const handleAddPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -40,7 +61,7 @@ export default function HomeScreen() {
     : 'Start tracking expenses to unlock insights and patterns.';
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <View style={[s.container, { paddingTop: insets.top, backgroundColor: palette.screenBg }]}> 
       <ScrollView 
         contentContainerStyle={s.scrollContent} 
         showsVerticalScrollIndicator={false}
@@ -49,11 +70,11 @@ export default function HomeScreen() {
         <View style={s.header}>
           <View style={s.logoContainer}>
             <View style={s.logoCircle}>
-              <Ionicons name="happy" size={20} color="#C8F560" />
+              <Ionicons name="happy" size={20} color={palette.logoIcon} />
             </View>
-            <Text style={s.brandText}>Budgy</Text>
-            <View style={s.betaBadge}>
-              <Text style={s.betaText}>BETA</Text>
+            <Text style={[s.brandText, { color: palette.heading }]}>Budgy</Text>
+            <View style={[s.betaBadge, { backgroundColor: palette.betaBg }]}> 
+              <Text style={[s.betaText, { color: palette.betaText }]}>BETA</Text>
             </View>
           </View>
           
@@ -62,35 +83,35 @@ export default function HomeScreen() {
 
         {/* ── Greeting ──────────────────────────────────── */}
         <View style={s.greetingContainer}>
-          <Text style={s.greetingTitle}>Hey, {firstName}</Text>
-          <Text style={s.greetingSub}>{greetingSub}</Text>
+          <Text style={[s.greetingTitle, { color: palette.heading }]}>Hey, {firstName}</Text>
+          <Text style={[s.greetingSub, { color: palette.subtext }]}>{greetingSub}</Text>
         </View>
 
         {/* ── Main Card ─────────────────────────────────── */}
-        <View style={s.card}>
+        <View style={[s.card, { backgroundColor: palette.heroBg }]}> 
           {/* Decorative Circles */}
           <View style={s.cardDeco1} />
           <View style={s.cardDeco2} />
 
-          <Text style={s.cardLabel}>SPENT TODAY</Text>
+          <Text style={[s.cardLabel, { color: palette.heroSub }]}>SPENT TODAY</Text>
           <Text style={s.cardAmount}>{spentTodayLabel}</Text>
-          <Text style={s.cardSub}>{todaySubtitle}</Text>
+          <Text style={[s.cardSub, { color: palette.heroSub }]}>{todaySubtitle}</Text>
         </View>
 
         {/* ── Recent Transactions ───────────────────────── */}
         <View style={s.recentHeader}>
-          <Text style={s.recentTitle}>RECENT</Text>
+          <Text style={[s.recentTitle, { color: palette.tertiary }]}>RECENT</Text>
         </View>
 
         <View style={s.transactionList}>
           {finance.loading ? (
-            <View style={s.loadingStateCard}>
-              <Text style={s.loadingStateText}>Loading transactions...</Text>
+            <View style={[s.loadingStateCard, { borderColor: palette.loadingBorder }]}> 
+              <Text style={[s.loadingStateText, { color: palette.tertiary }]}>Loading transactions...</Text>
             </View>
           ) : finance.recentTransactions.length === 0 ? (
-            <View style={s.emptyStateCard}>
-              <Text style={s.emptyStateTitle}>No transactions yet</Text>
-              <Text style={s.emptyStateBody}>Start tracking by adding your first expense or income.</Text>
+            <View style={[s.emptyStateCard, { borderColor: palette.loadingBorder }]}> 
+              <Text style={[s.emptyStateTitle, { color: palette.heading }]}>No transactions yet</Text>
+              <Text style={[s.emptyStateBody, { color: palette.tertiary }]}>Start tracking by adding your first expense or income.</Text>
             </View>
           ) : (
             finance.recentTransactions.map((tx) => {
@@ -98,19 +119,19 @@ export default function HomeScreen() {
               const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
 
               return (
-            <View key={tx.id} style={s.txItem}>
+            <View key={tx.id} style={[s.txItem, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}> 
               <View style={[s.txIconWrapper, { backgroundColor: visual.iconBg }]}> 
                 <Ionicons name={visual.icon} size={20} color={visual.iconColor} />
               </View>
               <View style={s.txInfo}>
-                <Text style={s.txTitle}>{tx.title}</Text>
-                <Text style={s.txCategory}>{tx.categoryName}</Text>
+                <Text style={[s.txTitle, { color: palette.heading }]}>{tx.title}</Text>
+                <Text style={[s.txCategory, { color: palette.subtext }]}>{tx.categoryName}</Text>
               </View>
               <View style={s.txRight}>
-                <Text style={[s.txAmount, tx.type === 'income' && s.txAmountIncome]}>
+                <Text style={[s.txAmount, { color: palette.heading }, tx.type === 'income' && s.txAmountIncome]}>
                   {amountLabel}
                 </Text>
-                <Text style={s.txTime}>{tx.relativeDay}</Text>
+                <Text style={[s.txTime, { color: palette.tertiary }]}>{tx.relativeDay}</Text>
               </View>
             </View>
               );
@@ -120,8 +141,8 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* ── Floating Action Button ────────────────────── */}
-      <Pressable style={s.fab} onPress={handleAddPress}>
-        <Ionicons name="add" size={32} color="#C8F560" />
+      <Pressable style={[s.fab, { backgroundColor: palette.fabBg }]} onPress={handleAddPress}>
+        <Ionicons name="add" size={32} color={palette.fabIcon} />
       </Pressable>
     </View>
   );
@@ -262,6 +283,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(26, 30, 20, 0.06)',
     padding: 16,
     borderRadius: 20,
     shadowColor: '#000',
