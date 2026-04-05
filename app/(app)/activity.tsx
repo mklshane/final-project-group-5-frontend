@@ -74,7 +74,7 @@ export default function ActivityScreen() {
             renderItem={({ item }) => (
               <TransactionCard
                 title={item.title}
-                categoryName={item.categoryName}
+                categoryName={`${item.categoryName} • ${item.walletName}`}
                 categoryIcon={item.categoryIcon}
                 categoryColor={item.categoryColor}
                 amountLabel={`${item.type === 'income' ? '+' : ''}${finance.formatCurrency(item.amount)}`}

@@ -15,6 +15,7 @@ export default function ProfileLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="manage-wallets" options={{ title: 'Manage Wallets' }} />
       <Stack.Screen name="manage-categories" options={{ title: 'Manage Categories' }} />
     </Stack>
   );

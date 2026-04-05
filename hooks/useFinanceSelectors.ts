@@ -3,7 +3,8 @@ import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { CURRENCIES } from '@/constants/currencies';
 import { FALLBACK_CATEGORY_VISUALS, getDefaultTemplateByName } from '@/constants/defaultCategories';
-import type { BudgetRecord, CategoryRecord, TransactionRecord } from '@/types/finance';
+import { WALLET_TYPE_LABELS } from '@/constants/defaultWallets';
+import type { BudgetRecord, CategoryRecord, TransactionRecord, WalletRecord } from '@/types/finance';
 
 const startOfDay = (date: Date) => {
   const copy = new Date(date);
@@ -47,6 +48,12 @@ const categoryMap = (categories: CategoryRecord[]) => {
   return map;
 };
 
+const walletMap = (wallets: WalletRecord[]) => {
+  const map = new Map<string, WalletRecord>();
+  for (const wallet of wallets) map.set(wallet.id, wallet);
+  return map;
+};
+
 const spendForCategory = (transactions: TransactionRecord[], categoryId: string) => {
   return transactions
     .filter((tx) => tx.type === 'expense' && tx.category_id === categoryId)
@@ -86,10 +93,16 @@ export function useFinanceSelectors() {
       .filter((tx) => !tx.deleted_at)
       .slice()
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const activeWallets = state.wallets
+      .filter((wallet) => !wallet.deleted_at)
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const categoriesById = categoryMap(state.categories);
+    const walletsById = walletMap(activeWallets);
 
     const decoratedTransactions = activeTransactions.map((tx) => {
       const category = tx.category_id ? categoriesById.get(tx.category_id) : undefined;
+      const wallet = tx.wallet_id ? walletsById.get(tx.wallet_id) : undefined;
       const template = getDefaultTemplateByName(category?.name);
       const categoryVisual = tx.type === 'income' ? FALLBACK_CATEGORY_VISUALS.income : FALLBACK_CATEGORY_VISUALS.expense;
 
@@ -98,6 +111,7 @@ export function useFinanceSelectors() {
         categoryName: tx.type === 'income' ? 'Income' : category?.name ?? categoryVisual.name,
         categoryIcon: category?.icon ?? template?.icon ?? categoryVisual.icon,
         categoryColor: category?.color ?? template?.color ?? categoryVisual.color,
+        walletName: wallet?.name ?? 'General',
         relativeDay: formatRelativeDay(tx.date),
       };
     });
@@ -140,6 +154,7 @@ export function useFinanceSelectors() {
         .filter((debt) => !debt.deleted_at && !debt.is_settled && debt.type === 'owed')
         .reduce((sum, debt) => sum + debt.amount, 0),
     };
+      const totalWalletBalance = activeWallets.reduce((sum, wallet) => sum + wallet.current_balance, 0);
 
     return {
       loading,
@@ -148,9 +163,17 @@ export function useFinanceSelectors() {
       hasData:
         state.transactions.length > 0 ||
         state.categories.length > 0 ||
+        state.wallets.length > 0 ||
         state.budgets.length > 0 ||
         state.goals.length > 0 ||
         state.debts.length > 0,
+      wallets: activeWallets.map((wallet) => ({
+        ...wallet,
+        typeLabel: WALLET_TYPE_LABELS[wallet.type],
+      })),
+      balances: {
+        total: totalWalletBalance,
+      },
       allTransactions: activeTransactions,
       allTransactionsView: decoratedTransactions,
       recentTransactions,

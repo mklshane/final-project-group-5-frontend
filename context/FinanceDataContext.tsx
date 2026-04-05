@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_SYSTEM_CATEGORIES } from '@/constants/defaultCategories';
+import { DEFAULT_WALLET } from '@/constants/defaultWallets';
 import { useAuth } from '@/context/AuthContext';
 import type {
   BudgetRecord,
@@ -10,10 +11,13 @@ import type {
   SyncChange,
   SyncResponse,
   TransactionRecord,
+  WalletRecord,
+  WalletType,
 } from '@/types/finance';
 
 interface FinanceDataState {
   transactions: TransactionRecord[];
+  wallets: WalletRecord[];
   categories: CategoryRecord[];
   budgets: BudgetRecord[];
   goals: GoalRecord[];
@@ -26,9 +30,29 @@ interface AddTransactionInput {
   title: string;
   amount: number;
   type: 'expense' | 'income';
+  walletId?: string | null;
   categoryId?: string | null;
   date?: string;
   note?: string;
+}
+
+interface AddWalletInput {
+  name: string;
+  type?: WalletType;
+  institutionName?: string | null;
+  openingBalance?: number;
+  currentBalance?: number;
+  isDefault?: boolean;
+}
+
+interface UpdateWalletInput {
+  id: string;
+  name?: string;
+  type?: WalletType;
+  institutionName?: string | null;
+  openingBalance?: number;
+  currentBalance?: number;
+  isDefault?: boolean;
 }
 
 interface AddCategoryInput {
@@ -56,6 +80,9 @@ interface FinanceDataContextValue {
   syncNow: () => Promise<void>;
   addTransaction: (input: AddTransactionInput) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  addWallet: (input: AddWalletInput) => Promise<void>;
+  updateWallet: (input: UpdateWalletInput) => Promise<void>;
+  archiveWallet: (id: string) => Promise<void>;
   addCategory: (input: AddCategoryInput) => Promise<void>;
   updateCategory: (input: UpdateCategoryInput) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -67,6 +94,7 @@ const STORAGE_KEY_PREFIX = 'budgy_finance_data_v1';
 
 const defaultFinanceState: FinanceDataState = {
   transactions: [],
+  wallets: [],
   categories: [],
   budgets: [],
   goals: [],
@@ -92,6 +120,7 @@ const toTransaction = (record: Record<string, unknown>): TransactionRecord => ({
   type: record.type === 'income' ? 'income' : 'expense',
   amount: toNumber(record.amount),
   title: String(record.title ?? 'Untitled'),
+  wallet_id: record.wallet_id ? String(record.wallet_id) : null,
   category_id: record.category_id ? String(record.category_id) : null,
   date: String(record.date ?? nowIso()),
   note: record.note ? String(record.note) : null,
@@ -102,6 +131,27 @@ const toTransaction = (record: Record<string, unknown>): TransactionRecord => ({
   updated_at: record.updated_at ? String(record.updated_at) : undefined,
   deleted_at: record.deleted_at ? String(record.deleted_at) : null,
 });
+
+const toWallet = (record: Record<string, unknown>): WalletRecord => {
+  const rawType = String(record.type ?? 'general');
+  const type: WalletType = rawType === 'bank' || rawType === 'ewallet' || rawType === 'cash' ? rawType : 'general';
+
+  return {
+    id: String(record.id),
+    user_id: record.user_id ? String(record.user_id) : undefined,
+    name: String(record.name ?? 'General'),
+    type,
+    institution_name: record.institution_name ? String(record.institution_name) : null,
+    opening_balance: toNumber(record.opening_balance, 0),
+    current_balance: toNumber(record.current_balance, 0),
+    is_default: Boolean(record.is_default),
+    sort_order: toNumber(record.sort_order, 0),
+    version: toNumber(record.version, 1),
+    created_at: record.created_at ? String(record.created_at) : undefined,
+    updated_at: record.updated_at ? String(record.updated_at) : undefined,
+    deleted_at: record.deleted_at ? String(record.deleted_at) : null,
+  };
+};
 
 const toCategory = (record: Record<string, unknown>): CategoryRecord => ({
   id: String(record.id),
@@ -182,6 +232,9 @@ const applyServerChange = (state: FinanceDataState, change: SyncChange): Finance
     if (change.table === 'categories') {
       return { ...state, categories: state.categories.filter((c) => c.id !== change.record_id) };
     }
+    if (change.table === 'wallets') {
+      return { ...state, wallets: state.wallets.filter((w) => w.id !== change.record_id) };
+    }
     if (change.table === 'budgets') {
       return { ...state, budgets: state.budgets.filter((b) => b.id !== change.record_id) };
     }
@@ -197,6 +250,9 @@ const applyServerChange = (state: FinanceDataState, change: SyncChange): Finance
   }
   if (change.table === 'categories') {
     return { ...state, categories: upsertById(state.categories, toCategory(change.record)) };
+  }
+  if (change.table === 'wallets') {
+    return { ...state, wallets: upsertById(state.wallets, toWallet(change.record)) };
   }
   if (change.table === 'budgets') {
     return { ...state, budgets: upsertById(state.budgets, toBudget(change.record)) };
@@ -215,6 +271,7 @@ const parseCachedFinanceState = (raw: string | null): FinanceDataState => {
     const parsed = JSON.parse(raw) as Partial<FinanceDataState>;
     return {
       transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+      wallets: Array.isArray(parsed.wallets) ? parsed.wallets : [],
       categories: Array.isArray(parsed.categories) ? parsed.categories : [],
       budgets: Array.isArray(parsed.budgets) ? parsed.budgets : [],
       goals: Array.isArray(parsed.goals) ? parsed.goals : [],
@@ -245,6 +302,25 @@ const createDefaultCategoryRecords = (userId: string): CategoryRecord[] => {
   }));
 };
 
+const createDefaultWalletRecord = (userId: string): WalletRecord => {
+  const timestamp = nowIso();
+  return {
+    id: createId(),
+    user_id: userId,
+    name: DEFAULT_WALLET.name,
+    type: DEFAULT_WALLET.type,
+    institution_name: null,
+    opening_balance: 0,
+    current_balance: 0,
+    is_default: DEFAULT_WALLET.isDefault,
+    sort_order: DEFAULT_WALLET.sortOrder,
+    version: 1,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+  };
+};
+
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const [state, setState] = useState<FinanceDataState>(defaultFinanceState);
@@ -253,6 +329,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
   const [error, setError] = useState<string | null>(null);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const [defaultsSeededForUserId, setDefaultsSeededForUserId] = useState<string | null>(null);
+  const [walletsSeededForUserId, setWalletsSeededForUserId] = useState<string | null>(null);
 
   const runSync = useCallback(
     async (changes: SyncChange[], lastSyncedAt: string | null) => {
@@ -309,6 +386,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       setError(null);
       setHydratedUserId(null);
       setDefaultsSeededForUserId(null);
+      setWalletsSeededForUserId(null);
       return;
     }
 
@@ -365,6 +443,33 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
   }, [defaultsSeededForUserId, loading, runSync, session, state.categories.length, state.lastSyncedAt]);
 
   useEffect(() => {
+    if (!session || loading) return;
+    if (walletsSeededForUserId === session.user.id) return;
+    if (state.wallets.length > 0) {
+      setWalletsSeededForUserId(session.user.id);
+      return;
+    }
+
+    const defaultWallet = createDefaultWalletRecord(session.user.id);
+    const change: SyncChange = {
+      table: 'wallets',
+      action: 'create',
+      record_id: defaultWallet.id,
+      record: defaultWallet as unknown as Record<string, unknown>,
+      version: defaultWallet.version,
+    };
+
+    setState((prev) => ({
+      ...prev,
+      wallets: [defaultWallet],
+      pendingChanges: [...prev.pendingChanges, change],
+    }));
+    setWalletsSeededForUserId(session.user.id);
+
+    void runSync([change], state.lastSyncedAt);
+  }, [walletsSeededForUserId, loading, runSync, session, state.lastSyncedAt, state.wallets.length]);
+
+  useEffect(() => {
     if (!session || hydratedUserId !== session.user.id) return;
 
     AsyncStorage.setItem(storageKeyForUser(session.user.id), JSON.stringify(state)).catch(() => undefined);
@@ -388,6 +493,11 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         type: input.type,
         amount: input.amount,
         title: input.title,
+        wallet_id:
+          input.walletId ??
+          state.wallets.find((wallet) => wallet.is_default && !wallet.deleted_at)?.id ??
+          state.wallets.find((wallet) => !wallet.deleted_at)?.id ??
+          null,
         category_id: input.categoryId ?? null,
         date,
         note: input.note ?? null,
@@ -413,7 +523,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
       await runSync([change], state.lastSyncedAt);
     },
-    [runSync, session, state.lastSyncedAt]
+    [runSync, session, state.lastSyncedAt, state.wallets]
   );
 
   const deleteTransaction = useCallback(
@@ -488,6 +598,145 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       await runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.categories, state.lastSyncedAt]
+  );
+
+  const addWallet = useCallback(
+    async (input: AddWalletInput) => {
+      if (!session) return;
+
+      const name = input.name.trim();
+      if (!name) return;
+
+      const id = createId();
+      const version = 1;
+      const date = nowIso();
+      const activeWallets = state.wallets.filter((wallet) => !wallet.deleted_at);
+      const maxOrder = activeWallets.reduce((max, wallet) => Math.max(max, wallet.sort_order ?? 0), 0);
+
+      const record: WalletRecord = {
+        id,
+        user_id: session.user.id,
+        name,
+        type: input.type ?? 'general',
+        institution_name: input.institutionName ?? null,
+        opening_balance: input.openingBalance ?? 0,
+        current_balance: input.currentBalance ?? input.openingBalance ?? 0,
+        is_default: activeWallets.length === 0 ? true : Boolean(input.isDefault),
+        sort_order: maxOrder + 1,
+        version,
+        created_at: date,
+        updated_at: date,
+        deleted_at: null,
+      };
+
+      const change: SyncChange = {
+        table: 'wallets',
+        action: 'create',
+        record_id: id,
+        record: record as unknown as Record<string, unknown>,
+        version,
+      };
+
+      setState((prev) => {
+        const nextWallets = record.is_default
+          ? prev.wallets.map((wallet) => ({ ...wallet, is_default: wallet.id === record.id }))
+          : prev.wallets;
+
+        return {
+          ...prev,
+          wallets: upsertById(nextWallets, record),
+          pendingChanges: [...prev.pendingChanges, change],
+        };
+      });
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, session, state.lastSyncedAt, state.wallets]
+  );
+
+  const updateWallet = useCallback(
+    async (input: UpdateWalletInput) => {
+      const existing = state.wallets.find((wallet) => wallet.id === input.id && !wallet.deleted_at);
+      if (!existing) return;
+
+      const name = input.name !== undefined ? input.name.trim() : existing.name;
+      if (!name) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const updated: WalletRecord = {
+        ...existing,
+        name,
+        type: input.type ?? existing.type,
+        institution_name: input.institutionName !== undefined ? input.institutionName : existing.institution_name,
+        opening_balance: input.openingBalance ?? existing.opening_balance ?? 0,
+        current_balance: input.currentBalance ?? existing.current_balance,
+        is_default: input.isDefault ?? existing.is_default,
+        version: nextVersion,
+        updated_at: nowIso(),
+      };
+
+      const change: SyncChange = {
+        table: 'wallets',
+        action: 'update',
+        record_id: updated.id,
+        record: updated as unknown as Record<string, unknown>,
+        version: nextVersion,
+      };
+
+      setState((prev) => {
+        const nextWallets = updated.is_default
+          ? prev.wallets.map((wallet) => ({ ...wallet, is_default: wallet.id === updated.id }))
+          : prev.wallets;
+
+        return {
+          ...prev,
+          wallets: upsertById(nextWallets, updated),
+          pendingChanges: [...prev.pendingChanges, change],
+        };
+      });
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.lastSyncedAt, state.wallets]
+  );
+
+  const archiveWallet = useCallback(
+    async (id: string) => {
+      const activeWallets = state.wallets.filter((wallet) => !wallet.deleted_at);
+      if (activeWallets.length <= 1) return;
+
+      const existing = activeWallets.find((wallet) => wallet.id === id);
+      if (!existing) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const change: SyncChange = {
+        table: 'wallets',
+        action: 'delete',
+        record_id: id,
+        version: nextVersion,
+      };
+
+      setState((prev) => {
+        let remaining = prev.wallets.filter((wallet) => wallet.id !== id);
+
+        if (existing.is_default) {
+          const nextDefaultId = remaining.find((wallet) => !wallet.deleted_at)?.id;
+          remaining = remaining.map((wallet) => ({
+            ...wallet,
+            is_default: nextDefaultId ? wallet.id === nextDefaultId : wallet.is_default,
+          }));
+        }
+
+        return {
+          ...prev,
+          wallets: remaining,
+          pendingChanges: [...prev.pendingChanges, change],
+        };
+      });
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.lastSyncedAt, state.wallets]
   );
 
   const updateCategory = useCallback(
@@ -583,6 +832,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       syncNow,
       addTransaction,
       deleteTransaction,
+      addWallet,
+      updateWallet,
+      archiveWallet,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -595,6 +847,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       syncNow,
       addTransaction,
       deleteTransaction,
+      addWallet,
+      updateWallet,
+      archiveWallet,
       addCategory,
       updateCategory,
       deleteCategory,

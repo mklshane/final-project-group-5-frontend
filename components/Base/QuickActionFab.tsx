@@ -29,8 +29,8 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
   const palette = {
     fabBg: isDark ? '#C8F560' : '#1A1E14',
     fabIcon: isDark ? '#1A1E14' : '#C8F560',
-    menuBg: isDark ? '#1A1E14' : '#FFFFFF',
-    menuBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.1)',
+    itemBg: isDark ? '#1A1E14' : '#FFFFFF',
+    itemBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.10)',
     label: isDark ? '#EDF0E4' : '#1A1E14',
   };
 
@@ -111,7 +111,7 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
               onPress={() => {
                 void onActionPress(action.handler);
               }}
-              style={[s.menuItem, { backgroundColor: palette.menuBg, borderColor: palette.menuBorder }]}
+              style={[s.menuItem, { backgroundColor: palette.itemBg, borderColor: palette.itemBorder }]}
             >
               <View style={[s.menuIconCircle, { backgroundColor: `${action.accentColor}22` }]}>
                 <Ionicons name={action.icon} size={18} color={action.accentColor} />

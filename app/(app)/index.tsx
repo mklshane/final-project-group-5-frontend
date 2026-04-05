@@ -122,6 +122,33 @@ export default function HomeScreen() {
           <Text style={[s.cardSub, { color: palette.heroSub }]}>{todaySubtitle}</Text>
         </View>
 
+        {finance.wallets.length > 0 ? (
+          <View style={s.walletDistributionWrap}>
+            <Text style={[s.walletDistributionLabel, { color: palette.tertiary }]}>WALLETS</Text>
+            <View style={s.walletDistributionList}>
+              {finance.wallets.map((wallet) => (
+                <View
+                  key={wallet.id}
+                  style={[
+                    s.walletItem,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
+                      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.08)',
+                    },
+                  ]}
+                >
+                  <Text style={[s.walletName, { color: palette.subtext }]} numberOfLines={1}>
+                    {wallet.name}
+                  </Text>
+                  <Text style={[s.walletAmount, { color: palette.heading }]}>
+                    {finance.formatCurrency(wallet.current_balance)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {/* ── Recent Transactions ───────────────────────── */}
         <View style={s.recentHeader}>
           <Text style={[s.recentTitle, { color: palette.tertiary }]}>RECENT</Text>
@@ -151,7 +178,7 @@ export default function HomeScreen() {
                 <TransactionCard
                   key={tx.id}
                   title={tx.title}
-                  categoryName={tx.categoryName}
+                  categoryName={`${tx.categoryName} • ${tx.walletName}`}
                   categoryIcon={tx.categoryIcon}
                   categoryColor={tx.categoryColor}
                   amountLabel={amountLabel}
@@ -242,6 +269,39 @@ const s = StyleSheet.create({
   // Greeting
   greetingContainer: {
     marginBottom: 24,
+  },
+  walletDistributionWrap: {
+    marginBottom: 14,
+  },
+  walletDistributionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+    opacity: 0.85,
+  },
+  walletDistributionList: {
+    gap: 8,
+  },
+  walletItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  walletName: {
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.82,
+    maxWidth: '62%',
+  },
+  walletAmount: {
+    fontSize: 12,
+    fontWeight: '700',
+    opacity: 0.9,
   },
   greetingTitle: {
     fontSize: 32,

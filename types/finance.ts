@@ -1,5 +1,7 @@
-export type SyncTable = 'transactions' | 'categories' | 'budgets' | 'goals' | 'debts';
+export type SyncTable = 'transactions' | 'categories' | 'budgets' | 'goals' | 'debts' | 'wallets';
 export type SyncAction = 'create' | 'update' | 'delete';
+
+export type WalletType = 'general' | 'bank' | 'ewallet' | 'cash';
 
 export interface SyncChange {
   table: SyncTable;
@@ -28,6 +30,7 @@ export interface TransactionRecord {
   type: 'expense' | 'income';
   amount: number;
   title: string;
+  wallet_id?: string | null;
   category_id: string | null;
   date: string;
   note?: string | null;
@@ -89,6 +92,22 @@ export interface DebtRecord {
   description?: string | null;
   is_settled?: boolean;
   settled_at?: string | null;
+  version: number;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+}
+
+export interface WalletRecord {
+  id: string;
+  user_id?: string;
+  name: string;
+  type: WalletType;
+  institution_name?: string | null;
+  opening_balance?: number;
+  current_balance: number;
+  is_default?: boolean;
+  sort_order?: number;
   version: number;
   created_at?: string;
   updated_at?: string;
