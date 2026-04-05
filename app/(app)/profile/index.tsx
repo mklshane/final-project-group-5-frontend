@@ -34,8 +34,6 @@ export default function ProfileScreen() {
           Profile
         </Text>
 
-        <AppearanceModeSelector />
-
         <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">WALLETS</Text>
 
         <WalletPreviewSection wallets={finance.wallets} formatCurrency={finance.formatCurrency} />
@@ -85,6 +83,10 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={palette.cardSub} />
           </View>
         </TouchableOpacity>
+
+        <View className="mt-5">
+          <AppearanceModeSelector />
+        </View>
 
         <TouchableOpacity
           onPress={signOut}

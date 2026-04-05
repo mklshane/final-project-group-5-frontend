@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -12,6 +13,7 @@ import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colorScheme } = useColorScheme();
   const { profile } = useAuth();
   const { addTransaction, deleteTransaction } = useFinanceData();
@@ -83,6 +85,8 @@ export default function HomeScreen() {
   const greetingSub = finance.month.spentTotal
     ? `You are at ${Math.max(0, Math.min(100, Math.round((finance.today.spentTotal / finance.month.spentTotal) * 100)))}% of this month's spend today.`
     : 'Start tracking expenses to unlock insights and patterns.';
+  const walletPreview = finance.wallets.slice(0, 3);
+  const hasMoreWallets = finance.wallets.length > 3;
 
   return (
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: palette.screenBg }]}> 
@@ -124,13 +128,25 @@ export default function HomeScreen() {
 
         {finance.wallets.length > 0 ? (
           <View style={s.walletDistributionWrap}>
-            <Text style={[s.walletDistributionLabel, { color: palette.tertiary }]}>WALLETS</Text>
-            <View style={s.walletDistributionList}>
-              {finance.wallets.map((wallet) => (
+            <View style={s.walletHeaderRow}>
+              <Text style={[s.walletDistributionLabel, { color: palette.tertiary }]}>WALLETS</Text>
+              {hasMoreWallets ? (
+                <Pressable onPress={() => router.push('/(app)/profile/manage-wallets')}>
+                  <Text style={[s.walletSeeAll, { color: palette.subtext }]}>See all</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <View style={s.walletDistributionRow}>
+              {walletPreview.map((wallet) => (
                 <View
                   key={wallet.id}
                   style={[
                     s.walletItem,
+                    walletPreview.length === 1
+                      ? s.walletItemFull
+                      : walletPreview.length === 2
+                        ? s.walletItemHalf
+                        : s.walletItemThird,
                     {
                       backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
                       borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.08)',
@@ -273,14 +289,26 @@ const s = StyleSheet.create({
   walletDistributionWrap: {
     marginBottom: 14,
   },
+  walletHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   walletDistributionLabel: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.5,
-    marginBottom: 8,
     opacity: 0.85,
   },
-  walletDistributionList: {
+  walletSeeAll: {
+    fontSize: 11,
+    fontWeight: '700',
+    opacity: 0.8,
+  },
+  walletDistributionRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
     gap: 8,
   },
   walletItem: {
@@ -291,6 +319,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  walletItemFull: {
+    flex: 1,
+  },
+  walletItemHalf: {
+    flex: 1,
+  },
+  walletItemThird: {
+    flex: 1,
   },
   walletName: {
     fontSize: 12,

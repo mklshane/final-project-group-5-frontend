@@ -21,32 +21,35 @@ export function WalletPreviewItem({ wallet, amountLabel }: WalletPreviewItemProp
     iconColor: isDark ? '#C8F560' : '#1A1E14',
     title: isDark ? '#EDF0E4' : '#1A1E14',
     sub: isDark ? '#8A8F7C' : '#6B7060',
-    amount: isDark ? '#C8F560' : '#1A1E14',
+    amount: isDark ? '#EDF0E4' : '#1A1E14',
+    typeText: isDark ? '#AEB59A' : '#5D6252',
     chipBg: isDark ? 'rgba(200,245,96,0.18)' : 'rgba(200,245,96,0.30)',
     chipText: isDark ? '#C8F560' : '#6E8F1A',
   };
 
   return (
     <View style={[s.card, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}>
-      <View style={[s.iconWrap, { backgroundColor: palette.iconBg }]}>
-        <Ionicons name={icon} size={18} color={palette.iconColor} />
-      </View>
-
-      <View style={s.info}>
-        <View style={s.titleRow}>
-          <Text style={[s.title, { color: palette.title }]} numberOfLines={1}>
-            {wallet.name}
-          </Text>
-          {wallet.is_default ? (
-            <View style={[s.defaultChip, { backgroundColor: palette.chipBg }]}>
-              <Text style={[s.defaultChipText, { color: palette.chipText }]}>DEFAULT</Text>
-            </View>
-          ) : null}
+      <View style={s.mainRow}>
+        <View style={[s.iconWrap, { backgroundColor: palette.iconBg }]}> 
+          <Ionicons name={icon} size={18} color={palette.iconColor} />
         </View>
-        <Text style={[s.sub, { color: palette.sub }]}>{wallet.typeLabel ?? wallet.type}</Text>
-      </View>
 
-      <Text style={[s.amount, { color: palette.amount }]}>{amountLabel}</Text>
+        <View style={s.info}>
+          <View style={s.titleRow}>
+            <Text style={[s.title, { color: palette.title }]} numberOfLines={1}>
+              {wallet.name}
+            </Text>
+            {wallet.is_default ? (
+              <View style={[s.defaultChip, { backgroundColor: palette.chipBg }]}> 
+                <Text style={[s.defaultChipText, { color: palette.chipText }]}>DEFAULT</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={[s.typeText, { color: palette.typeText }]}>{wallet.typeLabel ?? wallet.type}</Text>
+        </View>
+
+        <Text style={[s.amount, { color: palette.amount }]}>{amountLabel}</Text>
+      </View>
     </View>
   );
 }
@@ -57,6 +60,8 @@ const s = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
+  },
+  mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -82,7 +87,7 @@ const s = StyleSheet.create({
     fontWeight: '800',
     maxWidth: 150,
   },
-  sub: {
+  typeText: {
     fontSize: 12,
     fontWeight: '500',
     marginTop: 2,
@@ -100,6 +105,5 @@ const s = StyleSheet.create({
   amount: {
     fontSize: 14,
     fontWeight: '800',
-    marginLeft: 4,
   },
 });
