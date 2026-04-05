@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { CURRENCIES } from '@/constants/currencies';
+import { FALLBACK_CATEGORY_VISUALS, getDefaultTemplateByName } from '@/constants/defaultCategories';
 import type { BudgetRecord, CategoryRecord, TransactionRecord } from '@/types/finance';
 
 const startOfDay = (date: Date) => {
@@ -87,6 +88,20 @@ export function useFinanceSelectors() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const categoriesById = categoryMap(state.categories);
 
+    const decoratedTransactions = activeTransactions.map((tx) => {
+      const category = tx.category_id ? categoriesById.get(tx.category_id) : undefined;
+      const template = getDefaultTemplateByName(category?.name);
+      const categoryVisual = tx.type === 'income' ? FALLBACK_CATEGORY_VISUALS.income : FALLBACK_CATEGORY_VISUALS.expense;
+
+      return {
+        ...tx,
+        categoryName: tx.type === 'income' ? 'Income' : category?.name ?? categoryVisual.name,
+        categoryIcon: category?.icon ?? template?.icon ?? categoryVisual.icon,
+        categoryColor: category?.color ?? template?.color ?? categoryVisual.color,
+        relativeDay: formatRelativeDay(tx.date),
+      };
+    });
+
     const todayTransactions = activeTransactions.filter((tx) => isWithin(tx.date, dayStart, dayEnd));
     const todayExpenses = todayTransactions.filter((tx) => tx.type === 'expense');
 
@@ -98,14 +113,7 @@ export function useFinanceSelectors() {
       .filter((tx) => tx.type === 'income')
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    const recentTransactions = activeTransactions.slice(0, 5).map((tx) => {
-      const category = tx.category_id ? categoriesById.get(tx.category_id) : undefined;
-      return {
-        ...tx,
-        categoryName: tx.type === 'income' ? 'Income' : category?.name ?? 'Uncategorized',
-        relativeDay: formatRelativeDay(tx.date),
-      };
-    });
+    const recentTransactions = decoratedTransactions.slice(0, 5);
 
     const categorySpendTotals = new Map<string, number>();
     for (const tx of monthTransactions) {
@@ -144,6 +152,7 @@ export function useFinanceSelectors() {
         state.goals.length > 0 ||
         state.debts.length > 0,
       allTransactions: activeTransactions,
+      allTransactionsView: decoratedTransactions,
       recentTransactions,
       today: {
         spentTotal: todayExpenses.reduce((sum, tx) => sum + tx.amount, 0),

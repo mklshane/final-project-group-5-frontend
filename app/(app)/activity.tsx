@@ -62,21 +62,23 @@ export default function ActivityScreen() {
           <View className="flex-1 items-center justify-center px-8">
             <Text className="text-secondary text-base">Loading transactions...</Text>
           </View>
-        ) : finance.allTransactions.length === 0 ? (
+        ) : finance.allTransactionsView.length === 0 ? (
           <View className="flex-1 items-center justify-center px-8">
             <Text className="text-secondary text-center text-base">No activity yet. Add your first transaction from the Home screen.</Text>
           </View>
         ) : (
           <FlatList
-            data={finance.allTransactions}
+            data={finance.allTransactionsView}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24, gap: 12 }}
             renderItem={({ item }) => (
               <TransactionCard
                 title={item.title}
-                categoryName={item.type === 'income' ? 'Income' : 'Expense'}
+                categoryName={item.categoryName}
+                categoryIcon={item.categoryIcon}
+                categoryColor={item.categoryColor}
                 amountLabel={`${item.type === 'income' ? '+' : ''}${finance.formatCurrency(item.amount)}`}
-                timeLabel={new Date(item.date).toLocaleDateString()}
+                timeLabel={item.relativeDay}
                 kind={item.title.toLowerCase().includes('scan') ? 'scan' : item.type === 'income' ? 'income' : 'expense'}
                 onDeletePress={() => requestDelete(item.id)}
               />

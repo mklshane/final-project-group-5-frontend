@@ -152,6 +152,8 @@ export default function HomeScreen() {
                   key={tx.id}
                   title={tx.title}
                   categoryName={tx.categoryName}
+                  categoryIcon={tx.categoryIcon}
+                  categoryColor={tx.categoryColor}
                   amountLabel={amountLabel}
                   timeLabel={tx.relativeDay}
                   kind={kind}

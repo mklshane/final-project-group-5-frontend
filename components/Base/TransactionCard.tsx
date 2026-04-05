@@ -9,6 +9,8 @@ type TransactionKind = 'income' | 'expense' | 'scan';
 interface TransactionCardProps {
   title: string;
   categoryName: string;
+  categoryIcon?: string;
+  categoryColor?: string;
   amountLabel: string;
   timeLabel: string;
   kind: TransactionKind;
@@ -18,6 +20,8 @@ interface TransactionCardProps {
 export function TransactionCard({
   title,
   categoryName,
+  categoryIcon,
+  categoryColor,
   amountLabel,
   timeLabel,
   kind,
@@ -43,10 +47,17 @@ export function TransactionCard({
     scan: { icon: 'scan-circle-outline' as const, iconColor: '#8FAF2B', iconBg: 'rgba(200,245,96,0.22)' },
   }[kind];
 
+  const resolvedIcon =
+    categoryIcon && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, categoryIcon)
+      ? (categoryIcon as keyof typeof Ionicons.glyphMap)
+      : visual.icon;
+  const resolvedIconColor = categoryColor ?? visual.iconColor;
+  const resolvedIconBg = categoryColor ? `${categoryColor}1F` : visual.iconBg;
+
   const CardContent = (
     <View style={[s.card, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}> 
-      <View style={[s.iconWrap, { backgroundColor: visual.iconBg }]}> 
-        <Ionicons name={visual.icon} size={20} color={visual.iconColor} />
+      <View style={[s.iconWrap, { backgroundColor: resolvedIconBg }]}> 
+        <Ionicons name={resolvedIcon} size={20} color={resolvedIconColor} />
       </View>
 
       <View style={s.info}>
