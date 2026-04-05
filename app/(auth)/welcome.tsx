@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
 
       {/* ── Brand mark ─────────────────────────────── */}
       <Animated.View entering={FadeIn.duration(500)} style={s.brand}>
-        <View style={s.brandDot} />
+        <Image source={require('../../assets/images/logo2.png')} style={s.brandLogo} resizeMode="contain" />
         <Text style={s.brandWord}>BUDGY</Text>
       </Animated.View>
 
@@ -123,9 +123,10 @@ const s = StyleSheet.create({
 
   // Brand
   brand: { flexDirection: 'row', alignItems: 'center', marginBottom: 48 },
-  brandDot: {
-    width: 7, height: 7, borderRadius: 2,
-    backgroundColor: '#C8F560', marginRight: 10,
+  brandLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 10,
   },
   brandWord: {
     color: '#EDF0E4', fontSize: 11, fontWeight: '800', letterSpacing: 4,

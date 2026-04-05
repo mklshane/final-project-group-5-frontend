@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
+  View, Text, TextInput, Pressable, StyleSheet, Image,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -90,7 +90,7 @@ export default function LoginScreen() {
       >
         {/* Brand */}
         <View style={s.headerBrand}>
-          <View style={s.brandDot} />
+          <Image source={require('../../assets/images/logo2.png')} style={s.brandLogo} resizeMode="contain" />
           <Text style={s.brandWord}>BUDGY</Text>
         </View>
 
@@ -210,9 +210,10 @@ const s = StyleSheet.create({
   headerBrand: {
     flexDirection: 'row', alignItems: 'center', marginBottom: 28,
   },
-  brandDot: {
-    width: 7, height: 7, borderRadius: 2,
-    backgroundColor: '#C8F560', marginRight: 10,
+  brandLogo: {
+    width: 22,
+    height: 22,
+    marginRight: 10,
   },
   brandWord: {
     color: '#EDF0E4', fontSize: 11, fontWeight: '800', letterSpacing: 4,

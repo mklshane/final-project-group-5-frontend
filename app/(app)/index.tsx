@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import { Ionicons } from '@expo/vector-icons';
+import { WALLET_TYPE_ICONS } from '@/constants/defaultWallets';
 import { useAuth } from '@/context/AuthContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
@@ -98,7 +99,7 @@ export default function HomeScreen() {
         <View style={s.header}>
           <View style={s.logoContainer}>
             <View style={s.logoCircle}>
-              <Ionicons name="happy" size={20} color={palette.logoIcon} />
+              <Image source={require('../../assets/images/logo2.png')} style={s.logoImage} resizeMode="contain" />
             </View>
             <Text style={[s.brandText, { color: palette.heading }]}>Budgy</Text>
             <View style={[s.betaBadge, { backgroundColor: palette.betaBg }]}> 
@@ -153,10 +154,31 @@ export default function HomeScreen() {
                     },
                   ]}
                 >
-                  <Text style={[s.walletName, { color: palette.subtext }]} numberOfLines={1}>
-                    {wallet.name}
-                  </Text>
-                  <Text style={[s.walletAmount, { color: palette.heading }]}>
+                  <View style={s.walletLeft}>
+                    <View
+                      style={[
+                        s.walletIconWrap,
+                        { backgroundColor: isDark ? 'rgba(200,245,96,0.14)' : 'rgba(26,30,20,0.07)' },
+                      ]}
+                    >
+                      <Ionicons
+                        name={WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap}
+                        size={13}
+                        color={isDark ? '#C8F560' : '#1A1E14'}
+                      />
+                    </View>
+
+                    <View style={s.walletTextWrap}>
+                      <Text style={[s.walletName, { color: palette.heading }]} numberOfLines={1}>
+                        {wallet.name}
+                      </Text>
+                      <Text style={[s.walletType, { color: palette.subtext }]} numberOfLines={1}>
+                        {wallet.typeLabel ?? wallet.type}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[s.walletAmount, { color: palette.heading }]} numberOfLines={1}>
                     {finance.formatCurrency(wallet.current_balance)}
                   </Text>
                 </View>
@@ -245,24 +267,27 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 24,
+    marginTop: 8,
+    marginBottom: 14,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1A1E14',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 7,
+  },
+  logoImage: {
+    width: 28,
+    height: 28,
   },
   brandText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#1A1E14',
     letterSpacing: -0.5,
@@ -276,7 +301,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   betaText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     color: '#8AAB32',
     letterSpacing: 1,
@@ -284,7 +309,7 @@ const s = StyleSheet.create({
 
   // Greeting
   greetingContainer: {
-    marginBottom: 24,
+    marginBottom: 14,
   },
   walletDistributionWrap: {
     marginBottom: 14,
@@ -313,9 +338,9 @@ const s = StyleSheet.create({
   },
   walletItem: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 13,
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -329,75 +354,103 @@ const s = StyleSheet.create({
   walletItemThird: {
     flex: 1,
   },
+  walletLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    flexShrink: 1,
+    marginRight: 6,
+  },
+  walletIconWrap: {
+    width: 23,
+    height: 23,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 7,
+  },
+  walletTextWrap: {
+    minWidth: 0,
+    flexShrink: 1,
+  },
   walletName: {
-    fontSize: 12,
-    fontWeight: '600',
-    opacity: 0.82,
-    maxWidth: '62%',
+    fontSize: 11,
+    fontWeight: '700',
+    maxWidth: 84,
+  },
+  walletType: {
+    fontSize: 10,
+    fontWeight: '500',
+    opacity: 0.78,
+    marginTop: 1,
+    maxWidth: 84,
   },
   walletAmount: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    opacity: 0.9,
+    opacity: 0.95,
+    textAlign: 'right',
+    marginLeft: 4,
   },
   greetingTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1A1E14',
     letterSpacing: -1,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   greetingSub: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#6B7060',
-    lineHeight: 20,
+    lineHeight: 18,
     paddingRight: 20,
   },
 
   // Main Card
   card: {
     backgroundColor: '#222618',
-    borderRadius: 24,
-    padding: 28,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     overflow: 'hidden',
     position: 'relative',
-    marginBottom: 32,
+    marginBottom: 18,
   },
   cardDeco1: {
     position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     backgroundColor: 'rgba(200, 245, 96, 0.05)',
-    top: -50,
-    right: -50,
+    top: -42,
+    right: -42,
   },
   cardDeco2: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: 'rgba(200, 245, 96, 0.03)',
-    bottom: -30,
-    right: 40,
+    bottom: -20,
+    right: 26,
   },
   cardLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#8A8F7C',
-    letterSpacing: 1.5,
-    marginBottom: 16,
-  },
-  cardAmount: {
-    fontSize: 56,
-    fontWeight: '800',
-    color: '#C8F560',
-    letterSpacing: -2,
+    letterSpacing: 1.3,
     marginBottom: 12,
   },
+  cardAmount: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: '#C8F560',
+    letterSpacing: -1.4,
+    marginBottom: 9,
+  },
   cardSub: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#8A8F7C',
   },
