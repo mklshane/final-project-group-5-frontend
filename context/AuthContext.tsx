@@ -37,11 +37,25 @@ const fetchProfile = async (accessToken: string): Promise<Profile | null> => {
     const res = await fetch(`${API_BASE_URL}/api/profile`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error('[fetchProfile] failed:', res.status, JSON.stringify(body));
+      return null;
+    }
     return res.json();
-  } catch {
+  } catch (e) {
+    console.error('[fetchProfile] exception:', e);
     return null;
   }
+};
+
+const fetchProfileWithRetry = async (accessToken: string, retries = 3): Promise<Profile | null> => {
+  for (let i = 0; i < retries; i++) {
+    const profile = await fetchProfile(accessToken);
+    if (profile) return profile;
+    if (i < retries - 1) await new Promise(r => setTimeout(r, 1500));
+  }
+  return null;
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -55,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.access_token) {
-        fetchProfile(session.access_token).then((p) => {
+        fetchProfileWithRetry(session.access_token).then((p) => {
           setProfile(p);
           setLoading(false);
         });
@@ -68,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
-        const p = await fetchProfile(session.access_token);
+        const p = await fetchProfileWithRetry(session.access_token);
         setProfile(p);
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
@@ -80,8 +94,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('[signInWithEmail] full error:', JSON.stringify(error));
+    } else {
+      console.log('[signInWithEmail] success, user:', data.user?.id);
+    }
+    const message = error ? `${error.message} (status: ${error.status ?? 'unknown'})` : null;
+    return { error: message };
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {

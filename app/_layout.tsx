@@ -9,7 +9,7 @@ import { DevPanel } from '@/components/DevPanel';
 import { devStore } from '@/lib/devStore';
 
 function RootLayoutNav() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, refreshProfile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -29,6 +29,9 @@ function RootLayoutNav() {
       } else if (profile.onboarding_done && !inApp) {
         router.replace('/(app)/home');
       }
+    } else {
+      // Session exists but profile fetch failed — retry
+      refreshProfile();
     }
   }, [session, profile, loading]);
 

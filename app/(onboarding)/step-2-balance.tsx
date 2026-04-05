@@ -67,7 +67,7 @@ export default function Step2Balance() {
         await refreshProfile();
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data?.message ?? 'Something went wrong. Please try again.');
+        setError(data?.error ?? 'Something went wrong. Please try again.');
       }
     } catch {
       setError('Network error. Check your connection.');

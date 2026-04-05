@@ -1,98 +1,265 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View, Text, TextInput, Pressable, StyleSheet,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  FadeInDown, FadeIn,
+  configureReanimatedLogger, ReanimatedLogLevel,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/context/AuthContext';
+
+configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
+
+function UnderlineInput({
+  label, value, onChangeText, error, secureTextEntry,
+  rightElement, keyboardType, autoCapitalize, autoComplete, placeholder,
+}: {
+  label: string; value: string; onChangeText: (t: string) => void;
+  error?: string; secureTextEntry?: boolean; rightElement?: React.ReactNode;
+  keyboardType?: any; autoCapitalize?: any; autoComplete?: any; placeholder?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={f.fieldWrap}>
+      <Text style={[f.fieldLabel, error && f.fieldLabelError, focused && f.fieldLabelFocused]}>
+        {label}
+      </Text>
+      <View style={[f.inputRow, { borderBottomColor: error ? '#FF6B6B' : focused ? '#C8F560' : '#E4E6D6' }]}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'none'}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          placeholderTextColor="#C8CCB8"
+          style={f.input}
+        />
+        {rightElement}
+      </View>
+      {error ? <Text style={f.fieldError}>{error}</Text> : null}
+    </View>
+  );
+}
 
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { signInWithEmail } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace('/(onboarding)/step-1-currency');
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    const { error: authError } = await signInWithEmail(email.trim(), password);
+    setLoading(false);
+    if (authError) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(authError);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-bg" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerClassName="flex-grow px-6 pb-12 pt-24" showsVerticalScrollIndicator={false}>
-        
-        <View className="mb-10">
-          <View className="w-16 h-16 rounded-2xl bg-budgy-lime/20 items-center justify-center mb-6">
-            <Ionicons name="log-in" size={32} color="#9BC23A" />
-          </View>
-          <Text className="text-text text-4xl font-extrabold tracking-tight leading-tight">Welcome{'\n'}Back</Text>
-          <Text className="text-secondary text-base font-medium mt-3">Enter your details to access your dashboard.</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#F4F5E9' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {/* ── Dark header ─────────────────────────────── */}
+      <Animated.View
+        entering={FadeIn.duration(400)}
+        style={[s.header, { paddingTop: insets.top + 20 }]}
+      >
+        {/* Brand */}
+        <View style={s.headerBrand}>
+          <View style={s.brandDot} />
+          <Text style={s.brandWord}>BUDGY</Text>
         </View>
 
-        <View className="gap-5 mb-8">
-          {/* Email Input */}
-          <View className="w-full">
-            <Text className="text-text text-sm font-bold mb-2 ml-1 tracking-wide">Email Address</Text>
-            <View className="flex-row items-center h-14 rounded-2xl bg-card border-[1.5px] border-card-deep px-4 focus:border-dark transition-colors">
-              <Ionicons name="mail-outline" size={20} color="#9DA28F" className="mr-3" />
-              <TextInput
-                className="flex-1 text-text text-base font-medium h-full ml-3"
-                placeholder="you@example.com"
-                placeholderTextColor="#9DA28F"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-          </View>
+        {/* Headline */}
+        <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+          <Text style={s.headerTitle}>Welcome{'\n'}back.</Text>
+          <Text style={s.headerSub}>Sign in to continue tracking your money.</Text>
+        </Animated.View>
+      </Animated.View>
 
-          {/* Password Input */}
-          <View className="w-full">
-            <Text className="text-text text-sm font-bold mb-2 ml-1 tracking-wide">Password</Text>
-            <View className="flex-row items-center h-14 rounded-2xl bg-card border-[1.5px] border-card-deep px-4 focus:border-dark transition-colors">
-              <Ionicons name="lock-closed-outline" size={20} color="#9DA28F" className="mr-3" />
-              <TextInput
-                className="flex-1 text-text text-base font-medium h-full ml-3"
-                placeholder="••••••••"
-                placeholderTextColor="#9DA28F"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <Pressable onPress={() => setShowPassword(!showPassword)} className="p-2">
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#9DA28F" />
-              </Pressable>
-            </View>
-          </View>
-        </View>
+      {/* ── Form ────────────────────────────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[s.form, { paddingBottom: insets.bottom + 24 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Error banner */}
+        {error ? (
+          <Animated.View entering={FadeInDown.duration(300)} style={s.errorBanner}>
+            <Ionicons name="alert-circle-outline" size={16} color="#FF6B6B" />
+            <Text style={s.errorText}>{error}</Text>
+          </Animated.View>
+        ) : null}
 
-        {/* Primary CTA */}
-        <Pressable 
+        <UnderlineInput
+          label="Email address"
+          value={email}
+          onChangeText={t => { setEmail(t); setError(''); }}
+          keyboardType="email-address"
+          autoComplete="email"
+          placeholder="you@example.com"
+        />
+
+        <UnderlineInput
+          label="Password"
+          value={password}
+          onChangeText={t => { setPassword(t); setError(''); }}
+          secureTextEntry={!showPassword}
+          autoComplete="password"
+          placeholder="••••••••"
+          rightElement={
+            <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={10}>
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={18} color="#9DA28F"
+              />
+            </Pressable>
+          }
+        />
+
+        {/* Sign in button */}
+        <Pressable
           onPress={handleLogin}
-          className="w-full h-[56px] bg-budgy-lime rounded-2xl items-center justify-center shadow-sm active:opacity-80"
+          disabled={loading}
+          style={[s.primaryBtn, loading && { opacity: 0.7 }]}
         >
-          <Text className="text-[#1A1E14] text-[16px] font-extrabold tracking-wide">Log In</Text>
+          {loading
+            ? <ActivityIndicator color="#1A1E14" />
+            : <Text style={s.primaryBtnText}>Sign In</Text>}
         </Pressable>
 
         {/* Divider */}
-        <View className="flex-row items-center my-8 opacity-60">
-          <View className="flex-1 h-[1px] bg-card-deep" />
-          <Text className="mx-4 text-xs font-bold text-secondary uppercase tracking-widest">or</Text>
-          <View className="flex-1 h-[1px] bg-card-deep" />
+        <View style={s.divider}>
+          <View style={s.dividerLine} />
+          <Text style={s.dividerText}>or</Text>
+          <View style={s.dividerLine} />
         </View>
 
-        {/* Social / Biometric */}
-        <View className="gap-4">
-          <Pressable className="h-[56px] bg-card rounded-2xl border border-card-deep items-center justify-center flex-row active:bg-card-alt shadow-sm">
-             <Ionicons name="logo-google" size={20} color="#4285F4" className="mr-3" />
-             <Text className="text-text font-bold text-[15px] ml-2">Continue with Google</Text>
-          </Pressable>
-          <Pressable className="h-[56px] bg-card rounded-2xl border border-card-deep items-center justify-center flex-row active:bg-card-alt shadow-sm">
-             <Ionicons name="finger-print" size={22} color="#1A1E14" className="dark:color-[#EDF0E4] mr-3" />
-             <Text className="text-text font-bold text-[15px] ml-2">Use Biometrics</Text>
+        {/* Google */}
+        <Pressable style={s.googleBtn}>
+          <Ionicons name="logo-google" size={18} color="#6B7060" />
+          <Text style={s.googleBtnText}>Continue with Google</Text>
+        </Pressable>
+
+        {/* Footer link */}
+        <View style={s.footer}>
+          <Text style={s.footerText}>Don't have an account?</Text>
+          <Pressable onPress={() => router.push('/(auth)/signup')} hitSlop={8}>
+            <Text style={s.footerLink}>  Create one</Text>
           </Pressable>
         </View>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+// ── Shared field styles ─────────────────────────
+const f = StyleSheet.create({
+  fieldWrap: { marginBottom: 28 },
+  fieldLabel: {
+    color: '#9DA28F', fontSize: 10, fontWeight: '700',
+    letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10,
+  },
+  fieldLabelFocused: { color: '#1A1E14' },
+  fieldLabelError: { color: '#FF6B6B' },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'center',
+    borderBottomWidth: 1.5, paddingBottom: 10,
+  },
+  input: {
+    flex: 1, color: '#1A1E14', fontSize: 16,
+    fontWeight: '500', paddingVertical: 0,
+  },
+  fieldError: { color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 },
+});
+
+// ── Screen styles ───────────────────────────────
+const s = StyleSheet.create({
+  header: {
+    backgroundColor: '#1A1E14',
+    paddingHorizontal: 28,
+    paddingBottom: 36,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerBrand: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 28,
+  },
+  brandDot: {
+    width: 7, height: 7, borderRadius: 2,
+    backgroundColor: '#C8F560', marginRight: 10,
+  },
+  brandWord: {
+    color: '#EDF0E4', fontSize: 11, fontWeight: '800', letterSpacing: 4,
+  },
+  headerTitle: {
+    color: '#EDF0E4', fontSize: 40, fontWeight: '800',
+    letterSpacing: -1, lineHeight: 46, marginBottom: 10,
+  },
+  headerSub: {
+    color: '#585D4C', fontSize: 14, fontWeight: '500', lineHeight: 21,
+  },
+
+  // Form
+  form: { paddingHorizontal: 28, paddingTop: 36 },
+
+  // Error
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,107,107,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,107,107,0.2)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    marginBottom: 24,
+  },
+  errorText: { color: '#FF6B6B', fontSize: 13, fontWeight: '500', flex: 1 },
+
+  // Buttons
+  primaryBtn: {
+    backgroundColor: '#C8F560', borderRadius: 16, height: 56,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 24,
+  },
+  primaryBtnText: { color: '#1A1E14', fontSize: 16, fontWeight: '800', letterSpacing: 0.1 },
+
+  // Divider
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E4E6D6' },
+  dividerText: { color: '#9DA28F', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
+
+  // Google
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1.5, borderColor: '#E4E6D6', borderRadius: 16, height: 52,
+    backgroundColor: '#fff', marginBottom: 32,
+  },
+  googleBtnText: { color: '#1A1E14', fontSize: 15, fontWeight: '600' },
+
+  // Footer
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  footerText: { color: '#9DA28F', fontSize: 14, fontWeight: '500' },
+  footerLink: { color: '#1A1E14', fontSize: 14, fontWeight: '700' },
+});
