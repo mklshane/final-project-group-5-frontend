@@ -24,6 +24,7 @@ export default function HomeScreen() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
+  const [scanRequestId, setScanRequestId] = useState<number | null>(null);
 
   const heroBg = '#222618';
   const heroSub = '#8A8F7C';
@@ -39,20 +40,20 @@ export default function HomeScreen() {
   );
 
   const handleQuickScan = async () => {
-    await addTransaction({
-      title: 'Quick scan receipt',
-      amount: 250,
-      type: 'expense',
-    });
+    setEntryMode('expense');
+    setScanRequestId(Date.now());
+    setEntryVisible(true);
   };
 
   const handleAddExpense = async () => {
     setEntryMode('expense');
+    setScanRequestId(null);
     setEntryVisible(true);
   };
 
   const handleAddIncome = async () => {
     setEntryMode('income');
+    setScanRequestId(null);
     setEntryVisible(true);
   };
 
@@ -279,9 +280,13 @@ export default function HomeScreen() {
       <TransactionEntryModal
         visible={entryVisible}
         mode={entryMode}
+        scanRequestId={scanRequestId}
         wallets={finance.wallets}
         categories={state.categories}
-        onClose={() => setEntryVisible(false)}
+        onClose={() => {
+          setEntryVisible(false);
+          setScanRequestId(null);
+        }}
         onSubmit={handleSubmitEntry}
       />
     </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import Animated, {
   FadeInDown, FadeIn,
   useSharedValue, withSpring, useAnimatedStyle,
   configureReanimatedLogger, ReanimatedLogLevel,
+  withRepeat, withTiming, Easing
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +16,34 @@ configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  // Button tap scale
   const btnScale = useSharedValue(1);
   const btnStyle = useAnimatedStyle(() => ({ transform: [{ scale: btnScale.value }] }));
+
+  // Continuous floating animations for illustration elements
+  const float1 = useSharedValue(0);
+  const float2 = useSharedValue(0);
+  const float3 = useSharedValue(0);
+
+  useEffect(() => {
+    // Smooth, staggered breathing animations
+    float1.value = withRepeat(withTiming(8, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true);
+    
+    setTimeout(() => {
+      float2.value = withRepeat(withTiming(-10, { duration: 2800, easing: Easing.inOut(Easing.ease) }), -1, true);
+    }, 400);
+
+    setTimeout(() => {
+      float3.value = withRepeat(withTiming(12, { duration: 2200, easing: Easing.inOut(Easing.ease) }), -1, true);
+    }, 800);
+  }, []);
+
+  const animCardBack = useAnimatedStyle(() => ({ transform: [{ translateY: float1.value }, { rotate: '-14deg' }] }));
+  const animCardFront = useAnimatedStyle(() => ({ transform: [{ translateY: float2.value }] }));
+  const animCoin1 = useAnimatedStyle(() => ({ transform: [{ translateY: float3.value }] }));
+  const animCoin2 = useAnimatedStyle(() => ({ transform: [{ translateY: float1.value }] }));
+  const animPill = useAnimatedStyle(() => ({ transform: [{ translateY: float2.value }, { rotate: '6deg' }] }));
 
   return (
     <View style={[s.root, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 16 }]}>
@@ -35,22 +62,41 @@ export default function WelcomeScreen() {
       {/* ── Main content (centered) ─────────────────── */}
       <View style={s.middle}>
 
-        {/* Balance preview card */}
-        <Animated.View entering={FadeInDown.delay(150).duration(600).springify()} style={s.card}>
-          <Text style={s.cardLabel}>TOTAL BALANCE</Text>
-          <Text style={s.cardBalance}>₱50,000.00</Text>
+        {/* Floating Abstract Illustration */}
+        <Animated.View entering={FadeInDown.delay(150).duration(800).springify()} style={s.illContainer}>
+          
+          {/* Back Card (Lime Credit Card) */}
+          <Animated.View style={[s.illCardBack, animCardBack]}>
+            <View style={s.illCardBackStripe} />
+            <Ionicons name="wifi" size={24} color="rgba(26,30,20,0.2)" style={{ transform: [{ rotate: '90deg' }] }} />
+          </Animated.View>
 
-          {/* Spending bar */}
-          <View style={s.barTrack}>
-            <View style={s.barFill} />
-          </View>
-
-          <View style={s.cardMeta}>
-            <Text style={s.cardMetaLeft}>₱31,200 spent</Text>
-            <View style={s.badge}>
-              <Text style={s.badgeText}>↑ 12% this month</Text>
+          {/* Front Card (Dark Digital Wallet) */}
+          <Animated.View style={[s.illCardFront, animCardFront]}>
+            <View style={s.illCardFrontHeader}>
+               <Ionicons name="wallet" size={28} color="#C8F560" />
+               <View style={s.illCardFrontDot} />
             </View>
-          </View>
+            <View style={s.illCardFrontLine1} />
+            <View style={s.illCardFrontLine2} />
+          </Animated.View>
+
+          {/* Floating Coin 1 (Gold/Orange) */}
+          <Animated.View style={[s.illCoin1, animCoin1]}>
+            <Ionicons name="logo-bitcoin" size={20} color="#FFAD5C" />
+          </Animated.View>
+
+          {/* Floating Coin 2 (Green Currency) */}
+          <Animated.View style={[s.illCoin2, animCoin2]}>
+            <Text style={s.illCoinText}>₱</Text>
+          </Animated.View>
+
+          {/* Floating Success Pill */}
+          <Animated.View style={[s.illPill, animPill]}>
+            <Ionicons name="trending-up" size={14} color="#1A1E14" />
+            <Text style={s.illPillText}>+24%</Text>
+          </Animated.View>
+
         </Animated.View>
 
         {/* Headline */}
@@ -135,37 +181,132 @@ const s = StyleSheet.create({
   // Middle section
   middle: { flex: 1, justifyContent: 'center', gap: 32 },
 
-  // Balance card
-  card: {
+  // ── Illustration Styles ────────────────────────
+  illContainer: {
+    height: 240,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  illCardBack: {
+    position: 'absolute',
+    width: 170,
+    height: 110,
+    backgroundColor: '#C8F560',
+    borderRadius: 18,
+    left: '10%',
+    top: 20,
+    padding: 16,
+    justifyContent: 'space-between',
+    shadowColor: '#C8F560',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  illCardBackStripe: {
+    width: 32,
+    height: 24,
+    backgroundColor: 'rgba(26,30,20,0.15)',
+    borderRadius: 6,
+  },
+  illCardFront: {
+    position: 'absolute',
+    width: 190,
+    height: 120,
     backgroundColor: '#222618',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#2C3122',
-    padding: 22,
+    borderColor: '#3A402D',
+    padding: 20,
+    right: '8%',
+    bottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 15,
   },
-  cardLabel: {
-    color: '#585D4C', fontSize: 10, fontWeight: '700',
-    letterSpacing: 2.5, marginBottom: 6,
+  illCardFrontHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
   },
-  cardBalance: {
-    color: '#EDF0E4', fontSize: 36, fontWeight: '800',
-    letterSpacing: -1, marginBottom: 22,
+  illCardFrontDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#585D4C',
   },
-  barTrack: {
-    height: 3, backgroundColor: '#2C3122',
-    borderRadius: 2, marginBottom: 12,
+  illCardFrontLine1: {
+    width: '65%',
+    height: 6,
+    backgroundColor: '#3A402D',
+    borderRadius: 3,
+    marginBottom: 10,
   },
-  barFill: {
-    width: '62%', height: 3, backgroundColor: '#C8F560', borderRadius: 2,
+  illCardFrontLine2: {
+    width: '45%',
+    height: 6,
+    backgroundColor: '#3A402D',
+    borderRadius: 3,
   },
-  cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardMetaLeft: { color: '#585D4C', fontSize: 12, fontWeight: '500' },
-  badge: {
-    backgroundColor: 'rgba(200,245,96,0.12)',
-    borderRadius: 100, borderWidth: 1, borderColor: 'rgba(200,245,96,0.25)',
-    paddingHorizontal: 10, paddingVertical: 4,
+  illCoin1: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2F2518', // Dark tinted orange
+    borderWidth: 1,
+    borderColor: '#4A3B26',
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: 10,
+    right: '25%',
   },
-  badgeText: { color: '#C8F560', fontSize: 11, fontWeight: '700' },
+  illCoin2: {
+    position: 'absolute',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#1E2A22', // Dark tinted green
+    borderWidth: 1,
+    borderColor: '#2D4032',
+    alignItems: 'center',
+    justifyContent: 'center',
+    bottom: 10,
+    left: '15%',
+  },
+  illCoinText: {
+    color: '#3DD97B',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  illPill: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDF0E4', // Cream white for contrast
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    top: 110,
+    left: '5%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  illPillText: {
+    color: '#1A1E14',
+    fontSize: 13,
+    fontWeight: '800',
+    marginLeft: 6,
+  },
+  // ───────────────────────────────────────────────
 
   // Headline
   headline: {

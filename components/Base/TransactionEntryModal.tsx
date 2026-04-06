@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,8 @@ import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import * as Haptics from 'expo-haptics';
 import type { CategoryRecord, WalletRecord } from '@/types/finance';
+import { useReceiptScanner } from '@/hooks/useReceiptScanner';
+import { ReceiptScanReviewModal, type ReceiptScanReviewDraft } from '@/components/Base/ReceiptScanReviewModal';
 
 type TransactionMode = 'expense' | 'income';
 type ActiveField = 'amount' | 'title' | 'other';
@@ -31,6 +34,7 @@ type KeyLabel = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' 
 interface TransactionEntryModalProps {
   visible: boolean;
   mode: TransactionMode;
+  scanRequestId?: number | null;
   wallets: WalletRecord[];
   categories: CategoryRecord[];
   onClose: () => void;
@@ -115,9 +119,100 @@ const toIoniconName = (icon: string | null | undefined): keyof typeof Ionicons.g
   return null;
 };
 
+const toIsoDate = (date: Date) => {
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const parseIsoDate = (value: string | null): Date | null => {
+  if (!value) return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (!Number.isFinite(date.getTime())) return null;
+  return date;
+};
+
+const findCategoryIdByExactName = (name: string, categories: CategoryRecord[]) => {
+  const normalized = name.trim().toLowerCase();
+  if (!normalized) return null;
+  return categories.find((category) => category.name.trim().toLowerCase() === normalized)?.id ?? null;
+};
+
+const tokenize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+const RECEIPT_CATEGORY_HINTS: Record<string, string[]> = {
+  food: ['food', 'restaurant', 'cafe', 'coffee', 'grocery', 'market', 'jollibee', 'mcdonald', 'kfc', 'chowking'],
+  transport: ['transport', 'grab', 'angkas', 'taxi', 'fuel', 'petrol', 'gas', 'parking', 'bus', 'mrt', 'lrt'],
+  shopping: ['shopping', 'shop', 'store', 'mall', 'shopee', 'lazada', 'clothes', 'fashion', 'department'],
+  bills: ['bill', 'utility', 'utilities', 'electric', 'water', 'internet', 'phone', 'subscription', 'rent', 'pldt', 'meralco'],
+  health: ['health', 'medical', 'hospital', 'clinic', 'pharmacy', 'drug', 'medicine', 'watsons', 'mercury'],
+  education: ['education', 'school', 'university', 'tuition', 'book', 'supplies'],
+  entertainment: ['entertainment', 'movie', 'cinema', 'concert', 'arcade', 'karaoke'],
+};
+
+const guessCategoryNameFromReceipt = (
+  parserSuggested: string,
+  rawText: string,
+  availableCategories: CategoryRecord[]
+) => {
+  if (availableCategories.length === 0) return parserSuggested;
+
+  const normalizedSuggestion = parserSuggested.trim().toLowerCase();
+  const exact = availableCategories.find((category) => category.name.trim().toLowerCase() === normalizedSuggestion);
+  if (exact) return exact.name;
+
+  const fuzzyByName = availableCategories.find((category) => {
+    const categoryName = category.name.trim().toLowerCase();
+    return categoryName.includes(normalizedSuggestion) || normalizedSuggestion.includes(categoryName);
+  });
+  if (fuzzyByName) return fuzzyByName.name;
+
+  const hintWords = RECEIPT_CATEGORY_HINTS[normalizedSuggestion] ?? [];
+  if (hintWords.length === 0) return parserSuggested;
+
+  const receiptTokens = tokenize(rawText);
+  const scoreForCategory = (categoryName: string) => {
+    const nameTokens = tokenize(categoryName);
+    let score = 0;
+    for (const token of nameTokens) {
+      if (hintWords.includes(token)) score += 5;
+    }
+    for (const hint of hintWords) {
+      if (receiptTokens.includes(hint)) {
+        for (const token of nameTokens) {
+          if (token.includes(hint) || hint.includes(token)) score += 2;
+        }
+      }
+    }
+    return score;
+  };
+
+  let best: CategoryRecord | null = null;
+  let bestScore = 0;
+  for (const category of availableCategories) {
+    const score = scoreForCategory(category.name);
+    if (score > bestScore) {
+      bestScore = score;
+      best = category;
+    }
+  }
+
+  return best ? best.name : parserSuggested;
+};
+
 export function TransactionEntryModal({
   visible,
   mode,
+  scanRequestId,
   wallets,
   categories,
   onClose,
@@ -129,6 +224,7 @@ export function TransactionEntryModal({
   const insets = useSafeAreaInsets();
   const keypadAnim = useRef(new Animated.Value(0)).current;
   const titleInputRef = useRef<TextInput>(null);
+  const lastHandledScanRequestRef = useRef<number | null>(null);
 
   const [title, setTitle] = useState('');
   const [expression, setExpression] = useState('0');
@@ -140,6 +236,20 @@ export function TransactionEntryModal({
   const [submitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActiveField>('amount');
   const [customLoggedAt, setCustomLoggedAt] = useState<Date | null>(null);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [scanReviewVisible, setScanReviewVisible] = useState(false);
+  const [scanReviewDraft, setScanReviewDraft] = useState<ReceiptScanReviewDraft | null>(null);
+  const [scannedImageUri, setScannedImageUri] = useState<string | null>(null);
+
+  const {
+    status: scanStatus,
+    result: scanResult,
+    error: scanError,
+    imageUri: scanImageUri,
+    scanFromCamera,
+    scanFromGallery,
+    reset: resetScanner,
+  } = useReceiptScanner();
 
   const currencySymbol = useMemo(
     () => CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? '₱',
@@ -166,9 +276,14 @@ export function TransactionEntryModal({
     setInsufficientFundsVisible(false);
     setActiveField('amount');
     setCustomLoggedAt(null);
+    setScannerVisible(false);
+    setScanReviewVisible(false);
+    setScanReviewDraft(null);
+    setScannedImageUri(null);
+    resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
-  }, [visible, mode, wallets, availableCategories]);
+  }, [visible, mode, wallets, availableCategories, resetScanner, keypadAnim]);
 
   useEffect(() => {
     Animated.spring(keypadAnim, {
@@ -178,7 +293,19 @@ export function TransactionEntryModal({
       mass: 0.85,
       stiffness: 260,
     }).start();
-  }, [activeField]);
+  }, [activeField, keypadAnim]);
+
+  useEffect(() => {
+    if (!visible || mode !== 'expense') return;
+    if (scanRequestId == null) return;
+    if (lastHandledScanRequestRef.current === scanRequestId) return;
+
+    lastHandledScanRequestRef.current = scanRequestId;
+    setActiveField('other');
+    Keyboard.dismiss();
+    resetScanner();
+    setScannerVisible(true);
+  }, [visible, mode, scanRequestId, resetScanner]);
 
   const selectedCategory = useMemo(
     () => availableCategories.find((category) => category.id === selectedCategoryId) ?? null,
@@ -193,12 +320,41 @@ export function TransactionEntryModal({
   const computedAmount = useMemo(() => evaluateExpression(expression) ?? 0, [expression]);
   const expressionText = getExpressionText(expression, historyExpression);
 
+  useEffect(() => {
+    if (scanStatus !== 'done' || !scanResult) return;
+
+    const itemNote = scanResult.items.length
+      ? scanResult.items.map((item) => `${item.name} (₱${item.totalPrice.toFixed(2)})`).join(', ')
+      : '';
+
+    const autoCategory = guessCategoryNameFromReceipt(
+      scanResult.suggestedCategory,
+      `${scanResult.rawText} ${scanResult.storeName ?? ''}`,
+      availableCategories
+    );
+
+    setScannedImageUri(scanImageUri ?? null);
+    setScanReviewDraft({
+      title: scanResult.storeName?.trim() || 'Scanned receipt',
+      amount: scanResult.totalAmount ? String(scanResult.totalAmount) : '',
+      category: autoCategory,
+      date: scanResult.date ?? toIsoDate(new Date()),
+      note: itemNote,
+      confidence: scanResult.confidence,
+      items: scanResult.items,
+    });
+    setScannerVisible(false);
+    setScanReviewVisible(true);
+  }, [scanStatus, scanResult, scanImageUri, availableCategories]);
+
   const canSave =
     !submitting &&
     Boolean(selectedWalletId) &&
     Number.isFinite(computedAmount) &&
     computedAmount > 0 &&
     title.trim().length > 0;
+  const isExpense = mode === 'expense';
+  const modeColor = isExpense ? theme.red : theme.green;
 
   const onKeyPress = (key: KeyLabel) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -276,6 +432,43 @@ export function TransactionEntryModal({
     if (activeField === 'amount') setActiveField('other');
   };
 
+  const openScanner = () => {
+    if (!isExpense) return;
+    dismissKeypad();
+    Keyboard.dismiss();
+    resetScanner();
+    setScannerVisible(true);
+  };
+
+  const applyScanDraft = (draft: ReceiptScanReviewDraft) => {
+    const normalizedTitle = draft.title.trim() || 'Scanned receipt';
+    const parsedAmount = Number.parseFloat(draft.amount);
+    const normalizedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? Math.round(parsedAmount * 100) / 100 : null;
+    const parsedDate = parseIsoDate(draft.date);
+    const matchedCategoryId = findCategoryIdByExactName(draft.category, availableCategories);
+
+    setTitle(normalizedTitle);
+    if (normalizedAmount !== null) {
+      setExpression(String(normalizedAmount));
+      setHistoryExpression('');
+    }
+    if (matchedCategoryId !== null) {
+      setSelectedCategoryId(matchedCategoryId);
+    }
+    if (parsedDate) {
+      setCustomLoggedAt((prev) => {
+        const base = prev ?? new Date();
+        const next = new Date(base);
+        next.setFullYear(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+        return next;
+      });
+    }
+
+    setScanReviewVisible(false);
+    setActiveField('title');
+    titleInputRef.current?.focus();
+  };
+
   const submit = async () => {
     if (!canSave) return;
 
@@ -298,14 +491,14 @@ export function TransactionEntryModal({
         categoryId: selectedCategoryId,
         loggedAt: customLoggedAt ?? new Date(),
       });
+      setScannedImageUri(null);
+      setScanReviewDraft(null);
+      resetScanner();
       onClose();
     } finally {
       setSubmitting(false);
     }
   };
-
-  const isExpense = mode === 'expense';
-  const modeColor = isExpense ? theme.red : theme.green;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -357,6 +550,22 @@ export function TransactionEntryModal({
                 </Text>
               ) : null}
             </Pressable>
+
+              {isExpense ? (
+                <Pressable
+                  onPress={openScanner}
+                  style={[s.scanTrigger, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                >
+                  <View style={[s.scanTriggerIconWrap, { backgroundColor: isDark ? 'rgba(200,245,96,0.14)' : 'rgba(155,194,58,0.16)' }]}>
+                    <Ionicons name="scan-outline" size={16} color={isDark ? theme.lime : theme.limeDark} />
+                  </View>
+                  <View style={s.scanTriggerTextWrap}>
+                    <Text style={[s.scanTriggerTitle, { color: theme.text }]}>Scan receipt</Text>
+                    <Text style={[s.scanTriggerSubtitle, { color: theme.secondary }]}>Capture first, then review and edit details.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={theme.secondary} />
+                </Pressable>
+              ) : null}
 
             {/* Title Input */}
             <View style={[s.inputRow, { borderBottomColor: activeField === 'title' ? theme.text : theme.border }]}>
@@ -635,6 +844,80 @@ export function TransactionEntryModal({
         </View>
       </Animated.View>
 
+      <Modal
+        visible={scannerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setScannerVisible(false)}
+      >
+        <Pressable style={[s.scanBackdrop, { backgroundColor: theme.backdrop }]} onPress={() => setScannerVisible(false)} />
+        <View style={s.scanContainer}>
+          <View style={[s.scanCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={s.scanHeader}>
+              <Text style={[s.scanTitle, { color: theme.text }]}>Scan receipt</Text>
+              <Pressable onPress={() => setScannerVisible(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={theme.secondary} />
+              </Pressable>
+            </View>
+
+            {(scanStatus === 'idle' || scanStatus === 'capturing') && (
+              <>
+                <Text style={[s.scanBody, { color: theme.secondary }]}>Choose camera or gallery. The image is sent securely to your backend for Gemini parsing, then returned for review.</Text>
+                <View style={s.scanActionsRow}>
+                  <TouchableOpacity onPress={() => void scanFromCamera()} style={[s.scanActionBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}>
+                    <Ionicons name="camera-outline" size={18} color={theme.text} />
+                    <Text style={[s.scanActionText, { color: theme.text }]}>Camera</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => void scanFromGallery()} style={[s.scanActionBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}>
+                    <Ionicons name="images-outline" size={18} color={theme.text} />
+                    <Text style={[s.scanActionText, { color: theme.text }]}>Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {scanStatus === 'processing' && (
+              <View style={s.scanProcessingWrap}>
+                <ActivityIndicator size="large" color={theme.limeDark} />
+                <Text style={[s.scanProcessingTitle, { color: theme.text }]}>Parsing receipt...</Text>
+                <Text style={[s.scanBody, { color: theme.secondary }]}>Please wait while the backend extracts details.</Text>
+                {scanImageUri ? (
+                  <Image source={{ uri: scanImageUri }} style={[s.scanPreview, { borderColor: theme.border }]} resizeMode="cover" />
+                ) : null}
+              </View>
+            )}
+
+            {scanStatus === 'error' && (
+              <View style={s.scanProcessingWrap}>
+                <Ionicons name="alert-circle-outline" size={34} color={theme.red} />
+                <Text style={[s.scanProcessingTitle, { color: theme.text }]}>Could not read receipt</Text>
+                <Text style={[s.scanBody, { color: theme.secondary }]}>{scanError ?? 'Try another image.'}</Text>
+                <TouchableOpacity
+                  onPress={resetScanner}
+                  style={[s.scanRetryBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
+                >
+                  <Text style={[s.scanRetryText, { color: theme.text }]}>Try again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <ReceiptScanReviewModal
+        visible={scanReviewVisible}
+        imageUri={scannedImageUri}
+        draft={scanReviewDraft}
+        categoryOptions={availableCategories.map((category) => category.name)}
+        onClose={() => setScanReviewVisible(false)}
+        onRescan={() => {
+          setScanReviewVisible(false);
+          resetScanner();
+          setScannerVisible(true);
+        }}
+        onApply={applyScanDraft}
+      />
+
       {/* Warning Modal */}
       <Modal
         visible={insufficientFundsVisible}
@@ -757,6 +1040,36 @@ const s = StyleSheet.create({
     fontWeight: '500',
     marginTop: 4,
     letterSpacing: 0.2,
+  },
+  scanTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 58,
+    marginBottom: 14,
+    gap: 10,
+  },
+  scanTriggerIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanTriggerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  scanTriggerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  scanTriggerSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
   },
   inputRow: {
     borderBottomWidth: 1.5,
@@ -969,6 +1282,84 @@ const s = StyleSheet.create({
   },
   keyLabel: {
     fontSize: 22,
+    fontWeight: '700',
+  },
+
+  scanBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scanContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  scanCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+  },
+  scanHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  scanTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  scanBody: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 19,
+  },
+  scanActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  scanActionBtn: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  scanActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  scanProcessingWrap: {
+    alignItems: 'center',
+    paddingVertical: 18,
+    gap: 8,
+  },
+  scanProcessingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  scanPreview: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  scanRetryBtn: {
+    marginTop: 6,
+    height: 44,
+    minWidth: 120,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  scanRetryText: {
+    fontSize: 14,
     fontWeight: '700',
   },
   
