@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useTheme } from '@/hooks/useTheme';
 
 type TransactionKind = 'income' | 'expense' | 'scan';
 
@@ -27,19 +27,8 @@ export function TransactionCard({
   kind,
   onDeletePress,
 }: TransactionCardProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = useTheme();
   const swipeRef = useRef<Swipeable | null>(null);
-
-  const palette = {
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-    cardBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.08)',
-    title: isDark ? '#EDF0E4' : '#1A1E14',
-    category: isDark ? '#8A8F7C' : '#6B7060',
-    time: isDark ? '#585D4C' : '#9DA28F',
-    amount: isDark ? '#EDF0E4' : '#1A1E14',
-    deleteBg: '#FF6B6B',
-  };
 
   const visual = {
     income: { icon: 'trending-up-outline' as const, iconColor: '#51A351', iconBg: 'rgba(200,245,96,0.24)' },
@@ -55,23 +44,23 @@ export function TransactionCard({
   const resolvedIconBg = categoryColor ? `${categoryColor}1F` : visual.iconBg;
 
   const CardContent = (
-    <View style={[s.card, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}> 
-      <View style={[s.iconWrap, { backgroundColor: resolvedIconBg }]}> 
+    <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[s.iconWrap, { backgroundColor: resolvedIconBg }]}>
         <Ionicons name={resolvedIcon} size={20} color={resolvedIconColor} />
       </View>
 
       <View style={s.info}>
-        <Text style={[s.title, { color: palette.title }]} numberOfLines={1}>
+        <Text style={[s.title, { color: theme.text }]} numberOfLines={1}>
           {title}
         </Text>
-        <Text style={[s.category, { color: palette.category }]} numberOfLines={1}>
+        <Text style={[s.category, { color: theme.secondary }]} numberOfLines={1}>
           {categoryName}
         </Text>
       </View>
 
       <View style={s.right}>
-        <Text style={[s.amount, { color: kind === 'income' ? '#51A351' : palette.amount }]}>{amountLabel}</Text>
-        <Text style={[s.time, { color: palette.time }]}>{timeLabel}</Text>
+        <Text style={[s.amount, { color: kind === 'income' ? '#51A351' : theme.text }]}>{amountLabel}</Text>
+        <Text style={[s.time, { color: theme.tertiary }]}>{timeLabel}</Text>
       </View>
     </View>
   );
@@ -83,7 +72,7 @@ export function TransactionCard({
       ref={swipeRef}
       renderRightActions={() => (
         <Pressable
-          style={[s.deleteAction, { backgroundColor: palette.deleteBg }]}
+          style={[s.deleteAction, { backgroundColor: theme.red }]}
           onPress={() => {
             swipeRef.current?.close();
             onDeletePress();

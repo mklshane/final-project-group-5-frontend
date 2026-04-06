@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useColorScheme } from 'nativewind';
 import { useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '@/hooks/useTheme';
 
 type QuickActionHandler = () => void | Promise<void>;
 
@@ -21,18 +21,13 @@ interface ActionItem {
 }
 
 export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: QuickActionFabProps) {
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
+  const { isDark } = theme;
   const [open, setOpen] = useState(false);
   const iconAnim = useRef(new Animated.Value(0)).current;
-  const isDark = colorScheme === 'dark';
 
-  const palette = {
-    fabBg: isDark ? '#C8F560' : '#1A1E14',
-    fabIcon: isDark ? '#1A1E14' : '#C8F560',
-    itemBg: isDark ? '#1A1E14' : '#FFFFFF',
-    itemBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.10)',
-    label: isDark ? '#EDF0E4' : '#1A1E14',
-  };
+  const fabBg = isDark ? '#C8F560' : '#1A1E14';
+  const fabIcon = isDark ? '#1A1E14' : '#C8F560';
 
   const actions = useMemo<ActionItem[]>(
     () => [
@@ -125,20 +120,20 @@ export function QuickActionFab({ onQuickScan, onAddExpense, onAddIncome }: Quick
               onPress={() => {
                 void onActionPress(action.handler);
               }}
-              style={[s.menuItem, { backgroundColor: palette.itemBg, borderColor: palette.itemBorder }]}
+              style={[s.menuItem, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
               <View style={[s.menuIconCircle, { backgroundColor: `${action.accentColor}22` }]}>
                 <Ionicons name={action.icon} size={18} color={action.accentColor} />
               </View>
-              <Text style={[s.menuLabel, { color: palette.label }]}>{action.label}</Text>
+              <Text style={[s.menuLabel, { color: theme.text }]}>{action.label}</Text>
             </Pressable>
           ))}
         </View>
       )}
 
-      <Pressable onPress={() => void onToggle()} style={[s.fab, { backgroundColor: palette.fabBg }]}> 
+      <Pressable onPress={() => void onToggle()} style={[s.fab, { backgroundColor: fabBg }]}>
         <Animated.View style={iconStyle}>
-          <Ionicons name="add" size={30} color={palette.fabIcon} />
+          <Ionicons name="add" size={30} color={fabIcon} />
         </Animated.View>
       </Pressable>
     </View>

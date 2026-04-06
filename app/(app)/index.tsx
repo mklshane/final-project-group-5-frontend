@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from 'nativewind';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 import { WALLET_TYPE_ICONS } from '@/constants/defaultWallets';
 import { useAuth } from '@/context/AuthContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
@@ -16,7 +16,8 @@ import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
+  const { isDark } = theme;
   const { profile } = useAuth();
   const { state, addTransaction, deleteTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
@@ -24,22 +25,13 @@ export default function HomeScreen() {
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
 
-  const isDark = colorScheme === 'dark';
-  const palette = {
-    screenBg: isDark ? '#111410' : '#F4F5E9',
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-    cardBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26, 30, 20, 0.12)',
-    heading: isDark ? '#EDF0E4' : '#1A1E14',
-    subtext: isDark ? '#8A8F7C' : '#6B7060',
-    tertiary: isDark ? '#585D4C' : '#9DA28F',
-    logoBg: isDark ? '#C8F560' : '#1A1E14',
-    logoIcon: isDark ? '#1A1E14' : '#C8F560',
-    betaBg: isDark ? 'rgba(200, 245, 96, 0.16)' : 'rgba(200, 245, 96, 0.3)',
-    betaText: '#8AAB32',
-    heroBg: isDark ? '#222618' : '#222618',
-    heroSub: isDark ? '#8A8F7C' : '#8A8F7C',
-    loadingBorder: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(26, 30, 20, 0.12)',
-  };
+  const heroBg = '#222618';
+  const heroSub = '#8A8F7C';
+  const logoBg = isDark ? '#C8F560' : '#1A1E14';
+  const logoIcon = isDark ? '#1A1E14' : '#C8F560';
+  const betaBg = isDark ? 'rgba(200, 245, 96, 0.16)' : 'rgba(200, 245, 96, 0.3)';
+  const betaText = '#8AAB32';
+  const loadingBorder = isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(26, 30, 20, 0.12)';
 
   const deleteTarget = useMemo(
     () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
@@ -123,7 +115,7 @@ export default function HomeScreen() {
   }, [walletPreview]);
 
   return (
-    <View style={[s.container, { paddingTop: insets.top, backgroundColor: palette.screenBg }]}> 
+    <View style={[s.container, { paddingTop: insets.top, backgroundColor: theme.bg }]}> 
       <ScrollView 
         contentContainerStyle={s.scrollContent} 
         showsVerticalScrollIndicator={false}
@@ -134,7 +126,7 @@ export default function HomeScreen() {
             <View style={s.logoCircle}>
               <Image source={require('../../assets/images/logo2.png')} style={s.logoImage} resizeMode="contain" />
             </View>
-            <Text style={[s.brandText, { color: palette.heading }]}>Budgy</Text>
+            <Text style={[s.brandText, { color: theme.text }]}>Budgy</Text>
             
           </View>
           
@@ -143,32 +135,32 @@ export default function HomeScreen() {
 
         {/* ── Greeting ──────────────────────────────────── */}
         <View style={s.greetingContainer}>
-          <Text style={[s.greetingDate, { color: palette.subtext }]}>{greetingMeta.dateLabel}</Text>
-          <Text style={[s.greetingTitle, { color: palette.heading }]}>
+          <Text style={[s.greetingDate, { color: theme.secondary }]}>{greetingMeta.dateLabel}</Text>
+          <Text style={[s.greetingTitle, { color: theme.text }]}>
             <Text style={{ fontWeight: '400' }}>{greetingMeta.salutation}
             {', '}</Text>{firstName}
           </Text>
-          <Text style={[s.greetingSub, { color: palette.subtext }]}>{greetingSub}</Text>
+          <Text style={[s.greetingSub, { color: theme.secondary }]}>{greetingSub}</Text>
         </View>
 
         {/* ── Main Card ─────────────────────────────────── */}
-        <View style={[s.card, { backgroundColor: palette.heroBg }]}> 
+        <View style={[s.card, { backgroundColor: heroBg }]}> 
           {/* Decorative Circles */}
           <View style={s.cardDeco1} />
           <View style={s.cardDeco2} />
 
-          <Text style={[s.cardLabel, { color: palette.heroSub }]}>SPENT TODAY</Text>
+          <Text style={[s.cardLabel, { color: heroSub }]}>SPENT TODAY</Text>
           <Text style={s.cardAmount}>{spentTodayLabel}</Text>
-          <Text style={[s.cardSub, { color: palette.heroSub }]}>{todaySubtitle}</Text>
+          <Text style={[s.cardSub, { color: heroSub }]}>{todaySubtitle}</Text>
         </View>
 
         {finance.wallets.length > 0 ? (
           <View style={s.walletDistributionWrap}>
             <View style={s.walletHeaderRow}>
-              <Text style={[s.walletDistributionLabel, { color: palette.tertiary }]}>WALLETS</Text>
+              <Text style={[s.walletDistributionLabel, { color: theme.tertiary }]}>WALLETS</Text>
               {hasMoreWallets ? (
                 <Pressable onPress={() => router.push('/(app)/profile/manage-wallets')}>
-                  <Text style={[s.walletSeeAll, { color: palette.subtext }]}>See all wallets</Text>
+                  <Text style={[s.walletSeeAll, { color: theme.secondary }]}>See all wallets</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -202,16 +194,16 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={s.walletTextWrap}>
-                          <Text style={[s.walletName, { color: palette.heading }]} numberOfLines={1}>
+                          <Text style={[s.walletName, { color: theme.text }]} numberOfLines={1}>
                             {wallet.name}
                           </Text>
-                          <Text style={[s.walletType, { color: palette.subtext }]} numberOfLines={1}>
+                          <Text style={[s.walletType, { color: theme.secondary }]} numberOfLines={1}>
                             {wallet.typeLabel ?? wallet.type}
                           </Text>
                         </View>
                       </View>
 
-                      <Text style={[s.walletAmount, { color: palette.heading }]} numberOfLines={1}>
+                      <Text style={[s.walletAmount, { color: theme.text }]} numberOfLines={1}>
                         {finance.formatCurrency(wallet.current_balance)}
                       </Text>
                     </View>
@@ -224,18 +216,18 @@ export default function HomeScreen() {
 
         {/* ── Recent Transactions ───────────────────────── */}
         <View style={s.recentHeader}>
-          <Text style={[s.recentTitle, { color: palette.tertiary }]}>RECENT</Text>
+          <Text style={[s.recentTitle, { color: theme.tertiary }]}>RECENT</Text>
         </View>
 
         <View style={s.transactionList}>
           {finance.loading ? (
-            <View style={[s.loadingStateCard, { borderColor: palette.loadingBorder }]}> 
-              <Text style={[s.loadingStateText, { color: palette.tertiary }]}>Loading transactions...</Text>
+            <View style={[s.loadingStateCard, { borderColor: loadingBorder }]}> 
+              <Text style={[s.loadingStateText, { color: theme.tertiary }]}>Loading transactions...</Text>
             </View>
           ) : finance.recentTransactions.length === 0 ? (
-            <View style={[s.emptyStateCard, { borderColor: palette.loadingBorder }]}> 
-              <Text style={[s.emptyStateTitle, { color: palette.heading }]}>No transactions yet</Text>
-              <Text style={[s.emptyStateBody, { color: palette.tertiary }]}>Start tracking by adding your first expense or income.</Text>
+            <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
+              <Text style={[s.emptyStateTitle, { color: theme.text }]}>No transactions yet</Text>
+              <Text style={[s.emptyStateBody, { color: theme.tertiary }]}>Start tracking by adding your first expense or income.</Text>
             </View>
           ) : (
             finance.recentTransactions.map((tx) => {

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 import {
   ActivityIndicator,
   Keyboard,
@@ -43,8 +43,8 @@ export function CategoryEditorModal({
   onClose,
   onSave,
 }: CategoryEditorModalProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = useTheme();
+  const { isDark } = theme;
 
   const [name, setName] = useState('');
   const [type, setType] = useState<'expense' | 'income' | 'both'>('expense');
@@ -61,36 +61,11 @@ export function CategoryEditorModal({
     setColor(initialCategory?.color ?? '#6C757D');
   }, [visible, initialCategory]);
 
-  const palette = useMemo(
-    () => ({
-      overlay: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(26,30,20,0.42)',
-      card: isDark ? '#1A1E14' : '#FFFFFF',
-      border: isDark ? '#2C3122' : '#E4E6D6',
-      text: isDark ? '#EDF0E4' : '#1A1E14',
-      sub: isDark ? '#8A8F7C' : '#6B7060',
-      sectionLabel: isDark ? '#A6AD96' : '#6B7060',
-      chipBg: isDark ? '#222618' : '#EEF0E2',
-      chipBorder: isDark ? '#2C3122' : '#DDE1CF',
-      chipActiveBg: isDark ? '#C8F560' : '#1A1E14',
-      chipActiveText: isDark ? '#1A1E14' : '#C8F560',
-      iconChipBg: isDark ? '#141812' : '#F8F9F2',
-      iconColorIdle: isDark ? '#8A8F7C' : '#6B7060',
-      colorActiveBorder: isDark ? '#EDF0E4' : '#111111',
-      colorInactiveBorder: isDark ? '#2C3122' : 'transparent',
-      inputBg: isDark ? '#111410' : '#F8F9F2',
-      inputBorder: isDark ? '#2F3527' : '#DDE1CF',
-      inputFocus: isDark ? '#C8F560' : '#1A1E14',
-      inputText: isDark ? '#EDF0E4' : '#1A1E14',
-      inputPlaceholder: isDark ? '#66705D' : '#9DA28F',
-      cancelBg: isDark ? '#20251A' : '#EEF0E2',
-      cancelBorder: isDark ? '#343B2A' : '#D7DDC8',
-      cancelText: isDark ? '#EDF0E4' : '#1A1E14',
-      submitBg: isDark ? '#C8F560' : '#1A1E14',
-      submitText: isDark ? '#1A1E14' : '#C8F560',
-      submitDisabled: isDark ? '#5A614B' : '#C8CEC0',
-    }),
-    [isDark]
-  );
+  const colorActiveBorder = isDark ? '#EDF0E4' : '#111111';
+  const colorInactiveBorder = isDark ? '#2C3122' : 'transparent';
+  const iconChipBg = isDark ? '#141812' : '#F8F9F2';
+  const iconColorIdle = isDark ? '#8A8F7C' : '#6B7060';
+  const submitDisabled = isDark ? '#5A614B' : '#C8CEC0';
 
   const title = mode === 'create' ? 'Add Category' : 'Edit Category';
   const submitLabel = mode === 'create' ? 'Create Category' : 'Save Changes';
@@ -116,29 +91,29 @@ export function CategoryEditorModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={[s.overlay, { backgroundColor: palette.overlay }]}
+        style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View>
-            <View style={[s.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-              <Text style={[s.title, { color: palette.text }]}>{title}</Text>
-              <Text style={[s.subtitle, { color: palette.sub }]}>Name, type, icon and color can be customized anytime.</Text>
+            <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[s.title, { color: theme.text }]}>{title}</Text>
+              <Text style={[s.subtitle, { color: theme.secondary }]}>Name, type, icon and color can be customized anytime.</Text>
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel, marginTop: 2 }]}>CATEGORY NAME</Text>
-              <View style={[s.inputWrap, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
+              <Text style={[s.sectionLabel, { color: theme.secondary, marginTop: 2 }]}>CATEGORY NAME</Text>
+              <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
                 <TextInput
                   placeholder="e.g. Coffee, Side Hustle"
-                  placeholderTextColor={palette.inputPlaceholder}
+                  placeholderTextColor={theme.inputPlaceholder}
                   value={name}
                   onChangeText={setName}
                   autoCapitalize="words"
-                  style={[s.input, { color: palette.inputText }]}
-                  selectionColor={palette.inputFocus}
+                  style={[s.input, { color: theme.text }]}
+                  selectionColor={theme.lime}
                 />
               </View>
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>TYPE</Text>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>TYPE</Text>
               <View style={s.rowWrap}>
                 {TYPE_OPTIONS.map((option) => {
                   const active = type === option;
@@ -149,18 +124,18 @@ export function CategoryEditorModal({
                       style={[
                         s.chip,
                         {
-                          backgroundColor: active ? palette.chipActiveBg : palette.chipBg,
-                          borderColor: active ? palette.chipActiveBg : palette.chipBorder,
+                          backgroundColor: active ? theme.lime : theme.chipBg,
+                          borderColor: active ? theme.lime : theme.chipBorder,
                         },
                       ]}
                     >
-                      <Text style={[s.chipText, { color: active ? palette.chipActiveText : palette.sub }]}>{option.toUpperCase()}</Text>
+                      <Text style={[s.chipText, { color: active ? theme.bg : theme.secondary }]}>{option.toUpperCase()}</Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>ICON</Text>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>ICON</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -176,22 +151,22 @@ export function CategoryEditorModal({
                       style={[
                         s.iconChip,
                         {
-                          borderColor: active ? palette.chipActiveBg : palette.chipBorder,
-                          backgroundColor: active ? `${palette.chipActiveBg}24` : palette.iconChipBg,
+                          borderColor: active ? theme.lime : theme.chipBorder,
+                          backgroundColor: active ? `${theme.lime}24` : iconChipBg,
                         },
                       ]}
                     >
                       <Ionicons
                         name={iconName as keyof typeof Ionicons.glyphMap}
                         size={18}
-                        color={active ? color : palette.iconColorIdle}
+                        color={active ? color : iconColorIdle}
                       />
                     </Pressable>
                   );
                 })}
               </ScrollView>
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>COLOR</Text>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>COLOR</Text>
               <View style={s.rowWrap}>
                 {COLOR_OPTIONS.map((colorValue) => {
                   const active = color === colorValue;
@@ -203,7 +178,7 @@ export function CategoryEditorModal({
                         s.colorChip,
                         {
                           backgroundColor: colorValue,
-                          borderColor: active ? palette.colorActiveBorder : palette.colorInactiveBorder,
+                          borderColor: active ? colorActiveBorder : colorInactiveBorder,
                         },
                       ]}
                     />
@@ -214,9 +189,9 @@ export function CategoryEditorModal({
               <View style={s.actions}>
                 <Pressable
                   onPress={onClose}
-                  style={[s.actionButton, s.half, { backgroundColor: palette.cancelBg, borderColor: palette.cancelBorder }]}
+                  style={[s.actionButton, s.half, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
                 >
-                  <Text style={[s.actionText, { color: palette.cancelText }]}>Cancel</Text>
+                  <Text style={[s.actionText, { color: theme.text }]}>Cancel</Text>
                 </Pressable>
 
                 <Pressable
@@ -226,15 +201,15 @@ export function CategoryEditorModal({
                     s.actionButton,
                     s.half,
                     {
-                      backgroundColor: !name.trim() || saving ? palette.submitDisabled : palette.submitBg,
-                      borderColor: !name.trim() || saving ? palette.submitDisabled : palette.submitBg,
+                      backgroundColor: !name.trim() || saving ? submitDisabled : theme.lime,
+                      borderColor: !name.trim() || saving ? submitDisabled : theme.lime,
                     },
                   ]}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color={palette.submitText} />
+                    <ActivityIndicator size="small" color={theme.bg} />
                   ) : (
-                    <Text style={[s.actionText, { color: palette.submitText }]}>{submitLabel}</Text>
+                    <Text style={[s.actionText, { color: theme.bg }]}>{submitLabel}</Text>
                   )}
                 </Pressable>
               </View>

@@ -1,5 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useColorScheme } from 'nativewind';
+import { useTheme } from '@/hooks/useTheme';
 
 interface ConfirmDeleteModalProps {
   visible: boolean;
@@ -20,34 +20,21 @@ export function ConfirmDeleteModal({
   confirmLabel = 'Delete',
   cancelLabel = 'Cancel',
 }: ConfirmDeleteModalProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const palette = {
-    overlay: isDark ? 'rgba(0,0,0,0.64)' : 'rgba(26,30,20,0.45)',
-    card: isDark ? '#1A1E14' : '#FFFFFF',
-    border: isDark ? '#2C3122' : '#E4E6D6',
-    title: isDark ? '#EDF0E4' : '#1A1E14',
-    text: isDark ? '#8A8F7C' : '#6B7060',
-    cancelBg: isDark ? '#222618' : '#EEF0E2',
-    cancelText: isDark ? '#EDF0E4' : '#1A1E14',
-    confirmBg: '#FF6B6B',
-    confirmText: '#FFFFFF',
-  };
+  const theme = useTheme();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={[s.overlay, { backgroundColor: palette.overlay }]}>
-        <View style={[s.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-          <Text style={[s.title, { color: palette.title }]}>{title}</Text>
-          <Text style={[s.message, { color: palette.text }]}>{message}</Text>
+      <View style={[s.overlay, { backgroundColor: theme.overlayModal }]}>
+        <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[s.title, { color: theme.text }]}>{title}</Text>
+          <Text style={[s.message, { color: theme.secondary }]}>{message}</Text>
 
           <View style={s.actions}>
-            <Pressable style={[s.button, { backgroundColor: palette.cancelBg }]} onPress={onCancel}>
-              <Text style={[s.buttonLabel, { color: palette.cancelText }]}>{cancelLabel}</Text>
+            <Pressable style={[s.button, { backgroundColor: theme.surfaceDeep }]} onPress={onCancel}>
+              <Text style={[s.buttonLabel, { color: theme.text }]}>{cancelLabel}</Text>
             </Pressable>
-            <Pressable style={[s.button, { backgroundColor: palette.confirmBg }]} onPress={onConfirm}>
-              <Text style={[s.buttonLabel, { color: palette.confirmText }]}>{confirmLabel}</Text>
+            <Pressable style={[s.button, { backgroundColor: theme.red }]} onPress={onConfirm}>
+              <Text style={[s.buttonLabel, { color: '#FFFFFF' }]}>{confirmLabel}</Text>
             </Pressable>
           </View>
         </View>

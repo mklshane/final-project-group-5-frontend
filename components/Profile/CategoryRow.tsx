@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CategoryRecord } from '@/types/finance';
+import { useTheme } from '@/hooks/useTheme';
 
 interface CategoryRowProps {
   category: CategoryRecord;
@@ -10,43 +10,35 @@ interface CategoryRowProps {
 }
 
 export function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = useTheme();
+  const { isDark } = theme;
 
   const iconName =
     category.icon && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, category.icon)
       ? (category.icon as keyof typeof Ionicons.glyphMap)
       : 'apps-outline';
 
-  const palette = {
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-    cardBorder: isDark ? '#2C3122' : '#E4E6D6',
-    text: isDark ? '#EDF0E4' : '#1A1E14',
-    sub: isDark ? '#8A8F7C' : '#6B7060',
-    iconBg: `${category.color ?? '#6C757D'}1F`,
-    iconColor: category.color ?? (isDark ? '#C8F560' : '#1A1E14'),
-    badgeBg: isDark ? '#222618' : '#EEF0E2',
-    badgeText: isDark ? '#AEB59A' : '#5D6252',
-  };
+  const iconBg = `${category.color ?? '#6C757D'}1F`;
+  const iconColor = category.color ?? (isDark ? '#C8F560' : '#1A1E14');
 
   return (
-    <View style={[s.row, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}>
-      <View style={[s.iconWrap, { backgroundColor: palette.iconBg }]}>
-        <Ionicons name={iconName} size={18} color={palette.iconColor} />
+    <View style={[s.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[s.iconWrap, { backgroundColor: iconBg }]}>
+        <Ionicons name={iconName} size={18} color={iconColor} />
       </View>
 
       <View style={s.info}>
-        <Text style={[s.name, { color: palette.text }]} numberOfLines={1}>
+        <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>
           {category.name}
         </Text>
-        <View style={[s.badge, { backgroundColor: palette.badgeBg }]}>
-          <Text style={[s.badgeText, { color: palette.badgeText }]}>{(category.type ?? 'expense').toUpperCase()}</Text>
+        <View style={[s.badge, { backgroundColor: theme.surfaceDeep }]}>
+          <Text style={[s.badgeText, { color: theme.secondary }]}>{(category.type ?? 'expense').toUpperCase()}</Text>
         </View>
       </View>
 
       <View style={s.actions}>
         <Pressable onPress={() => onEdit(category)} style={s.actionBtn}>
-          <Ionicons name="create-outline" size={18} color={palette.sub} />
+          <Ionicons name="create-outline" size={18} color={theme.secondary} />
         </Pressable>
         <Pressable onPress={() => onDelete(category)} style={s.actionBtn}>
           <Ionicons name="trash-outline" size={18} color="#FF6B6B" />

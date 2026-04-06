@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
 import { StyleSheet, Text, View } from 'react-native';
 import { WALLET_TYPE_ICONS } from '@/constants/defaultWallets';
 import type { WalletRecord } from '@/types/finance';
+import { useTheme } from '@/hooks/useTheme';
 
 interface WalletPreviewItemProps {
   wallet: WalletRecord & { typeLabel?: string };
@@ -10,45 +10,35 @@ interface WalletPreviewItemProps {
 }
 
 export function WalletPreviewItem({ wallet, amountLabel }: WalletPreviewItemProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = useTheme();
+  const { isDark } = theme;
   const icon = WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap;
 
-  const palette = {
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-    cardBorder: isDark ? '#2C3122' : '#E4E6D6',
-    iconBg: isDark ? '#222618' : '#EEF0E2',
-    iconColor: isDark ? '#C8F560' : '#1A1E14',
-    title: isDark ? '#EDF0E4' : '#1A1E14',
-    sub: isDark ? '#8A8F7C' : '#6B7060',
-    amount: isDark ? '#EDF0E4' : '#1A1E14',
-    typeText: isDark ? '#AEB59A' : '#5D6252',
-    chipBg: isDark ? 'rgba(200,245,96,0.18)' : 'rgba(200,245,96,0.30)',
-    chipText: isDark ? '#C8F560' : '#6E8F1A',
-  };
+  const chipBg = isDark ? 'rgba(200,245,96,0.18)' : 'rgba(200,245,96,0.30)';
+  const chipText = isDark ? '#C8F560' : '#6E8F1A';
 
   return (
-    <View style={[s.card, { backgroundColor: palette.cardBg, borderColor: palette.cardBorder }]}>
+    <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={s.mainRow}>
-        <View style={[s.iconWrap, { backgroundColor: palette.iconBg }]}> 
-          <Ionicons name={icon} size={18} color={palette.iconColor} />
+        <View style={[s.iconWrap, { backgroundColor: isDark ? theme.surfaceDeep : 'rgba(155,194,58,0.16)' }]}> 
+          <Ionicons name={icon} size={18} color={isDark ? theme.lime : theme.limeDark} />
         </View>
 
         <View style={s.info}>
           <View style={s.titleRow}>
-            <Text style={[s.title, { color: palette.title }]} numberOfLines={1}>
+            <Text style={[s.title, { color: theme.text }]} numberOfLines={1}>
               {wallet.name}
             </Text>
             {wallet.is_default ? (
-              <View style={[s.defaultChip, { backgroundColor: palette.chipBg }]}> 
-                <Text style={[s.defaultChipText, { color: palette.chipText }]}>DEFAULT</Text>
+              <View style={[s.defaultChip, { backgroundColor: chipBg }]}>
+                <Text style={[s.defaultChipText, { color: chipText }]}>DEFAULT</Text>
               </View>
             ) : null}
           </View>
-          <Text style={[s.typeText, { color: palette.typeText }]}>{wallet.typeLabel ?? wallet.type}</Text>
+          <Text style={[s.typeText, { color: theme.secondary }]}>{wallet.typeLabel ?? wallet.type}</Text>
         </View>
 
-        <Text style={[s.amount, { color: palette.amount }]}>{amountLabel}</Text>
+        <Text style={[s.amount, { color: theme.text }]}>{amountLabel}</Text>
       </View>
     </View>
   );

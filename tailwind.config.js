@@ -19,6 +19,14 @@ module.exports = {
         text:         'var(--color-text)',
         secondary:    'var(--color-text-secondary)',
         tertiary:     'var(--color-text-tertiary)',
+        // Surfaces & borders
+        surface:            'var(--color-surface)',
+        'surface-alt':      'var(--color-surface-alt)',
+        border:             'var(--color-border)',
+        'border-highlight': 'var(--color-border-highlight)',
+        // Inputs
+        'input-bg':         'var(--color-input-bg)',
+        'input-border':     'var(--color-input-border)',
         // Accent – lime (primary brand)
         'budgy-lime':         'var(--color-lime)',
         'budgy-lime-light':   'var(--color-lime-light)',

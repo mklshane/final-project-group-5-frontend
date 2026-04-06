@@ -1,7 +1,7 @@
-import { useColorScheme } from 'nativewind';
 import { StyleSheet, Text, View } from 'react-native';
 import { WalletPreviewItem } from '@/components/Profile/WalletPreviewItem';
 import type { WalletRecord } from '@/types/finance';
+import { useTheme } from '@/hooks/useTheme';
 
 interface WalletPreviewSectionProps {
   wallets: Array<WalletRecord & { typeLabel?: string }>;
@@ -9,18 +9,12 @@ interface WalletPreviewSectionProps {
 }
 
 export function WalletPreviewSection({ wallets, formatCurrency }: WalletPreviewSectionProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const palette = {
-    emptyBorder: isDark ? '#2C3122' : '#E4E6D6',
-    emptyText: isDark ? '#8A8F7C' : '#6B7060',
-  };
+  const theme = useTheme();
 
   if (wallets.length === 0) {
     return (
-      <View style={[s.emptyWrap, { borderColor: palette.emptyBorder }]}> 
-        <Text style={[s.emptyText, { color: palette.emptyText }]}>No wallets yet. Your General wallet will appear once synced.</Text>
+      <View style={[s.emptyWrap, { borderColor: theme.border }]}>
+        <Text style={[s.emptyText, { color: theme.secondary }]}>No wallets yet. Your General wallet will appear once synced.</Text>
       </View>
     );
   }

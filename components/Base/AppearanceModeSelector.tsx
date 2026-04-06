@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { useColorScheme } from 'nativewind';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
+import { useTheme } from '@/hooks/useTheme';
 
 type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -18,20 +18,13 @@ const OPTIONS: ModeOption[] = [
 ];
 
 export function AppearanceModeSelector() {
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
+  const { isDark } = theme;
   const { themeMode, setThemeMode } = useAppPreferences();
-  const isDark = colorScheme === 'dark';
 
-  const palette = {
-    groupBg: isDark ? '#1A1E14' : '#FFFFFF',
-    groupBorder: isDark ? '#2C3122' : '#E4E6D6',
-    itemBg: isDark ? '#111410' : '#F4F5E9',
-    activeBg: isDark ? 'rgba(200,245,96,0.12)' : '#EBF4D6',
-    icon: isDark ? '#8A8F7C' : '#6B7060',
-    activeIcon: '#8FAF2B',
-    text: isDark ? '#8A8F7C' : '#6B7060',
-    activeText: '#8FAF2B',
-  };
+  const activeBg = isDark ? 'rgba(200,245,96,0.12)' : '#EBF4D6';
+  const activeIcon = '#8FAF2B';
+  const activeText = '#8FAF2B';
 
   return (
     <View>
@@ -39,7 +32,7 @@ export function AppearanceModeSelector() {
 
       <View
         className="rounded-3xl border p-2"
-        style={{ backgroundColor: palette.groupBg, borderColor: palette.groupBorder }}
+        style={{ backgroundColor: theme.surface, borderColor: theme.border }}
       >
         <View className="flex-row gap-2">
           {OPTIONS.map((option) => {
@@ -52,18 +45,18 @@ export function AppearanceModeSelector() {
                 onPress={() => setThemeMode(option.mode)}
                 className="flex-1 rounded-2xl items-center justify-center py-3.5 border"
                 style={{
-                  backgroundColor: selected ? palette.activeBg : palette.itemBg,
-                  borderColor: selected ? '#9BC23A' : palette.groupBorder,
+                  backgroundColor: selected ? activeBg : theme.surfaceDeep,
+                  borderColor: selected ? '#9BC23A' : theme.border,
                 }}
               >
                 <Ionicons
                   name={option.icon}
                   size={20}
-                  color={selected ? palette.activeIcon : palette.icon}
+                  color={selected ? activeIcon : theme.secondary}
                 />
                 <Text
                   className="mt-1.5 text-[15px] font-bold"
-                  style={{ color: selected ? palette.activeText : palette.text }}
+                  style={{ color: selected ? activeText : theme.secondary }}
                 >
                   {option.label}
                 </Text>

@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
+import { useTheme } from '@/hooks/useTheme';
 import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import * as Haptics from 'expo-haptics';
@@ -123,10 +123,10 @@ export function TransactionEntryModal({
   onClose,
   onSubmit,
 }: TransactionEntryModalProps) {
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
+  const { isDark } = theme;
   const { currencyCode } = useAppPreferences();
   const insets = useSafeAreaInsets();
-  const isDark = colorScheme === 'dark';
   const keypadAnim = useRef(new Animated.Value(0)).current;
   const titleInputRef = useRef<TextInput>(null);
 
@@ -302,27 +302,6 @@ export function TransactionEntryModal({
     } finally {
       setSubmitting(false);
     }
-  };
-
-  // Premium SaaS Fintech Palette
-  const theme = {
-    bg: isDark ? '#1A1E14' : '#F4F5E9',
-    surface: isDark ? '#222618' : '#FFFFFF',
-    surfaceAlt: isDark ? '#2C3122' : '#F8FAF2',
-    border: isDark ? '#2C3122' : '#E4E6D6',
-    borderHighlight: isDark ? '#3A402D' : '#D1D4C2',
-    text: isDark ? '#EDF0E4' : '#1A1E14',
-    secondary: isDark ? '#8A8F7C' : '#9DA28F',
-    lime: '#C8F560',
-    limeDark: '#9BC23A',
-    red: '#FF6B6B',
-    green: '#3DD97B',
-    keypadBg: isDark ? '#151810' : '#EEF0E2',
-    keyBg: isDark ? '#222618' : '#FFFFFF',
-    keypadText: isDark ? '#EDF0E4' : '#1A1E14',
-    keyBorder: isDark ? '#333A28' : '#D9DDC8',
-    keyDeleteBg: isDark ? 'rgba(255,107,107,0.14)' : 'rgba(255,107,107,0.12)',
-    backdrop: 'rgba(0,0,0,0.65)',
   };
 
   const isExpense = mode === 'expense';
@@ -616,9 +595,9 @@ export function TransactionEntryModal({
                 const isAction = key === '=' || key === '+' || key === '-';
                 const isDelete = key === 'DEL' || key === 'CLR';
 
-                let keyColor = theme.keypadText;
-                let bg = theme.keyBg;
-                let border = theme.keyBorder;
+                let keyColor: string = theme.text;
+                let bg: string = theme.keyBg;
+                let border: string = theme.keyBorder;
 
                 if (isAction) {
                   keyColor = isDark ? '#151810' : '#F4F5E9';

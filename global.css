@@ -20,6 +20,16 @@
     --color-text-secondary: #6B7060;
     --color-text-tertiary: #9DA28F;
 
+    /* Surfaces & borders */
+    --color-surface:          #FFFFFF;
+    --color-surface-alt:      #F8FAF2;
+    --color-border:           #E4E6D6;
+    --color-border-highlight: #D1D4C2;
+
+    /* Inputs */
+    --color-input-bg:         #F8F9F2;
+    --color-input-border:     #DDE1CF;
+
     /* Accent – lime (primary brand) */
     --color-lime: #C8F560;
     --color-lime-light: #D4FA7E;
@@ -50,6 +60,16 @@
     --color-text: #EDF0E4;
     --color-text-secondary: #8A8F7C;
     --color-text-tertiary: #585D4C;
+
+    /* Surfaces & borders */
+    --color-surface:          #1A1E14;
+    --color-surface-alt:      #222618;
+    --color-border:           #2C3122;
+    --color-border-highlight: #3A402D;
+
+    /* Inputs */
+    --color-input-bg:         #111410;
+    --color-input-border:     #2F3527;
 
     /* Accent colors remain the same in dark mode */
     --color-lime: #C8F560;

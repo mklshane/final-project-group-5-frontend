@@ -1,5 +1,5 @@
-import { useColorScheme } from 'nativewind';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 import {
   ActivityIndicator,
   Keyboard,
@@ -40,8 +40,8 @@ export function WalletEditorModal({
   onClose,
   onSave,
 }: WalletEditorModalProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const theme = useTheme();
+  const { isDark } = theme;
 
   const [name, setName] = useState('');
   const [type, setType] = useState<WalletType>('general');
@@ -60,31 +60,7 @@ export function WalletEditorModal({
     setIsDefault(Boolean(initialWallet?.is_default));
   }, [visible, initialWallet]);
 
-  const palette = useMemo(
-    () => ({
-      overlay: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(26,30,20,0.42)',
-      card: isDark ? '#1A1E14' : '#FFFFFF',
-      border: isDark ? '#2C3122' : '#E4E6D6',
-      text: isDark ? '#EDF0E4' : '#1A1E14',
-      sub: isDark ? '#8A8F7C' : '#6B7060',
-      sectionLabel: isDark ? '#A6AD96' : '#6B7060',
-      inputBg: isDark ? '#111410' : '#F8F9F2',
-      inputBorder: isDark ? '#2F3527' : '#DDE1CF',
-      inputText: isDark ? '#EDF0E4' : '#1A1E14',
-      inputPlaceholder: isDark ? '#66705D' : '#9DA28F',
-      chipBg: isDark ? '#222618' : '#EEF0E2',
-      chipBorder: isDark ? '#2C3122' : '#DDE1CF',
-      chipActiveBg: isDark ? '#C8F560' : '#1A1E14',
-      chipActiveText: isDark ? '#1A1E14' : '#C8F560',
-      cancelBg: isDark ? '#20251A' : '#EEF0E2',
-      cancelBorder: isDark ? '#343B2A' : '#D7DDC8',
-      cancelText: isDark ? '#EDF0E4' : '#1A1E14',
-      submitBg: isDark ? '#C8F560' : '#1A1E14',
-      submitText: isDark ? '#1A1E14' : '#C8F560',
-      submitDisabled: isDark ? '#5A614B' : '#C8CEC0',
-    }),
-    [isDark]
-  );
+  const submitDisabled = isDark ? '#5A614B' : '#C8CEC0';
 
   const handleSave = async () => {
     const trimmedName = name.trim();
@@ -110,27 +86,27 @@ export function WalletEditorModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={[s.overlay, { backgroundColor: palette.overlay }]}
+        style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View>
-            <View style={[s.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-              <Text style={[s.title, { color: palette.text }]}>{mode === 'create' ? 'Add Wallet' : 'Edit Wallet'}</Text>
-              <Text style={[s.subtitle, { color: palette.sub }]}>Manage where your funds are stored.</Text>
+            <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[s.title, { color: theme.text }]}>{mode === 'create' ? 'Add Wallet' : 'Edit Wallet'}</Text>
+              <Text style={[s.subtitle, { color: theme.secondary }]}>Manage where your funds are stored.</Text>
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>WALLET NAME</Text>
-              <View style={[s.inputWrap, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>WALLET NAME</Text>
+              <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
                 <TextInput
                   value={name}
                   onChangeText={setName}
                   placeholder="e.g. BPI Savings, GCash"
-                  placeholderTextColor={palette.inputPlaceholder}
-                  style={[s.input, { color: palette.inputText }]}
+                  placeholderTextColor={theme.inputPlaceholder}
+                  style={[s.input, { color: theme.text }]}
                 />
               </View>
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>TYPE</Text>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>TYPE</Text>
               <View style={s.rowWrap}>
                 {WALLET_TYPES.map((option) => {
                   const active = type === option;
@@ -141,12 +117,12 @@ export function WalletEditorModal({
                       style={[
                         s.chip,
                         {
-                          backgroundColor: active ? palette.chipActiveBg : palette.chipBg,
-                          borderColor: active ? palette.chipActiveBg : palette.chipBorder,
+                          backgroundColor: active ? theme.lime : theme.chipBg,
+                          borderColor: active ? theme.lime : theme.chipBorder,
                         },
                       ]}
                     >
-                      <Text style={[s.chipText, { color: active ? palette.chipActiveText : palette.sub }]}>
+                      <Text style={[s.chipText, { color: active ? theme.bg : theme.secondary }]}>
                         {WALLET_TYPE_LABELS[option].toUpperCase()}
                       </Text>
                     </Pressable>
@@ -156,44 +132,44 @@ export function WalletEditorModal({
 
               {(type === 'bank' || type === 'ewallet') && (
                 <>
-                  <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>INSTITUTION (OPTIONAL)</Text>
-                  <View style={[s.inputWrap, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
+                  <Text style={[s.sectionLabel, { color: theme.secondary }]}>INSTITUTION (OPTIONAL)</Text>
+                  <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
                     <TextInput
                       value={institutionName}
                       onChangeText={setInstitutionName}
                       placeholder={type === 'bank' ? 'e.g. BDO, BPI' : 'e.g. GCash, Maya'}
-                      placeholderTextColor={palette.inputPlaceholder}
-                      style={[s.input, { color: palette.inputText }]}
+                      placeholderTextColor={theme.inputPlaceholder}
+                      style={[s.input, { color: theme.text }]}
                     />
                   </View>
                 </>
               )}
 
-              <Text style={[s.sectionLabel, { color: palette.sectionLabel }]}>CURRENT BALANCE</Text>
-              <View style={[s.inputWrap, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}> 
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>CURRENT BALANCE</Text>
+              <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
                 <TextInput
                   value={currentBalance}
                   onChangeText={(value) => setCurrentBalance(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                   placeholder="0"
                   keyboardType="decimal-pad"
-                  placeholderTextColor={palette.inputPlaceholder}
-                  style={[s.input, { color: palette.inputText }]}
+                  placeholderTextColor={theme.inputPlaceholder}
+                  style={[s.input, { color: theme.text }]}
                 />
               </View>
 
               <Pressable
                 onPress={() => setIsDefault((prev) => !prev)}
-                style={[s.defaultToggle, { borderColor: palette.inputBorder, backgroundColor: palette.inputBg }]}
+                style={[s.defaultToggle, { borderColor: theme.inputBorder, backgroundColor: theme.inputBg }]}
               >
-                <Text style={[s.defaultToggleLabel, { color: palette.text }]}>Set as default wallet</Text>
+                <Text style={[s.defaultToggleLabel, { color: theme.text }]}>Set as default wallet</Text>
                 <View
                   style={{
                     width: 20,
                     height: 20,
                     borderRadius: 10,
                     borderWidth: 1,
-                    borderColor: isDefault ? palette.chipActiveBg : palette.inputBorder,
-                    backgroundColor: isDefault ? palette.chipActiveBg : 'transparent',
+                    borderColor: isDefault ? theme.lime : theme.inputBorder,
+                    backgroundColor: isDefault ? theme.lime : 'transparent',
                   }}
                 />
               </Pressable>
@@ -201,9 +177,9 @@ export function WalletEditorModal({
               <View style={s.actions}>
                 <Pressable
                   onPress={onClose}
-                  style={[s.actionButton, s.half, { backgroundColor: palette.cancelBg, borderColor: palette.cancelBorder }]}
+                  style={[s.actionButton, s.half, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
                 >
-                  <Text style={[s.actionText, { color: palette.cancelText }]}>Cancel</Text>
+                  <Text style={[s.actionText, { color: theme.text }]}>Cancel</Text>
                 </Pressable>
 
                 <Pressable
@@ -213,15 +189,15 @@ export function WalletEditorModal({
                     s.actionButton,
                     s.half,
                     {
-                      backgroundColor: !name.trim() || saving ? palette.submitDisabled : palette.submitBg,
-                      borderColor: !name.trim() || saving ? palette.submitDisabled : palette.submitBg,
+                      backgroundColor: !name.trim() || saving ? submitDisabled : theme.lime,
+                      borderColor: !name.trim() || saving ? submitDisabled : theme.lime,
                     },
                   ]}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color={palette.submitText} />
+                    <ActivityIndicator size="small" color={theme.bg} />
                   ) : (
-                    <Text style={[s.actionText, { color: palette.submitText }]}>
+                    <Text style={[s.actionText, { color: theme.bg }]}>
                       {mode === 'create' ? 'Create Wallet' : 'Save Changes'}
                     </Text>
                   )}
