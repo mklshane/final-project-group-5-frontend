@@ -21,7 +21,7 @@ export const DEFAULT_SYSTEM_CATEGORIES: DefaultCategoryTemplate[] = [
   { name: 'Travel', icon: 'airplane-outline', color: '#3A86FF', type: 'expense', sortOrder: 10 },
   { name: 'Personal Care', icon: 'cut-outline', color: '#D90429', type: 'expense', sortOrder: 11 },
   { name: 'Subscriptions', icon: 'repeat-outline', color: '#6C757D', type: 'expense', sortOrder: 12 },
-  { name: 'Gifts & Donations', icon: 'gift-outline', color: '#F72585', type: 'both', sortOrder: 13 },
+  { name: 'Gifts & Donations', icon: 'heart-outline', color: '#F72585', type: 'both', sortOrder: 13 },
   { name: 'Pets', icon: 'paw-outline', color: '#2B9348', type: 'expense', sortOrder: 14 },
   { name: 'Miscellaneous', icon: 'apps-outline', color: '#6C757D', type: 'both', sortOrder: 15 },
   { name: 'Salary', icon: 'wallet-outline', color: '#2A9D8F', type: 'income', sortOrder: 101 },

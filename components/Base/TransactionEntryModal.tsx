@@ -24,7 +24,6 @@ import { useAppPreferences } from '@/context/AppPreferencesContext';
 import * as Haptics from 'expo-haptics';
 import type { CategoryRecord, WalletRecord } from '@/types/finance';
 import { useReceiptScanner } from '@/hooks/useReceiptScanner';
-import { ReceiptScanReviewModal, type ReceiptScanReviewDraft } from '@/components/Base/ReceiptScanReviewModal';
 
 type TransactionMode = 'expense' | 'income';
 type ActiveField = 'amount' | 'title' | 'other';
@@ -237,9 +236,7 @@ export function TransactionEntryModal({
   const [activeField, setActiveField] = useState<ActiveField>('amount');
   const [customLoggedAt, setCustomLoggedAt] = useState<Date | null>(null);
   const [scannerVisible, setScannerVisible] = useState(false);
-  const [scanReviewVisible, setScanReviewVisible] = useState(false);
-  const [scanReviewDraft, setScanReviewDraft] = useState<ReceiptScanReviewDraft | null>(null);
-  const [scannedImageUri, setScannedImageUri] = useState<string | null>(null);
+  const [awaitingFreshScanResult, setAwaitingFreshScanResult] = useState(false);
 
   const {
     status: scanStatus,
@@ -277,9 +274,7 @@ export function TransactionEntryModal({
     setActiveField('amount');
     setCustomLoggedAt(null);
     setScannerVisible(false);
-    setScanReviewVisible(false);
-    setScanReviewDraft(null);
-    setScannedImageUri(null);
+    setAwaitingFreshScanResult(false);
     resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
@@ -303,6 +298,7 @@ export function TransactionEntryModal({
     lastHandledScanRequestRef.current = scanRequestId;
     setActiveField('other');
     Keyboard.dismiss();
+    setAwaitingFreshScanResult(false);
     resetScanner();
     setScannerVisible(true);
   }, [visible, mode, scanRequestId, resetScanner]);
@@ -321,6 +317,8 @@ export function TransactionEntryModal({
   const expressionText = getExpressionText(expression, historyExpression);
 
   useEffect(() => {
+    if (!scannerVisible) return;
+    if (!awaitingFreshScanResult) return;
     if (scanStatus !== 'done' || !scanResult) return;
 
     const itemNote = scanResult.items.length
@@ -333,19 +331,47 @@ export function TransactionEntryModal({
       availableCategories
     );
 
-    setScannedImageUri(scanImageUri ?? null);
-    setScanReviewDraft({
-      title: scanResult.storeName?.trim() || 'Scanned receipt',
-      amount: scanResult.totalAmount ? String(scanResult.totalAmount) : '',
-      category: autoCategory,
-      date: scanResult.date ?? toIsoDate(new Date()),
-      note: itemNote,
-      confidence: scanResult.confidence,
-      items: scanResult.items,
-    });
+    const normalizedTitle = scanResult.storeName?.trim() || 'Scanned receipt';
+    const normalizedAmount =
+      typeof scanResult.totalAmount === 'number' && Number.isFinite(scanResult.totalAmount) && scanResult.totalAmount > 0
+        ? Math.round(scanResult.totalAmount * 100) / 100
+        : null;
+    const matchedCategoryId = findCategoryIdByExactName(autoCategory, availableCategories);
+    const parsedDate = parseIsoDate(scanResult.date ?? toIsoDate(new Date()));
+
+    setTitle(normalizedTitle);
+    if (normalizedAmount !== null) {
+      setExpression(String(normalizedAmount));
+      setHistoryExpression('');
+    }
+    if (matchedCategoryId !== null) {
+      setSelectedCategoryId(matchedCategoryId);
+    }
+    if (parsedDate) {
+      setCustomLoggedAt((prev) => {
+        const base = prev ?? new Date();
+        const next = new Date(base);
+        next.setFullYear(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+        return next;
+      });
+    }
+
+    if (itemNote && title.trim().length === 0) {
+      setTitle(normalizedTitle);
+    }
+
+    setAwaitingFreshScanResult(false);
     setScannerVisible(false);
-    setScanReviewVisible(true);
-  }, [scanStatus, scanResult, scanImageUri, availableCategories]);
+    setActiveField('title');
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  }, [scanStatus, scanResult, availableCategories, scannerVisible, awaitingFreshScanResult, title]);
+
+  useEffect(() => {
+    if (!awaitingFreshScanResult) return;
+    if (scanStatus === 'error' || scanStatus === 'idle') {
+      setAwaitingFreshScanResult(false);
+    }
+  }, [scanStatus, awaitingFreshScanResult]);
 
   const canSave =
     !submitting &&
@@ -436,37 +462,21 @@ export function TransactionEntryModal({
     if (!isExpense) return;
     dismissKeypad();
     Keyboard.dismiss();
+    setAwaitingFreshScanResult(false);
     resetScanner();
     setScannerVisible(true);
   };
 
-  const applyScanDraft = (draft: ReceiptScanReviewDraft) => {
-    const normalizedTitle = draft.title.trim() || 'Scanned receipt';
-    const parsedAmount = Number.parseFloat(draft.amount);
-    const normalizedAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? Math.round(parsedAmount * 100) / 100 : null;
-    const parsedDate = parseIsoDate(draft.date);
-    const matchedCategoryId = findCategoryIdByExactName(draft.category, availableCategories);
+  const beginCameraScan = async () => {
+    resetScanner();
+    setAwaitingFreshScanResult(true);
+    await scanFromCamera();
+  };
 
-    setTitle(normalizedTitle);
-    if (normalizedAmount !== null) {
-      setExpression(String(normalizedAmount));
-      setHistoryExpression('');
-    }
-    if (matchedCategoryId !== null) {
-      setSelectedCategoryId(matchedCategoryId);
-    }
-    if (parsedDate) {
-      setCustomLoggedAt((prev) => {
-        const base = prev ?? new Date();
-        const next = new Date(base);
-        next.setFullYear(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
-        return next;
-      });
-    }
-
-    setScanReviewVisible(false);
-    setActiveField('title');
-    titleInputRef.current?.focus();
+  const beginGalleryScan = async () => {
+    resetScanner();
+    setAwaitingFreshScanResult(true);
+    await scanFromGallery();
   };
 
   const submit = async () => {
@@ -491,8 +501,6 @@ export function TransactionEntryModal({
         categoryId: selectedCategoryId,
         loggedAt: customLoggedAt ?? new Date(),
       });
-      setScannedImageUri(null);
-      setScanReviewDraft(null);
       resetScanner();
       onClose();
     } finally {
@@ -503,9 +511,12 @@ export function TransactionEntryModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={[s.backdrop, { backgroundColor: theme.backdrop }]} onPress={onClose} />
+        {!scannerVisible ? (
+          <Pressable style={[s.backdrop, { backgroundColor: theme.backdrop }]} onPress={onClose} />
+        ) : null}
 
-        <View style={[s.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {!scannerVisible ? (
+        <View style={[s.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           {/* Drag Indicator */}
           <View style={s.dragHandleWrap}>
             <View style={[s.dragHandle, { backgroundColor: theme.borderHighlight }]} />
@@ -770,9 +781,11 @@ export function TransactionEntryModal({
             </View>
           </ScrollView>
         </View>
+        ) : null}
       </KeyboardAvoidingView>
 
       {/* Floating custom keypad — slides up like native keyboard */}
+      {!scannerVisible ? (
       <Animated.View
         style={[
           s.keypadPanel,
@@ -843,19 +856,35 @@ export function TransactionEntryModal({
           ))}
         </View>
       </Animated.View>
+      ) : null}
 
       <Modal
         visible={scannerVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setScannerVisible(false)}
+        onRequestClose={() => {
+          setAwaitingFreshScanResult(false);
+          setScannerVisible(false);
+        }}
       >
-        <Pressable style={[s.scanBackdrop, { backgroundColor: theme.backdrop }]} onPress={() => setScannerVisible(false)} />
+        <Pressable
+          style={[s.scanBackdrop, { backgroundColor: theme.backdrop }]}
+          onPress={() => {
+            setAwaitingFreshScanResult(false);
+            setScannerVisible(false);
+          }}
+        />
         <View style={s.scanContainer}>
           <View style={[s.scanCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
             <View style={s.scanHeader}>
               <Text style={[s.scanTitle, { color: theme.text }]}>Scan receipt</Text>
-              <Pressable onPress={() => setScannerVisible(false)} hitSlop={12}>
+              <Pressable
+                onPress={() => {
+                  setAwaitingFreshScanResult(false);
+                  setScannerVisible(false);
+                }}
+                hitSlop={12}
+              >
                 <Ionicons name="close" size={22} color={theme.secondary} />
               </Pressable>
             </View>
@@ -864,11 +893,11 @@ export function TransactionEntryModal({
               <>
                 <Text style={[s.scanBody, { color: theme.secondary }]}>Choose camera or gallery. The image is sent securely to your backend for Gemini parsing, then returned for review.</Text>
                 <View style={s.scanActionsRow}>
-                  <TouchableOpacity onPress={() => void scanFromCamera()} style={[s.scanActionBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}>
+                  <TouchableOpacity onPress={() => void beginCameraScan()} style={[s.scanActionBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}>
                     <Ionicons name="camera-outline" size={18} color={theme.text} />
                     <Text style={[s.scanActionText, { color: theme.text }]}>Camera</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => void scanFromGallery()} style={[s.scanActionBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}>
+                  <TouchableOpacity onPress={() => void beginGalleryScan()} style={[s.scanActionBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}>
                     <Ionicons name="images-outline" size={18} color={theme.text} />
                     <Text style={[s.scanActionText, { color: theme.text }]}>Gallery</Text>
                   </TouchableOpacity>
@@ -903,20 +932,6 @@ export function TransactionEntryModal({
           </View>
         </View>
       </Modal>
-
-      <ReceiptScanReviewModal
-        visible={scanReviewVisible}
-        imageUri={scannedImageUri}
-        draft={scanReviewDraft}
-        categoryOptions={availableCategories.map((category) => category.name)}
-        onClose={() => setScanReviewVisible(false)}
-        onRescan={() => {
-          setScanReviewVisible(false);
-          resetScanner();
-          setScannerVisible(true);
-        }}
-        onApply={applyScanDraft}
-      />
 
       {/* Warning Modal */}
       <Modal

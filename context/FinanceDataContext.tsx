@@ -105,7 +105,11 @@ const defaultFinanceState: FinanceDataState = {
 
 const storageKeyForUser = (userId: string) => `${STORAGE_KEY_PREFIX}:${userId}`;
 
-const createId = () => `${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+const createId = () =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 
 const nowIso = () => new Date().toISOString();
 
@@ -302,7 +306,7 @@ const createDefaultCategoryRecords = (userId: string): CategoryRecord[] => {
   }));
 };
 
-const createDefaultWalletRecord = (userId: string): WalletRecord => {
+const createDefaultWalletRecord = (userId: string, openingBalance = 0): WalletRecord => {
   const timestamp = nowIso();
   return {
     id: createId(),
@@ -310,8 +314,8 @@ const createDefaultWalletRecord = (userId: string): WalletRecord => {
     name: DEFAULT_WALLET.name,
     type: DEFAULT_WALLET.type,
     institution_name: null,
-    opening_balance: 0,
-    current_balance: 0,
+    opening_balance: openingBalance,
+    current_balance: openingBalance,
     is_default: DEFAULT_WALLET.isDefault,
     sort_order: DEFAULT_WALLET.sortOrder,
     version: 1,
@@ -322,13 +326,12 @@ const createDefaultWalletRecord = (userId: string): WalletRecord => {
 };
 
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [state, setState] = useState<FinanceDataState>(defaultFinanceState);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
-  const [defaultsSeededForUserId, setDefaultsSeededForUserId] = useState<string | null>(null);
   const [walletsSeededForUserId, setWalletsSeededForUserId] = useState<string | null>(null);
 
   const runSync = useCallback(
@@ -385,7 +388,6 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       setLoading(false);
       setError(null);
       setHydratedUserId(null);
-      setDefaultsSeededForUserId(null);
       setWalletsSeededForUserId(null);
       return;
     }
@@ -395,7 +397,48 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
       const key = storageKeyForUser(session.user.id);
       const cachedRaw = await AsyncStorage.getItem(key).catch(() => null);
-      const cachedState = parseCachedFinanceState(cachedRaw);
+      let cachedState = parseCachedFinanceState(cachedRaw);
+
+      // Seed any missing default categories synchronously before first render.
+      // Doing this here (not in a separate effect) avoids TOKEN_REFRESHED race
+      // conditions where the guard fires but state was reset to empty.
+      const existingNames = new Set(
+        cachedState.categories
+          .filter((c) => !c.deleted_at)
+          .map((c) => c.name.trim().toLowerCase())
+      );
+      const missingTemplates = DEFAULT_SYSTEM_CATEGORIES.filter(
+        (t) => !existingNames.has(t.name.trim().toLowerCase())
+      );
+      if (missingTemplates.length > 0) {
+        const timestamp = nowIso();
+        const newRecords: CategoryRecord[] = missingTemplates.map((t) => ({
+          id: createId(),
+          user_id: session.user.id,
+          name: t.name,
+          icon: t.icon,
+          color: t.color,
+          type: t.type,
+          is_default: true,
+          sort_order: t.sortOrder,
+          version: 1,
+          created_at: timestamp,
+          updated_at: timestamp,
+          deleted_at: null,
+        }));
+        const newChanges: SyncChange[] = newRecords.map((r) => ({
+          table: 'categories',
+          action: 'create',
+          record_id: r.id,
+          record: r as unknown as Record<string, unknown>,
+          version: r.version,
+        }));
+        cachedState = {
+          ...cachedState,
+          categories: [...cachedState.categories, ...newRecords],
+          pendingChanges: [...cachedState.pendingChanges, ...newChanges],
+        };
+      }
 
       if (cancelled) return;
 
@@ -417,40 +460,14 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!session || loading) return;
-    if (defaultsSeededForUserId === session.user.id) return;
-    if (state.categories.length > 0) {
-      setDefaultsSeededForUserId(session.user.id);
-      return;
-    }
-
-    const defaultRecords = createDefaultCategoryRecords(session.user.id);
-    const defaultChanges: SyncChange[] = defaultRecords.map((record) => ({
-      table: 'categories',
-      action: 'create',
-      record_id: record.id,
-      record: record as unknown as Record<string, unknown>,
-      version: record.version,
-    }));
-
-    setState((prev) => ({
-      ...prev,
-      categories: defaultRecords,
-      pendingChanges: [...prev.pendingChanges, ...defaultChanges],
-    }));
-    setDefaultsSeededForUserId(session.user.id);
-
-    void runSync(defaultChanges, state.lastSyncedAt);
-  }, [defaultsSeededForUserId, loading, runSync, session, state.categories.length, state.lastSyncedAt]);
-
-  useEffect(() => {
-    if (!session || loading) return;
+    if (!profile?.onboarding_done) return; // wait until onboarding is complete so balance is available
     if (walletsSeededForUserId === session.user.id) return;
     if (state.wallets.length > 0) {
       setWalletsSeededForUserId(session.user.id);
       return;
     }
 
-    const defaultWallet = createDefaultWalletRecord(session.user.id);
+    const defaultWallet = createDefaultWalletRecord(session.user.id, profile?.balance ?? 0);
     const change: SyncChange = {
       table: 'wallets',
       action: 'create',
@@ -467,7 +484,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     setWalletsSeededForUserId(session.user.id);
 
     void runSync([change], state.lastSyncedAt);
-  }, [walletsSeededForUserId, loading, runSync, session, state.lastSyncedAt, state.wallets.length]);
+  }, [walletsSeededForUserId, loading, runSync, session, profile, state.lastSyncedAt, state.wallets.length]);
 
   useEffect(() => {
     if (!session || hydratedUserId !== session.user.id) return;

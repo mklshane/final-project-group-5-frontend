@@ -46,8 +46,7 @@ function RootLayoutNav() {
         router.replace('/(app)');
       }
     } else {
-      // Session exists but profile fetch is pending/failed; keep users out of auth screens.
-      if (inAuth) router.replace('/(app)');
+      // Session exists but profile is still loading — wait before navigating.
       refreshProfile();
     }
   }, [session, profile, loading]);

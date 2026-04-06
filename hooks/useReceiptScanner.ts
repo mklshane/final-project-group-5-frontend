@@ -86,6 +86,9 @@ export function useReceiptScanner(): UseReceiptScannerReturn {
         if (response.status === 503) {
           throw new Error('Receipt parser is not configured on backend. Set GEMINI_API_KEY and redeploy the server.');
         }
+        if (response.status === 429) {
+          throw new Error(body?.error ?? 'Receipt parser is rate-limited right now. Please wait about a minute and try again.');
+        }
         throw new Error(body?.error ?? `Receipt parsing failed (${response.status}).`);
       }
 
