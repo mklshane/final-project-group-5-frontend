@@ -520,7 +520,7 @@ const s = StyleSheet.create({
     opacity: 0.85,
   },
   transactionList: {
-    gap: 12,
+    gap: 6,
   },
   // Empty / loading states
   loadingStateCard: {

@@ -237,6 +237,7 @@ export function TransactionEntryModal({
   const [customLoggedAt, setCustomLoggedAt] = useState<Date | null>(null);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [awaitingFreshScanResult, setAwaitingFreshScanResult] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   const {
     status: scanStatus,
@@ -259,7 +260,10 @@ export function TransactionEntryModal({
   );
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      setIsClosing(false);
+      return;
+    }
 
     const defaultWalletId = pickDefaultWallet(wallets);
     const defaultCategoryId = availableCategories[0]?.id ?? null;
@@ -275,6 +279,7 @@ export function TransactionEntryModal({
     setCustomLoggedAt(null);
     setScannerVisible(false);
     setAwaitingFreshScanResult(false);
+    setIsClosing(false);
     resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
@@ -508,11 +513,17 @@ export function TransactionEntryModal({
     }
   };
 
+  const handleClose = () => {
+    setIsClosing(true);
+    onClose();
+  };
+
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible && !isClosing} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {!scannerVisible ? (
-          <Pressable style={[s.backdrop, { backgroundColor: theme.backdrop }]} onPress={onClose} />
+          <Pressable style={[s.backdrop, { backgroundColor: theme.backdrop }]} onPress={handleClose} />
         ) : null}
 
         {!scannerVisible ? (
@@ -536,7 +547,7 @@ export function TransactionEntryModal({
                   New {isExpense ? 'Expense' : 'Income'}
                 </Text>
               </View>
-              <Pressable onPress={onClose} hitSlop={15} style={s.closeButton}>
+              <Pressable onPress={handleClose} hitSlop={15} style={s.closeButton}>
                 <Ionicons name="close" size={24} color={theme.secondary} />
               </Pressable>
             </View>
@@ -858,31 +869,18 @@ export function TransactionEntryModal({
       </Animated.View>
       ) : null}
 
-      <Modal
-        visible={scannerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setAwaitingFreshScanResult(false);
-          setScannerVisible(false);
-        }}
-      >
+      {scannerVisible ? (
+      <View style={StyleSheet.absoluteFill}>
         <Pressable
           style={[s.scanBackdrop, { backgroundColor: theme.backdrop }]}
-          onPress={() => {
-            setAwaitingFreshScanResult(false);
-            setScannerVisible(false);
-          }}
+          onPress={handleClose}
         />
         <View style={s.scanContainer}>
-          <View style={[s.scanCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <View style={[s.scanCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={s.scanHeader}>
               <Text style={[s.scanTitle, { color: theme.text }]}>Scan receipt</Text>
               <Pressable
-                onPress={() => {
-                  setAwaitingFreshScanResult(false);
-                  setScannerVisible(false);
-                }}
+                onPress={handleClose}
                 hitSlop={12}
               >
                 <Ionicons name="close" size={22} color={theme.secondary} />
@@ -931,7 +929,8 @@ export function TransactionEntryModal({
             )}
           </View>
         </View>
-      </Modal>
+      </View>
+      ) : null}
 
       {/* Warning Modal */}
       <Modal

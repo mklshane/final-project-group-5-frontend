@@ -34,7 +34,7 @@ export function WalletPreviewSection({ wallets, formatCurrency }: WalletPreviewS
 
 const s = StyleSheet.create({
   list: {
-    gap: 10,
+    gap: 6,
     marginBottom: 12,
   },
   emptyWrap: {

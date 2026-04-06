@@ -84,7 +84,7 @@ export default function ActivityScreen() {
           <FlatList
             data={finance.allTransactionsView}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24, gap: 12 }}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24, gap: 6 }}
             renderItem={({ item }) => (
               <TransactionCard
                 title={item.title}
