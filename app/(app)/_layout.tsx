@@ -2,13 +2,12 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColorScheme } from 'nativewind';
-import { View } from 'react-native';
+import { useColorScheme } from 'react-native';
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
-  const { colorScheme } = useColorScheme();
-  
+  const colorScheme = useColorScheme();
+
   const isDark = colorScheme === 'dark';
 
   return (

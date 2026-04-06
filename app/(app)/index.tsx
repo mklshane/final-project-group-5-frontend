@@ -70,6 +70,7 @@ export default function HomeScreen() {
     type: 'expense' | 'income';
     walletId: string | null;
     categoryId: string | null;
+    loggedAt: Date;
   }) => {
     await addTransaction({
       title: input.title,
@@ -77,6 +78,7 @@ export default function HomeScreen() {
       type: input.type,
       walletId: input.walletId,
       categoryId: input.categoryId,
+      date: input.loggedAt.toISOString(),
     });
   };
 
@@ -142,7 +144,10 @@ export default function HomeScreen() {
         {/* ── Greeting ──────────────────────────────────── */}
         <View style={s.greetingContainer}>
           <Text style={[s.greetingDate, { color: palette.subtext }]}>{greetingMeta.dateLabel}</Text>
-          <Text style={[s.greetingTitle, { color: palette.heading }]}>{greetingMeta.salutation}, {firstName}</Text>
+          <Text style={[s.greetingTitle, { color: palette.heading }]}>
+            <Text style={{ fontWeight: '400' }}>{greetingMeta.salutation}
+            {', '}</Text>{firstName}
+          </Text>
           <Text style={[s.greetingSub, { color: palette.subtext }]}>{greetingSub}</Text>
         </View>
 

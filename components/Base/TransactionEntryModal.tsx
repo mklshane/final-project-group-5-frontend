@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import {
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -9,9 +11,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { CURRENCIES } from '@/constants/currencies';
@@ -20,7 +24,7 @@ import * as Haptics from 'expo-haptics';
 import type { CategoryRecord, WalletRecord } from '@/types/finance';
 
 type TransactionMode = 'expense' | 'income';
-type ActiveField = 'amount' | 'title';
+type ActiveField = 'amount' | 'title' | 'other';
 
 type KeyLabel = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' | '+' | '-' | '=' | 'DEL' | 'CLR';
 
@@ -36,6 +40,7 @@ interface TransactionEntryModalProps {
     type: TransactionMode;
     walletId: string | null;
     categoryId: string | null;
+    loggedAt: Date;
   }) => Promise<void>;
 }
 
@@ -46,7 +51,7 @@ const KEYPAD_ROWS: KeyLabel[][] = [
   ['.', '0', 'CLR', '='],
 ];
 
-const formatCurrency = (value: number, symbol: string) => {
+const formatCurrency = (value: number, _symbol: string) => {
   const rounded = Math.round(value * 100) / 100;
   return `${rounded < 0 ? '-' : ''}${Math.abs(rounded).toLocaleString(undefined, {
     minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
@@ -120,7 +125,10 @@ export function TransactionEntryModal({
 }: TransactionEntryModalProps) {
   const { colorScheme } = useColorScheme();
   const { currencyCode } = useAppPreferences();
+  const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
+  const keypadAnim = useRef(new Animated.Value(0)).current;
+  const titleInputRef = useRef<TextInput>(null);
 
   const [title, setTitle] = useState('');
   const [expression, setExpression] = useState('0');
@@ -131,6 +139,7 @@ export function TransactionEntryModal({
   const [insufficientFundsVisible, setInsufficientFundsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActiveField>('amount');
+  const [customLoggedAt, setCustomLoggedAt] = useState<Date | null>(null);
 
   const currencySymbol = useMemo(
     () => CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? '₱',
@@ -156,8 +165,20 @@ export function TransactionEntryModal({
     setCategoryDropdownOpen(false);
     setInsufficientFundsVisible(false);
     setActiveField('amount');
+    setCustomLoggedAt(null);
+    keypadAnim.setValue(0);
     Keyboard.dismiss();
   }, [visible, mode, wallets, availableCategories]);
+
+  useEffect(() => {
+    Animated.spring(keypadAnim, {
+      toValue: activeField === 'amount' ? 0 : 420,
+      useNativeDriver: true,
+      damping: 22,
+      mass: 0.85,
+      stiffness: 260,
+    }).start();
+  }, [activeField]);
 
   const selectedCategory = useMemo(
     () => availableCategories.find((category) => category.id === selectedCategoryId) ?? null,
@@ -246,6 +267,15 @@ export function TransactionEntryModal({
     Keyboard.dismiss();
   };
 
+  const activateTitleInput = () => {
+    setActiveField('title');
+    titleInputRef.current?.focus();
+  };
+
+  const dismissKeypad = () => {
+    if (activeField === 'amount') setActiveField('other');
+  };
+
   const submit = async () => {
     if (!canSave) return;
 
@@ -266,6 +296,7 @@ export function TransactionEntryModal({
         type: mode,
         walletId: selectedWalletId,
         categoryId: selectedCategoryId,
+        loggedAt: customLoggedAt ?? new Date(),
       });
       onClose();
     } finally {
@@ -283,6 +314,7 @@ export function TransactionEntryModal({
     text: isDark ? '#EDF0E4' : '#1A1E14',
     secondary: isDark ? '#8A8F7C' : '#9DA28F',
     lime: '#C8F560',
+    limeDark: '#9BC23A',
     red: '#FF6B6B',
     green: '#3DD97B',
     keypadBg: isDark ? '#151810' : '#EEF0E2',
@@ -307,7 +339,12 @@ export function TransactionEntryModal({
             <View style={[s.dragHandle, { backgroundColor: theme.borderHighlight }]} />
           </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={dismissKeypad}
+            contentContainerStyle={{ paddingBottom: activeField === 'amount' ? 320 + insets.bottom : insets.bottom + 24 }}
+          >
             {/* Header */}
             <View style={s.headerRow}>
               <View style={s.headerTitleWrap}>
@@ -323,25 +360,33 @@ export function TransactionEntryModal({
 
             {/* Massive Amount Input */}
             <Pressable onPress={activateAmountInput} style={s.amountContainer}>
-              <Text style={[s.currencySymbol, { color: activeField === 'amount' ? theme.text : theme.secondary }]}>
-                {currencySymbol}
-              </Text>
-              <Text 
-                style={[s.amountText, { color: activeField === 'amount' ? theme.text : theme.secondary }]} 
-                numberOfLines={1} 
-                adjustsFontSizeToFit
-              >
-                {expressionText ? expressionText : formatCurrency(computedAmount, '')}
-              </Text>
+              <View style={s.amountValueRow}>
+                <Text style={[s.currencySymbol, { color: activeField === 'amount' ? theme.text : theme.secondary }]}>
+                  {currencySymbol}
+                </Text>
+                <Text
+                  style={[s.amountText, { color: activeField === 'amount' ? theme.text : theme.secondary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {formatCurrency(computedAmount, '')}
+                </Text>
+              </View>
+              {expressionText ? (
+                <Text style={[s.expressionText, { color: theme.secondary }]}>
+                  {expressionText}
+                </Text>
+              ) : null}
             </Pressable>
 
             {/* Title Input */}
             <View style={[s.inputRow, { borderBottomColor: activeField === 'title' ? theme.text : theme.border }]}>
               <TextInput
+                ref={titleInputRef}
                 value={title}
                 onChangeText={setTitle}
                 onFocus={() => setActiveField('title')}
-                placeholder="What was this for?"
+                placeholder={isExpense ? 'e.g. Lunch, Grab' : 'e.g. April Salary, Freelance'}
                 placeholderTextColor={theme.secondary}
                 style={[s.titleInput, { color: theme.text }]}
                 selectionColor={theme.lime}
@@ -357,29 +402,29 @@ export function TransactionEntryModal({
                   return (
                     <Pressable
                       key={wallet.id}
-                      onPress={() => setSelectedWalletId(wallet.id)}
+                      onPress={() => { dismissKeypad(); setSelectedWalletId(wallet.id); }}
                       style={[
                         s.walletCard,
                         {
-                          backgroundColor: active ? (isDark ? 'rgba(200,245,96,0.08)' : theme.surface) : theme.surfaceAlt,
-                          borderColor: active ? theme.lime : theme.border,
+                          backgroundColor: active ? (isDark ? 'rgba(155,194,58,0.1)' : theme.surface) : theme.surfaceAlt,
+                          borderColor: active ? theme.limeDark : theme.border,
                         },
                       ]}
                     >
-                      <View style={s.walletCardTop}>
-                        <Ionicons 
-                          name="wallet" 
-                          size={18} 
-                          color={active ? theme.lime : theme.secondary} 
-                        />
-                        {active && <Ionicons name="checkmark-circle" size={16} color={theme.lime} />}
+                      <View style={s.walletCardInner}>
+                        <View style={[s.walletIconWrap, { backgroundColor: active ? 'rgba(155,194,58,0.18)' : `${theme.secondary}18` }]}>
+                          <Ionicons name="wallet" size={15} color={active ? theme.limeDark : theme.secondary} />
+                        </View>
+                        <View style={s.walletCardText}>
+                          <Text style={[s.walletCardName, { color: active ? theme.text : theme.secondary }]} numberOfLines={1}>
+                            {wallet.name}
+                          </Text>
+                          <Text style={[s.walletCardBalance, { color: active ? theme.secondary : theme.secondary }]}>
+                            {currencySymbol}{formatCurrency(wallet.current_balance ?? 0, currencySymbol)}
+                          </Text>
+                        </View>
+                        {active && <Ionicons name="checkmark-circle" size={15} color={theme.limeDark} />}
                       </View>
-                      <Text style={[s.walletCardName, { color: active ? theme.text : theme.secondary }]} numberOfLines={1}>
-                        {wallet.name}
-                      </Text>
-                      <Text style={[s.walletCardBalance, { color: active ? theme.text : theme.secondary }]}>
-                        {formatCurrency(wallet.current_balance ?? 0, currencySymbol)}
-                      </Text>
                     </Pressable>
                   );
                 })}
@@ -391,6 +436,7 @@ export function TransactionEntryModal({
               <Text style={[s.sectionLabel, { color: theme.secondary }]}>Category</Text>
               <Pressable
                 onPress={() => {
+                  dismissKeypad();
                   Keyboard.dismiss();
                   setCategoryDropdownOpen(!categoryDropdownOpen);
                 }}
@@ -467,56 +513,49 @@ export function TransactionEntryModal({
               )}
             </View>
 
-            {/* Keypad */}
-            {activeField === 'amount' && (
-              <View style={[s.keypadWrap, { backgroundColor: theme.keypadBg, borderColor: theme.borderHighlight }]}> 
-                {KEYPAD_ROWS.map((row, rowIndex) => (
-                  <View key={`row-${rowIndex}`} style={s.keypadRow}>
-                    {row.map((key, keyIndex) => {
-                      const isAction = key === '=' || key === '+' || key === '-';
-                      const isDelete = key === 'DEL' || key === 'CLR';
-                      
-                      let keyColor = theme.keypadText;
-                      let bg = theme.keyBg;
-                      let border = theme.keyBorder;
-
-                      if (isAction) {
-                        keyColor = '#1A1E14';
-                        bg = theme.lime;
-                        border = theme.lime;
-                      }
-                      if (isDelete) {
-                        keyColor = theme.red;
-                        bg = theme.keyDeleteBg;
-                        border = isDark ? 'rgba(255,107,107,0.35)' : 'rgba(255,107,107,0.42)';
-                      }
-
-                      return (
-                        <Pressable
-                          key={key}
-                          accessibilityRole="button"
-                          onPress={() => onKeyPress(key)}
-                          style={({ pressed }) => [
-                            s.keyButton,
-                            keyIndex < row.length - 1 && s.keyButtonRightSpacing,
-                            rowIndex < KEYPAD_ROWS.length - 1 && s.keyButtonBottomSpacing,
-                            { backgroundColor: bg, borderColor: border },
-                            isDelete && s.keyDeleteButton,
-                            isAction && s.keyActionButton,
-                            !isAction && !isDelete && s.keyDefaultButton,
-                            pressed && s.keyPressed,
-                          ]}
-                        >
-                          <Text style={[s.keyLabel, { color: keyColor }]} numberOfLines={1}>
-                            {key}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ))}
+            {/* Logged At */}
+            <View style={s.section}>
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>Logged At</Text>
+              <View style={[s.loggedAtCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                <View style={s.loggedAtRow}>
+                  <Text style={[s.loggedAtLabel, { color: theme.text }]}>Date</Text>
+                  <DateTimePicker
+                    value={customLoggedAt ?? new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'compact' : 'default'}
+                    onChange={(_: DateTimePickerEvent, selected?: Date) => {
+                      dismissKeypad();
+                      if (selected) setCustomLoggedAt(prev => {
+                        const base = prev ?? new Date();
+                        const next = new Date(base);
+                        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+                        return next;
+                      });
+                    }}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                  />
+                </View>
+                <View style={[s.loggedAtDivider, { backgroundColor: theme.border }]} />
+                <View style={s.loggedAtRow}>
+                  <Text style={[s.loggedAtLabel, { color: theme.text }]}>Time</Text>
+                  <DateTimePicker
+                    value={customLoggedAt ?? new Date()}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'compact' : 'default'}
+                    onChange={(_: DateTimePickerEvent, selected?: Date) => {
+                      dismissKeypad();
+                      if (selected) setCustomLoggedAt(prev => {
+                        const base = prev ?? new Date();
+                        const next = new Date(base);
+                        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+                        return next;
+                      });
+                    }}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                  />
+                </View>
               </View>
-            )}
+            </View>
 
             {/* Actions */}
             <View style={s.footerActions}>
@@ -544,6 +583,78 @@ export function TransactionEntryModal({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Floating custom keypad — slides up like native keyboard */}
+      <Animated.View
+        style={[
+          s.keypadPanel,
+          {
+            backgroundColor: theme.keypadBg,
+            borderTopColor: theme.borderHighlight,
+            paddingBottom: insets.bottom,
+            transform: [{ translateY: keypadAnim }],
+          },
+        ]}
+        pointerEvents={activeField === 'amount' ? 'auto' : 'none'}
+      >
+        {/* Accessory bar */}
+        <View style={[s.keypadAccessory, { borderBottomColor: theme.border }]}>
+          <Text style={[s.keypadHint, { color: theme.secondary }]} numberOfLines={1}>
+            {expressionText || ' '}
+          </Text>
+          <Pressable onPress={activateTitleInput} style={s.keypadNextBtn} hitSlop={10}>
+            <Text style={[s.keypadNextText, { color: theme.limeDark }]}>Next</Text>
+            <Ionicons name="arrow-forward" size={14} color={theme.limeDark} />
+          </Pressable>
+        </View>
+
+        {/* Key grid */}
+        <View style={s.keypadGrid}>
+          {KEYPAD_ROWS.map((row, rowIndex) => (
+            <View key={`row-${rowIndex}`} style={s.keypadRow}>
+              {row.map((key) => {
+                const isAction = key === '=' || key === '+' || key === '-';
+                const isDelete = key === 'DEL' || key === 'CLR';
+
+                let keyColor = theme.keypadText;
+                let bg = theme.keyBg;
+                let border = theme.keyBorder;
+
+                if (isAction) {
+                  keyColor = isDark ? '#151810' : '#F4F5E9';
+                  bg = theme.text;
+                  border = theme.text;
+                }
+                if (isDelete) {
+                  keyColor = theme.red;
+                  bg = theme.keyDeleteBg;
+                  border = isDark ? 'rgba(255,107,107,0.35)' : 'rgba(255,107,107,0.42)';
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    accessibilityRole="button"
+                    onPress={() => onKeyPress(key)}
+                    activeOpacity={0.72}
+                    style={[
+                      s.keyButton,
+                      { backgroundColor: bg, borderColor: border },
+                      isDelete && s.keyDeleteButton,
+                      isAction && s.keyActionButton,
+                      !isAction && !isDelete && s.keyDefaultButton,
+                    ]}
+                  >
+                    <Text style={[s.keyLabel, { color: keyColor }]} numberOfLines={1}>
+                      {key === 'DEL' ? '⌫' : key}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </Animated.View>
 
       {/* Warning Modal */}
       <Modal
@@ -604,7 +715,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 0,
     maxHeight: '94%',
   },
   dragHandleWrap: {
@@ -641,11 +752,15 @@ const s = StyleSheet.create({
     padding: 4,
   },
   amountContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  amountValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    marginBottom: 16,
   },
   currencySymbol: {
     fontSize: 32,
@@ -657,6 +772,12 @@ const s = StyleSheet.create({
     fontSize: 64,
     fontWeight: '800',
     letterSpacing: -2,
+  },
+  expressionText: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 4,
+    letterSpacing: 0.2,
   },
   inputRow: {
     borderBottomWidth: 1.5,
@@ -690,24 +811,34 @@ const s = StyleSheet.create({
   walletCard: {
     flex: 1,
     minWidth: '46%',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1.5,
-    padding: 16,
+    padding: 10,
   },
-  walletCardTop: {
+  walletCardInner: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 8,
+  },
+  walletIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletCardText: {
+    flex: 1,
+    minWidth: 0,
   },
   walletCardName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
-    marginBottom: 4,
   },
   walletCardBalance: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
   },
 
   // Category Dropdown
@@ -729,6 +860,28 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Logged At
+  loggedAtCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  loggedAtRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  loggedAtLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  loggedAtDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 16,
+  },
+
   categoryDot: {
     width: 12,
     height: 12,
@@ -761,43 +914,65 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Keypad
-  keypadWrap: {
-    borderRadius: 24,
-    width: '100%',
-    alignSelf: 'stretch',
-    padding: 12,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    marginBottom: 32,
+  // Floating keypad panel
+  keypadPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingTop: 0,
+  },
+  keypadAccessory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 44,
+    paddingHorizontal: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 8,
+  },
+  keypadHint: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
+  keypadNextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  keypadNextText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  keypadGrid: {
+    gap: 8,
+    paddingBottom: 6,
   },
   keypadRow: {
     flexDirection: 'row',
-    width: '100%',
+    gap: 8,
   },
   keyButton: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 0,
     minWidth: 0,
-    height: 64,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    borderWidth: 1.5,
-  },
-  keyButtonRightSpacing: {
-    marginRight: 10,
-  },
-  keyButtonBottomSpacing: {
-    marginBottom: 10,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   keyActionButton: {
-    shadowColor: '#A2C94A',
-    shadowOpacity: 0.42,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   keyDefaultButton: {
     shadowColor: '#000000',
@@ -813,10 +988,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     elevation: 2,
   },
-  keyPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.965 }],
-  },
   keyLabel: {
     fontSize: 22,
     fontWeight: '700',
@@ -825,6 +996,7 @@ const s = StyleSheet.create({
   // Actions
   footerActions: {
     marginTop: 8,
+    marginBottom: 8,
   },
   submitButton: {
     height: 60,
