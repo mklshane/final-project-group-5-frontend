@@ -63,6 +63,7 @@ export default function AppLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          popToTopOnBlur: true,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),

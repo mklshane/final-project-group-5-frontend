@@ -146,13 +146,43 @@ export function useFinanceSelectors() {
       .sort((a, b) => b.total - a.total);
 
     const budgets = budgetUtilization(state.budgets.filter((budget) => !budget.deleted_at), monthTransactions);
+    const activeDebts = state.debts.filter((debt) => !debt.deleted_at);
+    const debtRows = activeDebts.map((debt) => {
+      const totalAmount = Number.isFinite(debt.total_amount) ? debt.total_amount : debt.amount ?? 0;
+      const amountPaid = Number.isFinite(debt.amount_paid) ? debt.amount_paid : 0;
+      const remainingAmount = Math.max(0, totalAmount - amountPaid);
+
+      return {
+        ...debt,
+        totalAmount,
+        amountPaid,
+        remainingAmount,
+      };
+    });
+
+    const unsettledDebtRows = debtRows.filter((debt) => debt.remainingAmount > 0);
+    const oweRows = debtRows.filter((debt) => debt.type === 'owe');
+    const owedRows = debtRows.filter((debt) => debt.type === 'owed');
+    const unsettledOweRows = unsettledDebtRows.filter((debt) => debt.type === 'owe');
+    const unsettledOwedRows = unsettledDebtRows.filter((debt) => debt.type === 'owed');
+
     const debtSummary = {
-      owedByUser: state.debts
-        .filter((debt) => !debt.deleted_at && !debt.is_settled && debt.type === 'owe')
-        .reduce((sum, debt) => sum + debt.amount, 0),
-      owedToUser: state.debts
-        .filter((debt) => !debt.deleted_at && !debt.is_settled && debt.type === 'owed')
-        .reduce((sum, debt) => sum + debt.amount, 0),
+      owedByUser: unsettledOweRows.reduce((sum, debt) => sum + debt.remainingAmount, 0),
+      owedToUser: unsettledOwedRows.reduce((sum, debt) => sum + debt.remainingAmount, 0),
+      totals: {
+        oweTotal: oweRows.reduce((sum, debt) => sum + debt.totalAmount, 0),
+        owePaid: oweRows.reduce((sum, debt) => sum + debt.amountPaid, 0),
+        oweRemaining: unsettledOweRows.reduce((sum, debt) => sum + debt.remainingAmount, 0),
+        owedTotal: owedRows.reduce((sum, debt) => sum + debt.totalAmount, 0),
+        owedCollected: owedRows.reduce((sum, debt) => sum + debt.amountPaid, 0),
+        owedRemaining: unsettledOwedRows.reduce((sum, debt) => sum + debt.remainingAmount, 0),
+      },
+      lists: {
+        owe: oweRows,
+        owed: owedRows,
+        unsettledOwe: unsettledOweRows,
+        unsettledOwed: unsettledOwedRows,
+      },
     };
       const totalWalletBalance = activeWallets.reduce((sum, wallet) => sum + wallet.current_balance, 0);
 

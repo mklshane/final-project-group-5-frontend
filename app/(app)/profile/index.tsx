@@ -58,7 +58,7 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">CATEGORIES</Text>
+        <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">MANAGE</Text>
 
         <TouchableOpacity
           onPress={() => router.push('/(app)/profile/manage-categories')}
@@ -85,6 +85,70 @@ export default function ProfileScreen() {
                 <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Manage Categories</Text>
                 <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
                   Customize expense and income categories.
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={isDark ? theme.secondary : theme.text} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/profile/manage-debt')}
+          activeOpacity={0.8}
+          className="rounded-2xl border mt-3"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1 pr-3">
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? theme.surfaceDeep : 'rgba(255,107,107,0.14)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 10,
+                }}
+              >
+                <Ionicons name="document-text-outline" size={18} color={isDark ? '#FF9B9B' : '#D9534F'} />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Manage Debt</Text>
+                <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
+                  Track debts you owe with due dates and payment progress.
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={isDark ? theme.secondary : theme.text} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/profile/manage-money-owed-to-you')}
+          activeOpacity={0.8}
+          className="rounded-2xl border mt-3"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1 pr-3">
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? theme.surfaceDeep : 'rgba(81,163,81,0.16)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 10,
+                }}
+              >
+                <Ionicons name="cash-outline" size={18} color={isDark ? '#9ADE9A' : '#3E8C3E'} />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Manage Money Owed To You</Text>
+                <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
+                  Track collections and expected dates from people who owe you.
                 </Text>
               </View>
             </View>

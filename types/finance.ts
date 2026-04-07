@@ -2,6 +2,7 @@ export type SyncTable = 'transactions' | 'categories' | 'budgets' | 'goals' | 'd
 export type SyncAction = 'create' | 'update' | 'delete';
 
 export type WalletType = 'general' | 'bank' | 'ewallet' | 'cash';
+export type DebtCounterpartyKind = 'person' | 'entity' | 'organization';
 
 export interface SyncChange {
   table: SyncTable;
@@ -86,9 +87,16 @@ export interface GoalRecord {
 export interface DebtRecord {
   id: string;
   user_id?: string;
-  person_name: string;
-  amount: number;
+  counterparty_kind?: DebtCounterpartyKind;
+  counterparty_name: string;
+  total_amount: number;
+  amount_paid: number;
+  due_date: string;
   type: 'owe' | 'owed';
+  notes?: string | null;
+  // Backward compatibility with older records.
+  person_name?: string;
+  amount?: number;
   description?: string | null;
   is_settled?: boolean;
   settled_at?: string | null;

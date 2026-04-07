@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,10 +28,6 @@ export default function HomeScreen() {
 
   const heroBg = '#222618';
   const heroSub = '#8A8F7C';
-  const logoBg = isDark ? '#C8F560' : '#1A1E14';
-  const logoIcon = isDark ? '#1A1E14' : '#C8F560';
-  const betaBg = isDark ? 'rgba(200, 245, 96, 0.16)' : 'rgba(200, 245, 96, 0.3)';
-  const betaText = '#8AAB32';
   const loadingBorder = isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(26, 30, 20, 0.12)';
 
   const deleteTarget = useMemo(
@@ -115,6 +111,11 @@ export default function HomeScreen() {
     if (walletPreview.length === 3) return [[walletPreview[0]], [walletPreview[1], walletPreview[2]]];
     return [walletPreview.slice(0, 2), walletPreview.slice(2, 4)];
   }, [walletPreview]);
+  const debtEntries = useMemo(
+    () => [...finance.debts.lists.unsettledOwe, ...finance.debts.lists.unsettledOwed],
+    [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]
+  );
+  const showDebtSummary = debtEntries.length > 0;
 
   return (
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: theme.bg }]}> 
@@ -122,19 +123,6 @@ export default function HomeScreen() {
         contentContainerStyle={s.scrollContent} 
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ────────────────────────────────────── */}
-        <View style={s.header}>
-          <View style={s.logoContainer}>
-            <View style={s.logoCircle}>
-              <Image source={require('../../assets/images/logo2.png')} style={s.logoImage} resizeMode="contain" />
-            </View>
-            <Text style={[s.brandText, { color: theme.text }]}>Budgy</Text>
-            
-          </View>
-          
-          {/* We can add profile picture or notification icon here if needed later */}
-        </View>
-
         {/* ── Greeting ──────────────────────────────────── */}
         <View style={s.greetingContainer}>
           <Text style={[s.greetingDate, { color: theme.secondary }]}>{greetingMeta.dateLabel}</Text>
@@ -212,6 +200,68 @@ export default function HomeScreen() {
                   ))}
                 </View>
               ))}
+            </View>
+          </View>
+        ) : null}
+
+        {showDebtSummary ? (
+          <View style={s.debtSummaryWrap}>
+            <Text style={[s.debtSummaryLabel, { color: theme.tertiary }]}>DEBT TRACKER</Text>
+            <View style={s.debtSummaryList}>
+              {debtEntries.map((entry) => {
+                const isOwe = entry.type === 'owe';
+                const counterparty = entry.counterparty_name ?? entry.person_name ?? 'Unknown';
+                const dueText = entry.due_date ? `Due ${entry.due_date}` : 'No due date';
+
+                return (
+                  <Pressable
+                    key={entry.id}
+                    onPress={() => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+                    style={[
+                      s.debtSummaryCard,
+                      {
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(26,30,20,0.10)',
+                      },
+                    ]}
+                  >
+                    <View style={s.debtSummaryTopRow}>
+                      <Text style={[s.debtSummaryTitle, { color: theme.text }]} numberOfLines={1}>
+                        {counterparty}
+                      </Text>
+                      <Text style={[s.debtSummaryType, { color: theme.secondary }]}>
+                        {isOwe ? 'You Owe' : 'Owed To You'}
+                      </Text>
+                    </View>
+                    <Text style={[s.debtSummaryMeta, { color: theme.secondary }]} numberOfLines={1}>
+                      {dueText}
+                    </Text>
+                    <Text style={[s.debtSummaryAmount, { color: theme.text }]}>
+                      {finance.formatCurrency(entry.remainingAmount)}
+                    </Text>
+
+                    {entry.amountPaid > 0 && entry.totalAmount > 0 ? (
+                      <>
+                        <View style={s.debtProgressTrack}>
+                          <View
+                            style={[
+                              s.debtProgressFill,
+                              {
+                                width: `${Math.max(0, Math.min(100, Math.round((entry.amountPaid / entry.totalAmount) * 100)))}%`,
+                                backgroundColor: theme.lime,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text style={[s.debtProgressText, { color: theme.secondary }]}>
+                          {isOwe ? 'Paid' : 'Collected'} {finance.formatCurrency(entry.amountPaid)} of{' '}
+                          {finance.formatCurrency(entry.totalAmount)}
+                        </Text>
+                      </>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         ) : null}
@@ -305,56 +355,74 @@ const s = StyleSheet.create({
   },
   
   // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 14,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 7,
-  },
-  logoImage: {
-    width: 28,
-    height: 28,
-  },
-  brandText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1A1E14',
-    letterSpacing: -0.5,
-  },
-  betaBadge: {
-    backgroundColor: 'rgba(200, 245, 96, 0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginLeft: 8,
-    marginTop: 2,
-  },
-  betaText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#8AAB32',
-    letterSpacing: 1,
-  },
-
   // Greeting
   greetingContainer: {
+    marginTop: 8,
     marginBottom: 14,
   },
   walletDistributionWrap: {
     marginBottom: 14,
+  },
+  debtSummaryWrap: {
+    marginBottom: 14,
+  },
+  debtSummaryLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    opacity: 0.85,
+    marginBottom: 8,
+  },
+  debtSummaryList: {
+    gap: 8,
+  },
+  debtSummaryCard: {
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  debtSummaryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  debtSummaryTitle: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  debtSummaryType: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  debtSummaryMeta: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  debtSummaryAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  debtProgressTrack: {
+    marginTop: 8,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(140,148,124,0.25)',
+    overflow: 'hidden',
+  },
+  debtProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  debtProgressText: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '600',
   },
   walletHeaderRow: {
     flexDirection: 'row',

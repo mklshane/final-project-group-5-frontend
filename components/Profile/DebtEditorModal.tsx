@@ -1,0 +1,403 @@
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useTheme } from '@/hooks/useTheme';
+import type { DebtCounterpartyKind, DebtRecord } from '@/types/finance';
+
+type DebtEditorMode = 'owe' | 'owed';
+
+const COUNTERPARTY_KINDS: DebtCounterpartyKind[] = ['person', 'entity', 'organization'];
+
+interface DebtEditorModalProps {
+  visible: boolean;
+  mode: DebtEditorMode;
+  initialDebt?: DebtRecord | null;
+  onClose: () => void;
+  onSave: (input: {
+    counterpartyKind?: DebtCounterpartyKind;
+    counterpartyName: string;
+    totalAmount: number;
+    amountPaid: number;
+    dueDate: string;
+    notes?: string;
+  }) => Promise<void>;
+}
+
+const toIsoDate = (date: Date) => {
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const parseDate = (value: string | null | undefined) => {
+  if (!value) return new Date();
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const parsed = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    if (Number.isFinite(parsed.getTime())) return parsed;
+  }
+
+  const fallback = new Date(value);
+  if (Number.isFinite(fallback.getTime())) return fallback;
+  return new Date();
+};
+
+const toAmountString = (value: number) => {
+  if (!Number.isFinite(value)) return '0';
+  return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
+};
+
+export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }: DebtEditorModalProps) {
+  const theme = useTheme();
+  const { isDark } = theme;
+
+  const [counterpartyKind, setCounterpartyKind] = useState<DebtCounterpartyKind>('person');
+  const [counterpartyName, setCounterpartyName] = useState('');
+  const [totalAmount, setTotalAmount] = useState('0');
+  const [amountPaid, setAmountPaid] = useState('0');
+  const [dueDate, setDueDate] = useState(new Date());
+  const [notes, setNotes] = useState('');
+  const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const debtTotal = Number.isFinite(initialDebt?.total_amount)
+      ? Number(initialDebt?.total_amount)
+      : Number(initialDebt?.amount ?? 0);
+    const debtPaid = Number.isFinite(initialDebt?.amount_paid) ? Number(initialDebt?.amount_paid) : 0;
+
+    setCounterpartyKind(initialDebt?.counterparty_kind ?? 'person');
+    setCounterpartyName(initialDebt?.counterparty_name ?? initialDebt?.person_name ?? '');
+    setTotalAmount(toAmountString(debtTotal));
+    setAmountPaid(toAmountString(debtPaid));
+    setDueDate(parseDate(initialDebt?.due_date));
+    setNotes(initialDebt?.notes ?? initialDebt?.description ?? '');
+    setShowAndroidDatePicker(false);
+  }, [visible, initialDebt]);
+
+  const totalValue = useMemo(() => Number(totalAmount || '0'), [totalAmount]);
+  const paidValue = useMemo(() => Number(amountPaid || '0'), [amountPaid]);
+
+  const isValid =
+    counterpartyName.trim().length > 0 &&
+    Number.isFinite(totalValue) &&
+    totalValue > 0 &&
+    Number.isFinite(paidValue) &&
+    paidValue >= 0 &&
+    paidValue <= totalValue;
+
+  const submitDisabledColor = isDark ? '#5A614B' : '#C8CEC0';
+  const dueDateLabel = mode === 'owe' ? 'DUE DATE' : 'EXPECTED BY';
+  const paidLabel = mode === 'owe' ? 'ALREADY PAID' : 'ALREADY COLLECTED';
+  const counterpartyLabel = mode === 'owe' ? 'WHO IS THIS OWED TO' : 'WHO OWES TO YOU';
+
+  const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowAndroidDatePicker(false);
+    }
+    if (selected) {
+      setDueDate(selected);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!isValid) return;
+
+    setSaving(true);
+    try {
+      await onSave({
+        counterpartyKind: mode === 'owe' ? counterpartyKind : undefined,
+        counterpartyName: counterpartyName.trim(),
+        totalAmount: totalValue,
+        amountPaid: paidValue,
+        dueDate: toIsoDate(dueDate),
+        notes: notes.trim() || undefined,
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={[s.overlay, { backgroundColor: theme.overlayModal }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View>
+            <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[s.title, { color: theme.text }]}>
+                {initialDebt ? 'Edit entry' : mode === 'owe' ? 'Add debt' : 'Add money owed'}
+              </Text>
+              <Text style={[s.subtitle, { color: theme.secondary }]}>Track remaining balance and due dates clearly.</Text>
+
+              {mode === 'owe' ? (
+                <>
+                  <Text style={[s.sectionLabel, { color: theme.secondary }]}>TYPE</Text>
+                  <View style={s.kindRow}>
+                    {COUNTERPARTY_KINDS.map((kind) => {
+                      const active = counterpartyKind === kind;
+                      return (
+                        <Pressable
+                          key={kind}
+                          onPress={() => setCounterpartyKind(kind)}
+                          style={[
+                            s.kindChip,
+                            {
+                              backgroundColor: active ? theme.lime : theme.chipBg,
+                              borderColor: active ? theme.lime : theme.chipBorder,
+                            },
+                          ]}
+                        >
+                          <Text style={[s.kindLabel, { color: active ? theme.bg : theme.secondary }]}>{kind.toUpperCase()}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>{counterpartyLabel}</Text>
+              <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <TextInput
+                  value={counterpartyName}
+                  onChangeText={setCounterpartyName}
+                  placeholder={mode === 'owe' ? 'e.g. John, BDO, Landlord' : 'e.g. Alex, Client Co.'}
+                  placeholderTextColor={theme.inputPlaceholder}
+                  style={[s.input, { color: theme.text }]}
+                />
+              </View>
+
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>{mode === 'owe' ? 'TOTAL DEBT' : 'TOTAL OWED'}</Text>
+              <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <TextInput
+                  value={totalAmount}
+                  onChangeText={(value) => setTotalAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  style={[s.input, { color: theme.text }]}
+                />
+              </View>
+
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>{paidLabel}</Text>
+              <View style={[s.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <TextInput
+                  value={amountPaid}
+                  onChangeText={(value) => setAmountPaid(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={theme.inputPlaceholder}
+                  style={[s.input, { color: theme.text }]}
+                />
+              </View>
+
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>{dueDateLabel}</Text>
+              <View style={[s.dateRow, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(dueDate)}</Text>
+                {Platform.OS === 'ios' ? (
+                  <DateTimePicker
+                    value={dueDate}
+                    mode="date"
+                    display="compact"
+                    onChange={handleDateChange}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                  />
+                ) : (
+                  <Pressable onPress={() => setShowAndroidDatePicker(true)} style={s.dateButton}>
+                    <Text style={[s.dateButtonText, { color: theme.limeDark }]}>Pick date</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {Platform.OS === 'android' && showAndroidDatePicker ? (
+                <DateTimePicker value={dueDate} mode="date" display="default" onChange={handleDateChange} />
+              ) : null}
+
+              <Text style={[s.sectionLabel, { color: theme.secondary }]}>NOTES (OPTIONAL)</Text>
+              <View style={[s.notesWrap, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+                <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Add context..."
+                  placeholderTextColor={theme.inputPlaceholder}
+                  style={[s.notesInput, { color: theme.text }]}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {!isValid ? (
+                <Text style={[s.validationText, { color: theme.red }]}>Check required fields and ensure paid/collected does not exceed total.</Text>
+              ) : null}
+
+              <View style={s.actions}>
+                <Pressable
+                  onPress={onClose}
+                  style={[s.actionButton, s.half, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                >
+                  <Text style={[s.actionText, { color: theme.text }]}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => void handleSave()}
+                  disabled={!isValid || saving}
+                  style={[
+                    s.actionButton,
+                    s.half,
+                    {
+                      backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime,
+                      borderColor: !isValid || saving ? submitDisabledColor : theme.lime,
+                    },
+                  ]}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={theme.bg} />
+                  ) : (
+                    <Text style={[s.actionText, { color: theme.bg }]}>{initialDebt ? 'Save Changes' : 'Create'}</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const s = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  card: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    marginTop: 10,
+    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  kindRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  kindChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  kindLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  inputWrap: {
+    borderWidth: 1,
+    borderRadius: 14,
+    height: 50,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  input: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dateRow: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dateValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  dateButton: {
+    height: 32,
+    minWidth: 76,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  dateButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  notesWrap: {
+    borderWidth: 1,
+    borderRadius: 14,
+    minHeight: 92,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  notesInput: {
+    fontSize: 14,
+    fontWeight: '500',
+    minHeight: 72,
+  },
+  validationText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  actions: {
+    marginTop: 18,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  half: {
+    flex: 1,
+  },
+  actionButton: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+});

@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import type {
   BudgetRecord,
   CategoryRecord,
+  DebtCounterpartyKind,
   DebtRecord,
   GoalRecord,
   SyncChange,
@@ -72,6 +73,26 @@ interface UpdateCategoryInput {
   sortOrder?: number;
 }
 
+interface AddDebtInput {
+  type: 'owe' | 'owed';
+  counterpartyKind?: DebtCounterpartyKind;
+  counterpartyName: string;
+  totalAmount: number;
+  amountPaid?: number;
+  dueDate: string;
+  notes?: string;
+}
+
+interface UpdateDebtInput {
+  id: string;
+  counterpartyKind?: DebtCounterpartyKind;
+  counterpartyName?: string;
+  totalAmount?: number;
+  amountPaid?: number;
+  dueDate?: string;
+  notes?: string;
+}
+
 interface FinanceDataContextValue {
   state: FinanceDataState;
   loading: boolean;
@@ -86,6 +107,9 @@ interface FinanceDataContextValue {
   addCategory: (input: AddCategoryInput) => Promise<void>;
   updateCategory: (input: UpdateCategoryInput) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  addDebt: (input: AddDebtInput) => Promise<void>;
+  updateDebt: (input: UpdateDebtInput) => Promise<void>;
+  deleteDebt: (id: string) => Promise<void>;
 }
 
 const FinanceDataContext = createContext<FinanceDataContextValue | null>(null);
@@ -201,11 +225,23 @@ const toGoal = (record: Record<string, unknown>): GoalRecord => ({
 const toDebt = (record: Record<string, unknown>): DebtRecord => ({
   id: String(record.id),
   user_id: record.user_id ? String(record.user_id) : undefined,
-  person_name: String(record.person_name ?? 'Unknown'),
-  amount: toNumber(record.amount),
+  counterparty_kind:
+    record.counterparty_kind === 'entity' || record.counterparty_kind === 'organization'
+      ? record.counterparty_kind
+      : 'person',
+  counterparty_name: String(record.counterparty_name ?? record.person_name ?? 'Unknown'),
+  total_amount: toNumber(record.total_amount ?? record.amount),
+  amount_paid: toNumber(record.amount_paid, 0),
+  due_date: String(record.due_date ?? nowIso()),
   type: record.type === 'owed' ? 'owed' : 'owe',
+  notes: record.notes ? String(record.notes) : record.description ? String(record.description) : null,
+  person_name: record.person_name ? String(record.person_name) : undefined,
+  amount: toNumber(record.amount, 0),
   description: record.description ? String(record.description) : null,
-  is_settled: Boolean(record.is_settled),
+  is_settled:
+    typeof record.is_settled === 'boolean'
+      ? Boolean(record.is_settled)
+      : toNumber(record.amount_paid, 0) >= toNumber(record.total_amount ?? record.amount, 0),
   settled_at: record.settled_at ? String(record.settled_at) : null,
   version: toNumber(record.version, 1),
   created_at: record.created_at ? String(record.created_at) : undefined,
@@ -224,6 +260,24 @@ const upsertById = <T extends { id: string; deleted_at?: string | null }>(list: 
   const copy = [...list];
   copy[index] = item;
   return copy;
+};
+
+const normalizeDebtForWrite = (record: DebtRecord): DebtRecord => {
+  const total = Math.max(0, toNumber(record.total_amount));
+  const paid = Math.max(0, Math.min(total, toNumber(record.amount_paid)));
+  const settled = paid >= total && total > 0;
+
+  return {
+    ...record,
+    counterparty_kind: record.type === 'owe' ? record.counterparty_kind ?? 'person' : undefined,
+    total_amount: total,
+    amount_paid: paid,
+    amount: total,
+    person_name: record.counterparty_name,
+    description: record.notes ?? null,
+    is_settled: settled,
+    settled_at: settled ? record.settled_at ?? nowIso() : null,
+  };
 };
 
 const applyServerChange = (state: FinanceDataState, change: SyncChange): FinanceDataState => {
@@ -896,6 +950,138 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     [runSync, state.categories, state.lastSyncedAt]
   );
 
+    const addDebt = useCallback(
+      async (input: AddDebtInput) => {
+        if (!session) return;
+
+        const counterpartyName = input.counterpartyName.trim();
+        const dueDate = input.dueDate.trim();
+        const totalAmount = Math.max(0, toNumber(input.totalAmount));
+        const amountPaid = Math.max(0, toNumber(input.amountPaid, 0));
+        const safeNotes = input.notes?.trim() ? input.notes.trim() : null;
+
+        if (!counterpartyName || !dueDate || totalAmount <= 0 || amountPaid > totalAmount) return;
+        if (input.type === 'owe' && !input.counterpartyKind) return;
+
+        const id = createId();
+        const version = 1;
+        const date = nowIso();
+
+        const baseRecord: DebtRecord = {
+          id,
+          user_id: session.user.id,
+          type: input.type,
+          counterparty_kind: input.type === 'owe' ? input.counterpartyKind ?? 'person' : undefined,
+          counterparty_name: counterpartyName,
+          total_amount: totalAmount,
+          amount_paid: amountPaid,
+          due_date: dueDate,
+          notes: safeNotes,
+          version,
+          created_at: date,
+          updated_at: date,
+          deleted_at: null,
+        };
+
+        const record = normalizeDebtForWrite(baseRecord);
+
+        const change: SyncChange = {
+          table: 'debts',
+          action: 'create',
+          record_id: id,
+          record: record as unknown as Record<string, unknown>,
+          version,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          debts: upsertById(prev.debts, record),
+          pendingChanges: [...prev.pendingChanges, change],
+        }));
+
+        await runSync([change], state.lastSyncedAt);
+      },
+      [runSync, session, state.lastSyncedAt]
+    );
+
+    const updateDebt = useCallback(
+      async (input: UpdateDebtInput) => {
+        const existing = state.debts.find((debt) => debt.id === input.id && !debt.deleted_at);
+        if (!existing) return;
+
+        const counterpartyName =
+          input.counterpartyName !== undefined ? input.counterpartyName.trim() : existing.counterparty_name;
+        const dueDate = input.dueDate !== undefined ? input.dueDate.trim() : existing.due_date;
+        const totalAmount =
+          input.totalAmount !== undefined ? Math.max(0, toNumber(input.totalAmount)) : toNumber(existing.total_amount);
+        const amountPaid =
+          input.amountPaid !== undefined ? Math.max(0, toNumber(input.amountPaid)) : toNumber(existing.amount_paid, 0);
+        const safeNotes =
+          input.notes !== undefined ? (input.notes.trim() ? input.notes.trim() : null) : (existing.notes ?? null);
+
+        if (!counterpartyName || !dueDate || totalAmount <= 0 || amountPaid > totalAmount) return;
+
+        const nextVersion = Math.max(1, existing.version + 1);
+        const baseUpdated: DebtRecord = {
+          ...existing,
+          counterparty_kind:
+            existing.type === 'owe' ? input.counterpartyKind ?? existing.counterparty_kind ?? 'person' : undefined,
+          counterparty_name: counterpartyName,
+          total_amount: totalAmount,
+          amount_paid: amountPaid,
+          due_date: dueDate,
+          notes: safeNotes,
+          version: nextVersion,
+          updated_at: nowIso(),
+        };
+
+        if (baseUpdated.type === 'owe' && !baseUpdated.counterparty_kind) return;
+
+        const updated = normalizeDebtForWrite(baseUpdated);
+
+        const change: SyncChange = {
+          table: 'debts',
+          action: 'update',
+          record_id: updated.id,
+          record: updated as unknown as Record<string, unknown>,
+          version: nextVersion,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          debts: upsertById(prev.debts, updated),
+          pendingChanges: [...prev.pendingChanges, change],
+        }));
+
+        await runSync([change], state.lastSyncedAt);
+      },
+      [runSync, state.debts, state.lastSyncedAt]
+    );
+
+    const deleteDebt = useCallback(
+      async (id: string) => {
+        const existing = state.debts.find((debt) => debt.id === id && !debt.deleted_at);
+        if (!existing) return;
+
+        const nextVersion = Math.max(1, existing.version + 1);
+        const change: SyncChange = {
+          table: 'debts',
+          action: 'delete',
+          record_id: id,
+          version: nextVersion,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          debts: prev.debts.filter((debt) => debt.id !== id),
+          pendingChanges: [...prev.pendingChanges, change],
+        }));
+
+        await runSync([change], state.lastSyncedAt);
+      },
+      [runSync, state.debts, state.lastSyncedAt]
+    );
+
   const value = useMemo<FinanceDataContextValue>(
     () => ({
       state,
@@ -911,6 +1097,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addCategory,
       updateCategory,
       deleteCategory,
+      addDebt,
+      updateDebt,
+      deleteDebt,
     }),
     [
       state,
@@ -926,6 +1115,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addCategory,
       updateCategory,
       deleteCategory,
+      addDebt,
+      updateDebt,
+      deleteDebt,
     ]
   );
 
