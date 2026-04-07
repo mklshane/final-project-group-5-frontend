@@ -81,8 +81,9 @@ export default function HomeScreen() {
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-    await deleteTransaction(deleteTargetId);
+    const targetId = deleteTargetId;
     setDeleteTargetId(null);
+    await deleteTransaction(targetId);
   };
 
   const firstName = (profile?.full_name ?? 'there').split(' ')[0];

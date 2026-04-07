@@ -60,8 +60,9 @@ export default function ActivityScreen() {
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-    await deleteTransaction(deleteTargetId);
+    const targetId = deleteTargetId;
     setDeleteTargetId(null);
+    await deleteTransaction(targetId);
   };
 
   return (

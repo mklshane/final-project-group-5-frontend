@@ -507,7 +507,7 @@ export function TransactionEntryModal({
         loggedAt: customLoggedAt ?? new Date(),
       });
       resetScanner();
-      onClose();
+      handleClose();
     } finally {
       setSubmitting(false);
     }
