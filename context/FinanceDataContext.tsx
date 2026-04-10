@@ -137,6 +137,42 @@ const createId = () =>
 
 const nowIso = () => new Date().toISOString();
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' && UUID_REGEX.test(value);
+
+const getChangeRecordId = (change: SyncChange) => {
+  if (isUuid(change.record_id)) return change.record_id;
+  const recordId = change.record && typeof change.record.id === 'string' ? change.record.id : null;
+  return isUuid(recordId) ? recordId : null;
+};
+
+const changeQueueKey = (change: SyncChange) => {
+  const recordId = getChangeRecordId(change) ?? 'invalid';
+  return `${change.table}:${change.action}:${recordId}:${change.version}`;
+};
+
+const normalizeOutgoingChange = (change: SyncChange): SyncChange | null => {
+  const recordId = getChangeRecordId(change);
+
+  if (change.action === 'delete') {
+    if (!recordId) return null;
+    return { ...change, record_id: recordId };
+  }
+
+  if (!change.record || !recordId) return null;
+
+  return {
+    ...change,
+    record_id: recordId,
+    record: {
+      ...change.record,
+      id: recordId,
+    },
+  };
+};
+
 const toNumber = (value: unknown, fallback = 0) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
@@ -392,6 +428,31 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     async (changes: SyncChange[], lastSyncedAt: string | null) => {
       if (!session || !API_BASE_URL) return;
 
+      const normalizedEntries = changes.map((change) => ({
+        original: change,
+        normalized: normalizeOutgoingChange(change),
+      }));
+      const validChanges = normalizedEntries
+        .filter((entry): entry is { original: SyncChange; normalized: SyncChange } => Boolean(entry.normalized))
+        .map((entry) => entry.normalized);
+      const droppedKeys = new Set(
+        normalizedEntries
+          .filter((entry) => !entry.normalized)
+          .map((entry) => changeQueueKey(entry.original))
+      );
+
+      if (droppedKeys.size > 0) {
+        setState((prev) => ({
+          ...prev,
+          pendingChanges: prev.pendingChanges.filter((change) => !droppedKeys.has(changeQueueKey(change))),
+        }));
+        setError(`Skipped ${droppedKeys.size} invalid queued change(s). Please retry your last action.`);
+      }
+
+      if (validChanges.length === 0) {
+        return;
+      }
+
       setSyncing(true);
       setError(null);
 
@@ -404,7 +465,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           },
           body: JSON.stringify({
             last_sync_at: lastSyncedAt,
-            changes,
+            changes: validChanges,
           }),
         });
 
@@ -414,6 +475,10 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         }
 
         const payload = (await response.json()) as SyncResponse;
+        if (payload.failed_changes?.length) {
+          const first = payload.failed_changes[0];
+          setError(`Sync issue on ${first.table}: ${first.error}`);
+        }
         setState((prev) => {
           const withServerChanges = payload.server_changes.reduce(applyServerChange, prev);
           const acknowledged = new Set(payload.acknowledged);
@@ -612,7 +677,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           }
         : null;
 
-      const syncChanges = walletChange ? [change, walletChange] : [change];
+      const syncChanges = walletChange ? [walletChange, change] : [change];
 
       setState((prev) => ({
         ...prev,

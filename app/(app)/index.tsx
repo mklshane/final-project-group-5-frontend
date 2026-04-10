@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const { isDark } = theme;
   const { profile } = useAuth();
-  const { state, addTransaction, deleteTransaction } = useFinanceData();
+  const { state, addTransaction, deleteTransaction, error: financeError } = useFinanceData();
   const finance = useFinanceSelectors();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
@@ -132,6 +132,20 @@ export default function HomeScreen() {
           </Text>
           <Text style={[s.greetingSub, { color: theme.secondary }]}>{greetingSub}</Text>
         </View>
+
+        {financeError ? (
+          <View
+            style={[
+              s.syncErrorBanner,
+              {
+                backgroundColor: isDark ? 'rgba(255,107,107,0.12)' : 'rgba(255,107,107,0.08)',
+                borderColor: isDark ? 'rgba(255,107,107,0.28)' : 'rgba(255,107,107,0.2)',
+              },
+            ]}
+          >
+            <Text style={s.syncErrorText}>{financeError}</Text>
+          </View>
+        ) : null}
 
         {/* ── Main Card ─────────────────────────────────── */}
         <View style={[s.card, { backgroundColor: heroBg }]}> 
@@ -527,6 +541,20 @@ const s = StyleSheet.create({
     color: '#6B7060',
     lineHeight: 18,
     paddingRight: 20,
+  },
+
+  syncErrorBanner: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  syncErrorText: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // Main Card

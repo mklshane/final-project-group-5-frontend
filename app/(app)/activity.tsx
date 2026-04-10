@@ -8,7 +8,7 @@ import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 
 export default function ActivityScreen() {
-  const { state, addTransaction, deleteTransaction } = useFinanceData();
+  const { state, addTransaction, deleteTransaction, error: financeError } = useFinanceData();
   const finance = useFinanceSelectors();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
@@ -44,6 +44,7 @@ export default function ActivityScreen() {
     type: 'expense' | 'income';
     walletId: string | null;
     categoryId: string | null;
+    loggedAt: Date;
   }) => {
     await addTransaction({
       title: input.title,
@@ -51,6 +52,7 @@ export default function ActivityScreen() {
       type: input.type,
       walletId: input.walletId,
       categoryId: input.categoryId,
+      date: input.loggedAt.toISOString(),
     });
   };
 
@@ -71,6 +73,11 @@ export default function ActivityScreen() {
         <View className="px-6 pt-4 pb-3">
           <Text className="text-text text-3xl font-extrabold tracking-tight">Activity</Text>
           <Text className="text-secondary mt-1 text-sm">Recent transactions across all categories.</Text>
+          {financeError ? (
+            <View className="mt-3 rounded-xl border border-[#ff6b6b33] bg-[#ff6b6b14] px-3 py-2">
+              <Text className="text-[12px] font-semibold text-[#FF6B6B]">{financeError}</Text>
+            </View>
+          ) : null}
         </View>
 
         {finance.loading ? (

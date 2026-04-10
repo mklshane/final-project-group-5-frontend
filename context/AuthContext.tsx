@@ -32,19 +32,32 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
+const normalizeAuthErrorMessage = (message: string | null | undefined) => {
+  if (!message) return 'Unable to sign in right now. Please try again.';
+
+  const msg = message.toLowerCase();
+  if (
+    msg.includes('invalid login credentials')
+    || msg.includes('user not found')
+    || msg.includes('email not confirmed')
+  ) {
+    return 'No account was found with that email and password.';
+  }
+
+  return message;
+};
+
 const fetchProfile = async (accessToken: string): Promise<Profile | null> => {
   try {
     const res = await fetch(`${API_BASE_URL}/api/profile`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      console.error('[fetchProfile] failed:', res.status, JSON.stringify(body));
+      await res.json().catch(() => ({}));
       return null;
     }
     return res.json();
-  } catch (e) {
-    console.error('[fetchProfile] exception:', e);
+  } catch {
     return null;
   }
 };
@@ -94,14 +107,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error('[signInWithEmail] full error:', JSON.stringify(error));
-    } else {
-      console.log('[signInWithEmail] success, user:', data.user?.id);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        return { error: normalizeAuthErrorMessage(error.message) };
+      }
+
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        await supabase.auth.signOut();
+        return { error: 'Unable to start your session. Please try again.' };
+      }
+
+      const signedInProfile = await fetchProfile(accessToken);
+      if (!signedInProfile) {
+        await supabase.auth.signOut();
+        return { error: 'Your account is missing a profile record. Please contact support or sign up again.' };
+      }
+
+      setProfile(signedInProfile);
+      return { error: null };
+
+    } catch {
+      return { error: 'Network issue while signing in. Please check your connection and try again.' };
     }
-    const message = error ? `${error.message} (status: ${error.status ?? 'unknown'})` : null;
-    return { error: message };
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {

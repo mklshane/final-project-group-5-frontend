@@ -22,6 +22,12 @@ export interface SyncResponse {
     server_version: number;
     server_record: Record<string, unknown>;
   }>;
+  failed_changes?: Array<{
+    table: SyncTable;
+    action: SyncAction;
+    record_id: string | null;
+    error: string;
+  }>;
   server_changes: SyncChange[];
 }
 
