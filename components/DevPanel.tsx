@@ -41,6 +41,12 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
       { label: 'Profile', route: '/(app)/profile', icon: 'person-outline' },
     ],
   },
+  {
+    title: 'Misc',
+    items: [
+      { label: 'Splash Screen', route: '/splash', icon: 'color-wand-outline' },
+    ],
+  },
 ];
 
 export function DevPanel() {

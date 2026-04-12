@@ -8,6 +8,9 @@ export interface DefaultCategoryTemplate {
   sortOrder: number;
 }
 
+export const DEBT_PAYMENT_CATEGORY_NAME = 'Debt Payment';
+export const DEBT_COLLECTION_CATEGORY_NAME = 'Debt Collection';
+
 export const DEFAULT_SYSTEM_CATEGORIES: DefaultCategoryTemplate[] = [
   { name: 'Food & Dining', icon: 'restaurant-outline', color: '#E76F51', type: 'expense', sortOrder: 1 },
   { name: 'Groceries', icon: 'basket-outline', color: '#2A9D8F', type: 'expense', sortOrder: 2 },
@@ -24,6 +27,7 @@ export const DEFAULT_SYSTEM_CATEGORIES: DefaultCategoryTemplate[] = [
   { name: 'Gifts & Donations', icon: 'heart-outline', color: '#F72585', type: 'both', sortOrder: 13 },
   { name: 'Pets', icon: 'paw-outline', color: '#2B9348', type: 'expense', sortOrder: 14 },
   { name: 'Miscellaneous', icon: 'apps-outline', color: '#6C757D', type: 'both', sortOrder: 15 },
+  { name: DEBT_PAYMENT_CATEGORY_NAME, icon: 'arrow-up-circle-outline', color: '#C65D3A', type: 'expense', sortOrder: 16 },
   { name: 'Salary', icon: 'wallet-outline', color: '#2A9D8F', type: 'income', sortOrder: 101 },
   { name: 'Freelance', icon: 'briefcase-outline', color: '#3A86FF', type: 'income', sortOrder: 102 },
   { name: 'Business', icon: 'business-outline', color: '#4361EE', type: 'income', sortOrder: 103 },
@@ -32,6 +36,7 @@ export const DEFAULT_SYSTEM_CATEGORIES: DefaultCategoryTemplate[] = [
   { name: 'Refunds', icon: 'return-down-back-outline', color: '#4D908E', type: 'income', sortOrder: 106 },
   { name: 'Gifts Received', icon: 'gift-outline', color: '#F72585', type: 'income', sortOrder: 107 },
   { name: 'Other Income', icon: 'add-circle-outline', color: '#2A9D8F', type: 'income', sortOrder: 108 },
+  { name: DEBT_COLLECTION_CATEGORY_NAME, icon: 'arrow-down-circle-outline', color: '#2B9348', type: 'income', sortOrder: 109 },
 ];
 
 const DEFAULT_BY_NAME = new Map(

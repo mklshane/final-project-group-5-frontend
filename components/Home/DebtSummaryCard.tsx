@@ -19,67 +19,66 @@ export function DebtSummaryCard({ entry, formatCurrency, onPress }: DebtSummaryC
 
   const isOwe = entry.type === 'owe';
   const accentColor = isOwe ? theme.red : (theme.isDark ? theme.green : '#3F7D36');
+  const accentBg = isOwe ? 'rgba(255, 107, 107, 0.08)' : 'rgba(61, 217, 123, 0.08)';
 
   const name = entry.counterparty_name ?? entry.person_name ?? 'Unknown';
   const typeLabel = isOwe ? 'Payable' : 'Receivable';
   const dueText = entry.due_date
-    ? new Date(entry.due_date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+    ? new Date(entry.due_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     : null;
-
-  const progressBarFill = remaining === 0 ? theme.green : accentColor;
 
   return (
     <Pressable
-      style={({ pressed }) => pressed && { opacity: 0.75 }}
+      style={({ pressed }) => pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }}
       onPress={onPress}
     >
-      <View style={[{ backgroundColor: theme.surface, borderColor: theme.border }, s.card]}>
-      <View style={s.topRow}>
-        <View style={s.info}>
-          <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>
-            {name}
-          </Text>
-          <View style={s.metaRow}>
-            <View style={[s.typePill, { backgroundColor: `${accentColor}20` }]}>
+      <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={s.topRow}>
+          <View style={[s.iconWrap, { backgroundColor: accentBg }]}>
+            <Ionicons name={isOwe ? 'arrow-up' : 'arrow-down'} size={18} color={accentColor} />
+          </View>
+
+          <View style={s.info}>
+            <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>
+              {name}
+            </Text>
+            <View style={s.metaRow}>
               <Text style={[s.typeLabel, { color: accentColor }]}>{typeLabel}</Text>
+              {dueText ? (
+                <>
+                  <Text style={[s.dot, { color: theme.tertiary }]}> • </Text>
+                  <Text style={[s.dueText, { color: theme.tertiary }]}>Due {dueText}</Text>
+                </>
+              ) : null}
             </View>
-            {dueText ? (
-              <>
-                <Text style={[s.dot, { color: theme.tertiary }]}> · </Text>
-                <Ionicons name="time-outline" size={11} color={theme.tertiary} style={s.clockIcon} />
-                <Text style={[s.dueText, { color: theme.tertiary }]}>{dueText}</Text>
-              </>
-            ) : null}
+          </View>
+
+          <View style={s.amountBlock}>
+            <Text style={[s.amount, { color: theme.text }]}>
+              {formatCurrency(remaining)}
+            </Text>
           </View>
         </View>
 
-        <View style={s.amountBlock}>
-          <Text style={[s.amount, { color: remaining > 0 ? theme.text : theme.green }]}>
-            {formatCurrency(remaining)}
-          </Text>
-          <Text style={[s.amountSub, { color: theme.tertiary }]}>
-            of {formatCurrency(total)}
-          </Text>
+        {/* Progress Section */}
+        <View style={s.progressContainer}>
+          <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}>
+            <View
+              style={[
+                s.progressFill,
+                { backgroundColor: accentColor, width: `${Math.round(progress * 100)}%` },
+              ]}
+            />
+          </View>
+          <View style={s.progressLabelRow}>
+            <Text style={[s.progressLabel, { color: theme.tertiary }]}>
+              {formatCurrency(paid)} paid
+            </Text>
+            <Text style={[s.progressLabel, { color: theme.tertiary }]}>
+              of {formatCurrency(total)}
+            </Text>
+          </View>
         </View>
-      </View>
-
-      {/* Progress bar */}
-      <View style={[s.progressTrack, { backgroundColor: `${accentColor}20` }]}>
-        <View
-          style={[
-            s.progressFill,
-            { backgroundColor: `${progressBarFill}A6`, width: `${Math.round(progress * 100)}%` },
-          ]}
-        />
-      </View>
-      <View style={s.progressLabelRow}>
-        <Text style={[s.progressLabel, { color: theme.tertiary }]}>
-          {formatCurrency(paid)} paid
-        </Text>
-        <Text style={[s.progressLabel, { color: theme.tertiary }]}>
-          {Math.round(progress * 100)}%
-        </Text>
-      </View>
       </View>
     </Pressable>
   );
@@ -88,81 +87,78 @@ export function DebtSummaryCard({ entry, formatCurrency, onPress }: DebtSummaryC
 const s = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 12,
-    gap: 10,
+    borderRadius: 20,
+    padding: 16,
   },
   topRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
+    marginBottom: 16,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   info: {
     flex: 1,
     minWidth: 0,
   },
   name: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     letterSpacing: -0.2,
-    marginBottom: 5,
+    marginBottom: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  typePill: {
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
   typeLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   dot: {
-    fontSize: 11,
-  },
-  clockIcon: {
-    marginRight: 2,
+    fontSize: 10,
+    marginHorizontal: 2,
   },
   dueText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500',
   },
   amountBlock: {
     alignItems: 'flex-end',
-    flexShrink: 0,
+    justifyContent: 'center',
   },
   amount: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  amountSub: {
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 2,
+  progressContainer: {
+    width: '100%',
   },
   progressTrack: {
-    height: 5,
-    borderRadius: 99,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
+    marginBottom: 6,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 99,
+    borderRadius: 3,
   },
   progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 2,
   },
   progressLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
   },
 });

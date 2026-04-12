@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
 import { WALLET_TYPE_ICONS } from '@/constants/defaultWallets';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +14,9 @@ import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
+import { ActivityIndicator } from 'react-native';
+
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -22,14 +26,15 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const { state, addTransaction, deleteTransaction, error: financeError } = useFinanceData();
   const finance = useFinanceSelectors();
+  
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
 
-  const heroBg = '#222618';
+  const heroBg = '#1A1E14'; 
   const heroSub = '#8A8F7C';
-  const loadingBorder = isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(26, 30, 20, 0.12)';
+  const loadingBorder = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(26, 30, 20, 0.12)';
 
   const deleteTarget = useMemo(
     () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
@@ -54,14 +59,7 @@ export default function HomeScreen() {
     setEntryVisible(true);
   };
 
-  const handleSubmitEntry = async (input: {
-    title: string;
-    amount: number;
-    type: 'expense' | 'income';
-    walletId: string | null;
-    categoryId: string | null;
-    loggedAt: Date;
-  }) => {
+  const handleSubmitEntry = async (input: any) => {
     await addTransaction({
       title: input.title,
       amount: input.amount,
@@ -70,17 +68,6 @@ export default function HomeScreen() {
       categoryId: input.categoryId,
       date: input.loggedAt.toISOString(),
     });
-  };
-
-  const requestDelete = (id: string) => {
-    setDeleteTargetId(id);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
-    const targetId = deleteTargetId;
-    setDeleteTargetId(null);
-    await deleteTransaction(targetId);
   };
 
   const firstName = (profile?.full_name ?? 'there').split(' ')[0];
@@ -93,28 +80,19 @@ export default function HomeScreen() {
       month: 'long',
       day: 'numeric',
     });
-
     return { salutation, dateLabel };
   }, []);
+
   const todaySpentLabel = finance.formatCurrency(finance.today.spentTotal);
   const todayIncomeLabel = finance.formatCurrency(finance.today.incomeTotal);
-  const todaySubtitle = `${finance.today.transactionsCount} transaction${
-    finance.today.transactionsCount === 1 ? '' : 's'
-  } today`;
+  const todaySubtitle = `${finance.today.transactionsCount} transaction${finance.today.transactionsCount === 1 ? '' : 's'} today`;
 
   const greetingSub = finance.month.spentTotal
-    ? `You are at ${Math.max(0, Math.min(100, Math.round((finance.today.spentTotal / finance.month.spentTotal) * 100)))}% of this month's spend today.`
-    : 'Start tracking expenses to unlock insights and patterns.';
-  const walletPreview = finance.wallets.slice(0, 4);
-  const hasMoreWallets = finance.wallets.length > 4;
-  const walletRows = useMemo(() => {
-    if (walletPreview.length === 0) return [] as typeof walletPreview[];
-    if (walletPreview.length <= 2) return [walletPreview];
-    if (walletPreview.length === 3) return [[walletPreview[0]], [walletPreview[1], walletPreview[2]]];
-    return [walletPreview.slice(0, 2), walletPreview.slice(2, 4)];
-  }, [walletPreview]);
+    ? `You've spent ${Math.max(0, Math.min(100, Math.round((finance.today.spentTotal / finance.month.spentTotal) * 100)))}% of this month's total today.`
+    : 'Start tracking expenses to unlock insights.';
+
   const debtEntries = useMemo(() => {
-    const byDue = (a: { due_date?: string | null }, b: { due_date?: string | null }) => {
+    const byDue = (a: any, b: any) => {
       if (!a.due_date && !b.due_date) return 0;
       if (!a.due_date) return 1;
       if (!b.due_date) return -1;
@@ -124,7 +102,6 @@ export default function HomeScreen() {
     const nearestOwed = [...finance.debts.lists.unsettledOwed].sort(byDue)[0];
     return [nearestOwe, nearestOwed].filter(Boolean) as typeof finance.debts.lists.unsettledOwe;
   }, [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]);
-  const showDebtSummary = debtEntries.length > 0;
 
   return (
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: theme.bg }]}> 
@@ -133,131 +110,111 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Greeting ──────────────────────────────────── */}
-        <View style={s.greetingContainer}>
+        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={s.greetingContainer}>
           <Text style={[s.greetingDate, { color: theme.secondary }]}>{greetingMeta.dateLabel}</Text>
           <Text style={[s.greetingTitle, { color: theme.text }]}>
-            <Text style={{ fontWeight: '400' }}>{greetingMeta.salutation}
-            {', '}</Text>{firstName}
+            <Text style={{ fontWeight: '400' }}>{greetingMeta.salutation},{'\n'}</Text>{firstName}
           </Text>
           <Text style={[s.greetingSub, { color: theme.secondary }]}>{greetingSub}</Text>
-        </View>
+        </Animated.View>
 
         {financeError ? (
-          <View
-            style={[
-              s.syncErrorBanner,
-              {
-                backgroundColor: isDark ? 'rgba(255,107,107,0.12)' : 'rgba(255,107,107,0.08)',
-                borderColor: isDark ? 'rgba(255,107,107,0.28)' : 'rgba(255,107,107,0.2)',
-              },
-            ]}
-          >
+          <Animated.View entering={FadeIn.duration(400)} style={[s.syncErrorBanner, { backgroundColor: isDark ? 'rgba(255,107,107,0.12)' : 'rgba(255,107,107,0.08)', borderColor: isDark ? 'rgba(255,107,107,0.28)' : 'rgba(255,107,107,0.2)' }]}>
             <Text style={s.syncErrorText}>{financeError}</Text>
-          </View>
+          </Animated.View>
         ) : null}
 
-        {/* ── Main Card ─────────────────────────────────── */}
-        <View style={[s.card, { backgroundColor: heroBg }]}>
-          {/* Decorative Circles */}
+        {/* ── Main Hero Card ─────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(150).duration(600)} style={[s.card, { backgroundColor: heroBg }]}>
           <View style={s.cardDeco1} />
           <View style={s.cardDeco2} />
-          <View style={s.cardDeco3} />
 
-          {/* Header label */}
-          <Text style={[s.cardLabel, { color: heroSub }]}>TODAY</Text>
+          <View style={s.cardHeaderRow}>
+            <Text style={[s.cardLabel, { color: heroSub }]}>TODAY'S FLOW</Text>
+          </View>
 
-          {/* Stat chips row */}
           <View style={s.cardStatsRow}>
             <View style={s.cardStatChip}>
               <View style={s.cardStatIconRow}>
-                <Ionicons name="trending-up" size={13} color="#4ADE80" />
+                <Ionicons name="arrow-down-circle" size={16} color="#4ADE80" />
                 <Text style={s.cardStatLabel}>INCOME</Text>
               </View>
-              <Text style={s.cardStatAmount}>{todayIncomeLabel}</Text>
+              <Text style={s.cardStatAmount} numberOfLines={1} adjustsFontSizeToFit>{todayIncomeLabel}</Text>
             </View>
 
             <View style={s.cardStatDivider} />
 
             <View style={s.cardStatChip}>
               <View style={s.cardStatIconRow}>
-                <Ionicons name="trending-down" size={13} color="#F87171" />
+                <Ionicons name="arrow-up-circle" size={16} color="#F87171" />
                 <Text style={s.cardStatLabel}>SPENT</Text>
               </View>
-              <Text style={[s.cardStatAmount, { color: '#F87171' }]}>{todaySpentLabel}</Text>
+              <Text style={[s.cardStatAmount, { color: '#FFFFFF' }]} numberOfLines={1} adjustsFontSizeToFit>{todaySpentLabel}</Text>
             </View>
           </View>
 
-          {/* Divider */}
           <View style={s.cardDivider} />
-
-          {/* Subtitle */}
           <Text style={[s.cardSub, { color: heroSub }]}>{todaySubtitle}</Text>
-        </View>
+        </Animated.View>
 
+        {/* ── Wallets Carousel ──────────────────────────── */}
         {finance.wallets.length > 0 ? (
-          <View style={s.walletDistributionWrap}>
-            <View style={s.walletHeaderRow}>
-              <Text style={[s.walletDistributionLabel, { color: theme.tertiary }]}>WALLETS</Text>
-              {hasMoreWallets ? (
-                <Pressable onPress={() => router.push('/(app)/profile/manage-wallets')}>
-                  <Text style={[s.walletSeeAll, { color: theme.secondary }]}>See all wallets</Text>
-                </Pressable>
-              ) : null}
+          <Animated.View entering={FadeInDown.delay(200).duration(600)} style={s.walletSection}>
+            <View style={s.sectionHeader}>
+              <Text style={[s.sectionTitle, { color: theme.tertiary }]}>ACCOUNTS</Text>
+              <Pressable onPress={() => router.push('/(app)/profile/manage-wallets')} hitSlop={10}>
+                <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
+              </Pressable>
             </View>
-            <View style={s.walletRowsWrap}>
-              {walletRows.map((row, rowIndex) => (
-                <View key={`wallet-row-${rowIndex}`} style={s.walletDistributionRow}>
-                  {row.map((wallet) => (
-                    <View
-                      key={wallet.id}
-                      style={[
-                        s.walletItem,
-                        row.length === 1 ? s.walletItemFull : s.walletItemHalf,
-                        {
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
-                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(26,30,20,0.08)',
-                        },
-                      ]}
-                    >
-                      <View style={s.walletLeft}>
-                        <View
-                          style={[
-                            s.walletIconWrap,
-                            { backgroundColor: isDark ? 'rgba(200,245,96,0.14)' : 'rgba(26,30,20,0.07)' },
-                          ]}
-                        >
-                          <Ionicons
-                            name={WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap}
-                            size={13}
-                            color={isDark ? '#C8F560' : '#1A1E14'}
-                          />
-                        </View>
-
-                        <View style={s.walletTextWrap}>
-                          <Text style={[s.walletName, { color: theme.text }]} numberOfLines={1}>
-                            {wallet.name}
-                          </Text>
-                          <Text style={[s.walletType, { color: theme.secondary }]} numberOfLines={1}>
-                            {wallet.typeLabel ?? wallet.type}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <Text style={[s.walletAmount, { color: theme.text }]} numberOfLines={1}>
-                        {finance.formatCurrency(wallet.current_balance)}
-                      </Text>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={s.walletScrollWrap}
+              contentContainerStyle={s.walletScrollContent}
+            >
+              {finance.wallets.map((wallet) => (
+                <View
+                  key={wallet.id}
+                  style={[
+                    s.walletCard,
+                    {
+                      backgroundColor: isDark ? theme.surfaceAlt : theme.surface,
+                      borderColor: theme.border,
+                      shadowColor: isDark ? '#000' : '#8A8F7C',
+                    },
+                  ]}
+                >
+                  <View style={s.walletCardTop}>
+                    <View style={[s.walletIconWrap, { backgroundColor: isDark ? 'rgba(200,245,96,0.12)' : 'rgba(155,194,58,0.12)' }]}>
+                      <Ionicons
+                        name={WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap}
+                        size={16}
+                        color={isDark ? theme.lime : theme.limeDark}
+                      />
                     </View>
-                  ))}
+                    <Text style={[s.walletAmount, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                      {finance.formatCurrency(wallet.current_balance)}
+                    </Text>
+                  </View>
+                  <View style={s.walletCardBottom}>
+                    <Text style={[s.walletName, { color: theme.secondary }]} numberOfLines={1}>
+                      {wallet.name}
+                    </Text>
+                  </View>
                 </View>
               ))}
-            </View>
-          </View>
+            </ScrollView>
+          </Animated.View>
         ) : null}
 
-        {showDebtSummary ? (
-          <View style={s.debtSummaryWrap}>
-            <Text style={[s.debtSummaryLabel, { color: theme.tertiary }]}>DEBT TRACKER</Text>
-            <View style={s.debtSummaryList}>
+        {/* ── Debt Tracker ─────────────────────────────── */}
+        {debtEntries.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(250).duration(600)} style={s.debtSection}>
+            <View style={s.sectionHeader}>
+              <Text style={[s.sectionTitle, { color: theme.tertiary }]}>DEBT TRACKER</Text>
+            </View>
+            <View style={s.debtList}>
               {debtEntries.map((entry) => (
                 <DebtSummaryCard
                   key={entry.id}
@@ -267,81 +224,69 @@ export default function HomeScreen() {
                 />
               ))}
             </View>
-          </View>
+          </Animated.View>
         ) : null}
 
         {/* ── Recent Transactions ───────────────────────── */}
-        <View style={s.recentHeader}>
-          <Text style={[s.recentTitle, { color: theme.tertiary }]}>RECENT</Text>
-        </View>
+        <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+          <View style={s.sectionHeader}>
+            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>RECENT ACTIVITY</Text>
+          </View>
 
-        <View style={s.transactionList}>
-          {finance.loading ? (
-            <View style={[s.loadingStateCard, { borderColor: loadingBorder }]}> 
-              <Text style={[s.loadingStateText, { color: theme.tertiary }]}>Loading transactions...</Text>
-            </View>
-          ) : finance.recentTransactions.length === 0 ? (
-            <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
-              <Text style={[s.emptyStateTitle, { color: theme.text }]}>No transactions yet</Text>
-              <Text style={[s.emptyStateBody, { color: theme.tertiary }]}>Start tracking by adding your first expense or income.</Text>
-            </View>
-          ) : (
-            finance.recentTransactions.map((tx) => {
-              const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
-              const normalized = tx.title.toLowerCase();
-              const kind = normalized.includes('scan')
-                ? 'scan'
-                : tx.type === 'income'
-                  ? 'income'
-                  : 'expense';
+          <View style={s.transactionList}>
+            {finance.loading ? (
+              <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
+                <ActivityIndicator color={theme.secondary} size="small" />
+              </View>
+            ) : finance.recentTransactions.length === 0 ? (
+              <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
+                <Ionicons name="receipt-outline" size={24} color={theme.tertiary} style={{ marginBottom: 8 }} />
+                <Text style={[s.emptyStateTitle, { color: theme.text }]}>No transactions yet</Text>
+                <Text style={[s.emptyStateBody, { color: theme.tertiary }]}>Start tracking by adding your first expense.</Text>
+              </View>
+            ) : (
+              finance.recentTransactions.map((tx) => {
+                const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
+                const normalized = tx.title.toLowerCase();
+                const kind = normalized.includes('scan') ? 'scan' : tx.type === 'income' ? 'income' : 'expense';
 
-              return (
-                <TransactionCard
-                  key={tx.id}
-                  title={tx.title}
-                  categoryName={`${tx.categoryName} • ${tx.walletName}`}
-                  categoryIcon={tx.categoryIcon}
-                  categoryColor={tx.categoryColor}
-                  amountLabel={amountLabel}
-                  timeLabel={tx.relativeDay}
-                  kind={kind}
-                  onDeletePress={() => requestDelete(tx.id)}
-                />
-              );
-            })
-          )}
-        </View>
+                return (
+                  <TransactionCard
+                    key={tx.id}
+                    title={tx.title}
+                    categoryName={`${tx.categoryName} • ${tx.walletName}`}
+                    categoryIcon={tx.categoryIcon}
+                    categoryColor={tx.categoryColor}
+                    amountLabel={amountLabel}
+                    timeLabel={tx.relativeDay}
+                    kind={kind}
+                    onDeletePress={() => setDeleteTargetId(tx.id)}
+                  />
+                );
+              })
+            )}
+          </View>
+        </Animated.View>
       </ScrollView>
 
       <ConfirmDeleteModal
         visible={Boolean(deleteTargetId)}
-        message={
-          deleteTarget
-            ? `Delete \"${deleteTarget.title}\"? This action cannot be undone.`
-            : 'Delete this transaction? This action cannot be undone.'
-        }
+        message={deleteTarget ? `Delete "${deleteTarget.title}"?` : 'Delete this transaction?'}
         onCancel={() => setDeleteTargetId(null)}
-        onConfirm={() => {
-          void confirmDelete();
+        onConfirm={async () => {
+          if (deleteTargetId) await deleteTransaction(deleteTargetId);
+          setDeleteTargetId(null);
         }}
       />
 
-      <QuickActionFab
-        onQuickScan={handleQuickScan}
-        onAddExpense={handleAddExpense}
-        onAddIncome={handleAddIncome}
-      />
-
+      <QuickActionFab onQuickScan={handleQuickScan} onAddExpense={handleAddExpense} onAddIncome={handleAddIncome} />
       <TransactionEntryModal
         visible={entryVisible}
         mode={entryMode}
         scanRequestId={scanRequestId}
         wallets={finance.wallets}
         categories={state.categories}
-        onClose={() => {
-          setEntryVisible(false);
-          setScanRequestId(null);
-        }}
+        onClose={() => { setEntryVisible(false); setScanRequestId(null); }}
         onSubmit={handleSubmitEntry}
       />
     </View>
@@ -349,302 +294,82 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4F5E9',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 120, // Leave room for FAB
+  container: { flex: 1 },
+  scrollContent: { 
+    paddingHorizontal: 18,
+    paddingBottom: 120 
   },
   
-  // Header
-  // Greeting
-  greetingContainer: {
-    marginTop: 8,
-    marginBottom: 14,
-  },
-  walletDistributionWrap: {
-    marginBottom: 14,
-  },
-  debtSummaryWrap: {
-    marginBottom: 14,
-  },
-  debtSummaryLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    opacity: 0.85,
-    marginBottom: 8,
-  },
-  debtSummaryList: {
-    gap: 8,
-  },
-  walletHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  walletDistributionLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    opacity: 0.85,
-  },
-  walletSeeAll: {
-    fontSize: 11,
-    fontWeight: '700',
-    opacity: 0.8,
-  },
-  walletDistributionRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 8,
-  },
-  walletRowsWrap: {
-    gap: 8,
-  },
-  walletItem: {
-    borderWidth: 1,
-    borderRadius: 13,
-    paddingVertical: 8,
-    paddingHorizontal: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  walletItemFull: {
-    flex: 1,
-  },
-  walletItemHalf: {
-    flex: 1,
-  },
-  walletLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
-    flexShrink: 1,
-    marginRight: 6,
-  },
-  walletIconWrap: {
-    width: 23,
-    height: 23,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 7,
-  },
-  walletTextWrap: {
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  walletName: {
-    fontSize: 11,
-    fontWeight: '700',
-    maxWidth: 84,
-  },
-  walletType: {
-    fontSize: 10,
-    fontWeight: '500',
-    opacity: 0.78,
-    marginTop: 1,
-    maxWidth: 84,
-  },
-  walletAmount: {
-    fontSize: 11,
-    fontWeight: '700',
-    opacity: 0.95,
-    textAlign: 'right',
-    marginLeft: 4,
-  },
-  greetingTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1A1E14',
-    letterSpacing: -1,
-    marginBottom: 2,
-  },
-  greetingDate: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6B7060',
-    opacity: 0.8,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    marginBottom: 1,
-  },
-  greetingSub: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7060',
-    lineHeight: 18,
-    paddingRight: 20,
-  },
+  greetingContainer: { marginTop: 8, marginBottom: 20 },
+  greetingDate: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
+  greetingTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -1, marginBottom: 4, lineHeight: 36 },
+  greetingSub: { fontSize: 14, fontWeight: '500', lineHeight: 20, paddingRight: 20 },
+  
+  syncErrorBanner: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 16 },
+  syncErrorText: { color: '#FF6B6B', fontSize: 12, fontWeight: '600' },
 
-  syncErrorBanner: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 2,
-    marginBottom: 12,
-  },
-  syncErrorText: {
-    color: '#FF6B6B',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
-  // Main Card
   card: {
-    backgroundColor: '#222618',
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 16,
+    borderRadius: 24,
+    padding: 20,
     overflow: 'hidden',
-    position: 'relative',
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
   },
-  cardDeco1: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(200, 245, 96, 0.06)',
-    top: -42,
-    right: -42,
-  },
-  cardDeco2: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(200, 245, 96, 0.04)',
-    bottom: -24,
-    right: 20,
-  },
-  cardDeco3: {
-    position: 'absolute',
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(200, 245, 96, 0.04)',
-    bottom: -18,
-    left: -18,
-  },
-  cardLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8A8F7C',
-    letterSpacing: 1.5,
-    marginBottom: 14,
-    textTransform: 'uppercase',
-  },
-  cardAmount: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: '#C8F560',
-    letterSpacing: -1.2,
-    marginBottom: 2,
-  },
-  cardSub: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    marginTop: 14,
-    marginBottom: 10,
-  },
-  cardStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardStatChip: {
-    flex: 1,
-    gap: 5,
-  },
-  cardStatDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginHorizontal: 16,
-  },
-  cardStatIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  cardStatLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8A8F7C',
-    letterSpacing: 1.1,
-  },
-  cardStatAmount: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
+  cardDeco1: { position: 'absolute', width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(200, 245, 96, 0.08)', top: -80, right: -60 },
+  cardDeco2: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(200, 245, 96, 0.05)', bottom: -40, left: -40 },
+  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  cardLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  
+  cardStatsRow: { flexDirection: 'row', alignItems: 'center' },
+  cardStatChip: { flex: 1 },
+  cardStatDivider: { width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 16 },
+  cardStatIconRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  cardStatLabel: { fontSize: 10, fontWeight: '800', color: '#8A8F7C', letterSpacing: 1.2 },
+  cardStatAmount: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
+  
+  cardDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 20, marginBottom: 12 },
+  cardSub: { fontSize: 12, fontWeight: '500' },
 
-  // Recent Section
-  recentHeader: {
-    marginBottom: 16,
-  },
-  recentTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#9DA28F',
-    letterSpacing: 1.5,
-    opacity: 0.85,
-  },
-  transactionList: {
-    gap: 6,
-  },
-  // Empty / loading states
-  loadingStateCard: {
-    backgroundColor: 'transparent',
-    borderRadius: 14,
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, opacity: 0.9 },
+  sectionLink: { fontSize: 12, fontWeight: '700' },
+
+  walletSection: { marginBottom: 24 },
+  walletScrollWrap: { marginHorizontal: -24 }, 
+  walletScrollContent: { paddingHorizontal: 24, gap: 12 },
+  walletCard: {
+    width: 140,
     borderWidth: 1,
-    borderColor: 'rgba(26, 30, 20, 0.12)',
-    borderStyle: 'dashed',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 20,
+    padding: 16,
+    justifyContent: 'space-between',
+    minHeight: 100,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  loadingStateText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#9DA28F',
-  },
+  walletCardTop: { gap: 10 },
+  walletIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  walletAmount: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
+  walletCardBottom: { marginTop: 6 },
+  walletName: { fontSize: 12, fontWeight: '600' },
+
+  // Debt Section
+  debtSection: { marginBottom: 24 },
+  debtList: { gap: 10 },
+
+  // Recent Activity
+  transactionList: { gap: 8 },
+  
   emptyStateCard: {
-    backgroundColor: 'transparent',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(26, 30, 20, 0.12)',
-    borderStyle: 'dashed',
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    alignItems: 'center',
+    borderRadius: 20, borderWidth: 1, borderStyle: 'dashed',
+    paddingVertical: 24, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center'
   },
-  emptyStateTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1A1E14',
-    marginBottom: 4,
-  },
-  emptyStateBody: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#9DA28F',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+  emptyStateTitle: { fontSize: 15, fontWeight: '800', marginBottom: 4 },
+  emptyStateBody: { fontSize: 13, fontWeight: '500', textAlign: 'center', lineHeight: 18 },
 });
