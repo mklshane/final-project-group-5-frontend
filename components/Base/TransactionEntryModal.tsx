@@ -249,6 +249,10 @@ export function TransactionEntryModal({
     reset: resetScanner,
   } = useReceiptScanner();
 
+  const wasVisibleRef = useRef(false);
+  const slideAnim = useRef(new Animated.Value(700)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+
   const currencySymbol = useMemo(
     () => CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? '₱',
     [currencyCode]
@@ -261,9 +265,16 @@ export function TransactionEntryModal({
 
   useEffect(() => {
     if (!visible) {
+      wasVisibleRef.current = false;
       setIsClosing(false);
       return;
     }
+
+    // Only reset form state when the modal transitions from hidden → visible.
+    // Skipping when wallets/categories update while already open prevents a
+    // flash of the empty form before the modal finishes closing.
+    if (wasVisibleRef.current) return;
+    wasVisibleRef.current = true;
 
     const defaultWalletId = pickDefaultWallet(wallets);
     const defaultCategoryId = availableCategories[0]?.id ?? null;
@@ -283,7 +294,25 @@ export function TransactionEntryModal({
     resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
-  }, [visible, mode, wallets, availableCategories, resetScanner, keypadAnim]);
+
+    // Slide the sheet up
+    slideAnim.setValue(700);
+    backdropAnim.setValue(0);
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 24,
+        stiffness: 300,
+        mass: 0.9,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [visible, mode, wallets, availableCategories, resetScanner, keypadAnim, slideAnim, backdropAnim]);
 
   useEffect(() => {
     Animated.spring(keypadAnim, {
@@ -497,7 +526,6 @@ export function TransactionEntryModal({
 
     setSubmitting(true);
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await onSubmit({
         title: title.trim(),
         amount: computedAmount,
@@ -506,6 +534,7 @@ export function TransactionEntryModal({
         categoryId: selectedCategoryId,
         loggedAt: customLoggedAt ?? new Date(),
       });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       resetScanner();
       handleClose();
     } finally {
@@ -514,20 +543,43 @@ export function TransactionEntryModal({
   };
 
   const handleClose = () => {
+    if (isClosing) return;
     setIsClosing(true);
-    onClose();
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 700,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsClosing(false);
+      onClose();
+    });
   };
 
 
   return (
-    <Modal visible={visible && !isClosing} transparent animationType="fade" onRequestClose={handleClose}>
+    <Modal visible={visible || isClosing} transparent animationType="none" onRequestClose={handleClose}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {!scannerVisible ? (
-          <Pressable style={[s.backdrop, { backgroundColor: theme.backdrop }]} onPress={handleClose} />
+          <Animated.View style={[s.backdrop, { backgroundColor: theme.backdrop, opacity: backdropAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
+            <Pressable style={s.flex} onPress={handleClose} />
+          </Animated.View>
         ) : null}
 
         {!scannerVisible ? (
-        <View style={[s.sheet, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+        <Animated.View
+          style={[
+            s.sheet,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+            { transform: [{ translateY: slideAnim }] },
+          ]}
+        >
           {/* Drag Indicator */}
           <View style={s.dragHandleWrap}>
             <View style={[s.dragHandle, { backgroundColor: theme.borderHighlight }]} />
@@ -791,7 +843,7 @@ export function TransactionEntryModal({
               </Pressable>
             </View>
           </ScrollView>
-        </View>
+        </Animated.View>
         ) : null}
       </KeyboardAvoidingView>
 

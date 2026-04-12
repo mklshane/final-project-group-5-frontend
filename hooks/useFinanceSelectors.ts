@@ -118,6 +118,7 @@ export function useFinanceSelectors() {
 
     const todayTransactions = activeTransactions.filter((tx) => isWithin(tx.date, dayStart, dayEnd));
     const todayExpenses = todayTransactions.filter((tx) => tx.type === 'expense');
+    const todayIncome = todayTransactions.filter((tx) => tx.type === 'income');
 
     const monthTransactions = activeTransactions.filter((tx) => isWithin(tx.date, monthStart, monthEnd));
     const monthlyExpenseTotal = monthTransactions
@@ -209,6 +210,7 @@ export function useFinanceSelectors() {
       recentTransactions,
       today: {
         spentTotal: todayExpenses.reduce((sum, tx) => sum + tx.amount, 0),
+        incomeTotal: todayIncome.reduce((sum, tx) => sum + tx.amount, 0),
         transactionsCount: todayTransactions.length,
       },
       month: {

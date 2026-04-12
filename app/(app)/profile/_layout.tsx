@@ -12,7 +12,6 @@ export default function ProfileLayout() {
         headerStyle: { backgroundColor: isDark ? '#111410' : '#F4F5E9' },
         headerTintColor: isDark ? '#EDF0E4' : '#1A1E14',
         headerTitleStyle: { fontWeight: '800' },
-        headerBackTitleVisible: false,
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
