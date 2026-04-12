@@ -19,6 +19,7 @@ import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 
 type FilterKey = 'all' | 'today' | 'week' | 'month';
+type CategoryFilterKey = 'all' | string;
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -49,6 +50,7 @@ export default function ActivityScreen() {
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilterKey>('all');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
@@ -57,6 +59,23 @@ export default function ActivityScreen() {
   const deleteTarget = useMemo(
     () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
     [finance.allTransactions, deleteTargetId]
+  );
+
+  const categoryFilters = useMemo(
+    () => {
+      const uniqueCategories = new Map<string, (typeof state.categories)[number]>();
+      for (const category of state.categories
+        .filter((category) => !category.deleted_at)
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))) {
+        const key = category.name.trim().toLowerCase();
+        if (!uniqueCategories.has(key)) {
+          uniqueCategories.set(key, category);
+        }
+      }
+      return [...uniqueCategories.values()];
+    },
+    [state.categories]
   );
 
   const filteredTransactions = useMemo(() => {
@@ -89,13 +108,19 @@ export default function ActivityScreen() {
       });
     }
 
+    if (categoryFilter !== 'all') {
+      txs = txs.filter((tx) => tx.category_id === categoryFilter);
+    }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      txs = txs.filter((tx) => tx.title.toLowerCase().includes(q));
+      txs = txs.filter((tx) =>
+        [tx.title, tx.categoryName, tx.walletName].some((value) => value.toLowerCase().includes(q))
+      );
     }
 
     return txs;
-  }, [finance.allTransactionsView, filter, search]);
+  }, [categoryFilter, finance.allTransactionsView, filter, search]);
 
   const { spent, earned } = useMemo(() => {
     let spent = 0;
@@ -116,6 +141,8 @@ export default function ActivityScreen() {
     }
     return [...groups.entries()].map(([day, txs]) => ({ day, txs }));
   }, [filteredTransactions]);
+
+  const hasNoSearchMatches = search.trim().length > 0 && filteredTransactions.length === 0;
 
   const handleQuickScan = () => {
     setEntryMode('expense');
@@ -184,49 +211,86 @@ export default function ActivityScreen() {
         </View>
 
         {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filterRow}
-          style={s.filterScroll}
-        >
-          {FILTERS.map((f) => {
-            const active = filter === f.key;
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                style={[
-                  s.chip,
-                  {
-                    backgroundColor: active ? theme.lime : theme.chipBg,
-                    borderColor: active ? theme.lime : theme.chipBorder,
-                  },
-                ]}
-              >
-                <Text style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {!hasNoSearchMatches && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.filterRow}
+            style={s.filterScroll}
+          >
+            {FILTERS.map((f) => {
+              const active = filter === f.key;
+              return (
+                <Pressable
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
+                  style={[
+                    s.chip,
+                    f.key === 'all' ? s.chipCompact : s.chipWide,
+                    {
+                      backgroundColor: active ? theme.lime : theme.chipBg,
+                      borderColor: active ? theme.lime : theme.chipBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                  >
+                    {f.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            {categoryFilters.map((category) => {
+              const active = categoryFilter === category.id;
+              return (
+                <Pressable
+                  key={category.id}
+                  onPress={() => setCategoryFilter(active ? 'all' : category.id)}
+                  style={[
+                    s.chip,
+                    s.categoryChip,
+                    {
+                      backgroundColor: active ? theme.lime : theme.chipBg,
+                      borderColor: active ? theme.lime : theme.chipBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                  >
+                    {category.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Spent / Earned summary */}
-        <View style={s.summaryRow}>
-          <View style={[s.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[s.summaryLabel, { color: theme.secondary }]}>SPENT</Text>
-            <Text style={[s.summaryAmount, { color: theme.text }]}>
-              {finance.formatCurrency(spent)}
-            </Text>
+        {!hasNoSearchMatches && (
+          <View style={s.summaryRow}>
+            <View style={[s.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[s.summaryLabel, { color: theme.secondary }]}>SPENT</Text>
+              <Text style={[s.summaryAmount, { color: theme.text }]}>
+                {finance.formatCurrency(spent)}
+              </Text>
+            </View>
+            <View style={[s.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[s.summaryLabel, { color: theme.secondary }]}>EARNED</Text>
+              <Text style={[s.summaryAmount, { color: theme.green }]}>
+                {finance.formatCurrency(earned)}
+              </Text>
+            </View>
           </View>
-          <View style={[s.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[s.summaryLabel, { color: theme.secondary }]}>EARNED</Text>
-            <Text style={[s.summaryAmount, { color: theme.green }]}>
-              {finance.formatCurrency(earned)}
-            </Text>
-          </View>
-        </View>
+        )}
 
         {/* Transaction list */}
         {finance.loading ? (
@@ -349,23 +413,40 @@ const s = StyleSheet.create({
   // Filters
   filterScroll: {
     flexGrow: 0,
+    height: 60,
     marginBottom: 14,
   },
   filterRow: {
     paddingHorizontal: 24,
+    paddingVertical: 6,
     gap: 8,
     flexDirection: 'row',
     alignItems: 'center',
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
+    height: 34,
+    paddingHorizontal: 18,
+    borderRadius: 18,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  chipCompact: {
+    minWidth: 56,
+  },
+  chipWide: {
+    minWidth: 98,
   },
   chipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  categoryChip: {
+    minWidth: 86,
+    maxWidth: 150,
+    paddingHorizontal: 16,
   },
   // Summary
   summaryRow: {
