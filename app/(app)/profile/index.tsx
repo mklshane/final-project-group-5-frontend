@@ -9,18 +9,62 @@ import { useAuth } from '@/context/AuthContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 
 export default function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
   const theme = useTheme();
   const { isDark } = theme;
   const router = useRouter();
   const finance = useFinanceSelectors();
 
+  const initials = profile?.full_name
+    ? profile.full_name.trim().split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+    : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 }}>
-        <Text className="text-3xl font-extrabold tracking-tight mb-5" style={{ color: theme.text }}>
-          Profile
+        <Text className="text-3xl font-extrabold tracking-tight mb-4" style={{ color: theme.text }}>
+          Settings
         </Text>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/profile/profile-details')}
+          activeOpacity={0.8}
+          className="rounded-2xl border mb-2"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1 pr-3">
+              <View
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 23,
+                  backgroundColor: isDark ? theme.surfaceDeep : 'rgba(155,194,58,0.20)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                {initials ? (
+                  <Text style={{ color: isDark ? theme.lime : theme.limeDark, fontSize: 17, fontWeight: '800' }}>
+                    {initials}
+                  </Text>
+                ) : (
+                  <Ionicons name="person-outline" size={22} color={isDark ? theme.lime : theme.limeDark} />
+                )}
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800' }} numberOfLines={1}>
+                  {profile?.full_name ?? 'Account'}
+                </Text>
+                <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }} numberOfLines={1}>
+                  {profile?.email ?? ''}
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={isDark ? theme.secondary : theme.text} />
+          </View>
+        </TouchableOpacity>
 
         <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">WALLETS</Text>
 

@@ -96,7 +96,8 @@ export default function HomeScreen() {
 
     return { salutation, dateLabel };
   }, []);
-  const spentTodayLabel = finance.formatCurrency(finance.today.spentTotal);
+  const todaySpentLabel = finance.formatCurrency(finance.today.spentTotal);
+  const todayIncomeLabel = finance.formatCurrency(finance.today.incomeTotal);
   const todaySubtitle = `${finance.today.transactionsCount} transaction${
     finance.today.transactionsCount === 1 ? '' : 's'
   } today`;
@@ -156,13 +157,40 @@ export default function HomeScreen() {
         ) : null}
 
         {/* ── Main Card ─────────────────────────────────── */}
-        <View style={[s.card, { backgroundColor: heroBg }]}> 
+        <View style={[s.card, { backgroundColor: heroBg }]}>
           {/* Decorative Circles */}
           <View style={s.cardDeco1} />
           <View style={s.cardDeco2} />
+          <View style={s.cardDeco3} />
 
-          <Text style={[s.cardLabel, { color: heroSub }]}>SPENT TODAY</Text>
-          <Text style={s.cardAmount}>{spentTodayLabel}</Text>
+          {/* Header label */}
+          <Text style={[s.cardLabel, { color: heroSub }]}>TODAY</Text>
+
+          {/* Stat chips row */}
+          <View style={s.cardStatsRow}>
+            <View style={s.cardStatChip}>
+              <View style={s.cardStatIconRow}>
+                <Ionicons name="trending-up" size={13} color="#4ADE80" />
+                <Text style={s.cardStatLabel}>INCOME</Text>
+              </View>
+              <Text style={s.cardStatAmount}>{todayIncomeLabel}</Text>
+            </View>
+
+            <View style={s.cardStatDivider} />
+
+            <View style={s.cardStatChip}>
+              <View style={s.cardStatIconRow}>
+                <Ionicons name="trending-down" size={13} color="#F87171" />
+                <Text style={s.cardStatLabel}>SPENT</Text>
+              </View>
+              <Text style={[s.cardStatAmount, { color: '#F87171' }]}>{todaySpentLabel}</Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={s.cardDivider} />
+
+          {/* Subtitle */}
           <Text style={[s.cardSub, { color: heroSub }]}>{todaySubtitle}</Text>
         </View>
 
@@ -471,49 +499,98 @@ const s = StyleSheet.create({
   // Main Card
   card: {
     backgroundColor: '#222618',
-    borderRadius: 20,
+    borderRadius: 22,
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingTop: 18,
+    paddingBottom: 16,
     overflow: 'hidden',
     position: 'relative',
     marginBottom: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
   },
   cardDeco1: {
     position: 'absolute',
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(200, 245, 96, 0.05)',
+    backgroundColor: 'rgba(200, 245, 96, 0.06)',
     top: -42,
     right: -42,
   },
   cardDeco2: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(200, 245, 96, 0.03)',
-    bottom: -20,
-    right: 26,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(200, 245, 96, 0.04)',
+    bottom: -24,
+    right: 20,
+  },
+  cardDeco3: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(200, 245, 96, 0.04)',
+    bottom: -18,
+    left: -18,
   },
   cardLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#8A8F7C',
-    letterSpacing: 1.3,
-    marginBottom: 12,
+    letterSpacing: 1.5,
+    marginBottom: 14,
+    textTransform: 'uppercase',
   },
   cardAmount: {
-    fontSize: 44,
+    fontSize: 38,
     fontWeight: '800',
     color: '#C8F560',
-    letterSpacing: -1.4,
-    marginBottom: 9,
+    letterSpacing: -1.2,
+    marginBottom: 2,
   },
   cardSub: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  cardStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardStatChip: {
+    flex: 1,
+    gap: 5,
+  },
+  cardStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 16,
+  },
+  cardStatIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  cardStatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#8A8F7C',
+    letterSpacing: 1.1,
+  },
+  cardStatAmount: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
   },
 
   // Recent Section
