@@ -6,6 +6,10 @@ import { PaymentLogModal } from '@/components/Profile/PaymentLogModal';
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import {
+  DEBT_COLLECTION_CATEGORY_NAME,
+  DEBT_PAYMENT_CATEGORY_NAME,
+} from '@/constants/defaultCategories';
 
 const toDateLabel = (value: string) => {
   const parsed = new Date(value);
@@ -15,7 +19,7 @@ const toDateLabel = (value: string) => {
 
 export default function DebtDetailScreen() {
   const theme = useTheme();
-  const { state, updateDebt } = useFinanceData();
+  const { state, updateDebt, addTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -73,14 +77,55 @@ export default function DebtDetailScreen() {
     ? 'arrow-up-circle'
     : 'arrow-down-circle';
 
-  const savePayment = async (input: { amount: number; date: string }) => {
+  // Wallets and fixed category for the payment modal
+  const activeWallets = state.wallets.filter((wallet) => !wallet.deleted_at);
+
+  const fixedCategoryName = isOwe ? DEBT_PAYMENT_CATEGORY_NAME : DEBT_COLLECTION_CATEGORY_NAME;
+  const normalizedCategoryName = fixedCategoryName.trim().toLowerCase();
+  const fixedPaymentCategory =
+    state.categories.find(
+      (category) =>
+        !category.deleted_at && category.name.trim().toLowerCase() === normalizedCategoryName
+    ) ?? null;
+
+  // Transactions linked to this debt via note marker
+  const debtMarker = `[#debt:${debtId}]`;
+  const paymentTransactions = state.transactions
+    .filter((tx) => !tx.deleted_at && tx.note?.includes(debtMarker))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const savePayment = async (input: {
+    amount: number;
+    date: string;
+    walletId: string | null;
+    categoryId: string;
+    note: string;
+  }) => {
     const nextPaid = Math.min(totalAmount, paidAmount + input.amount);
-    await updateDebt({
-      id: debt.id,
-      amountPaid: nextPaid,
-      dueDate: debt.due_date,
-      notes: debt.notes ?? undefined,
-    });
+    const linkedNote = input.note
+      ? `${input.note} [#debt:${debt.id}]`
+      : `[#debt:${debt.id}]`;
+    const txTitle = isOwe
+      ? `Debt Payment - ${personName}`
+      : `Payment from ${personName}`;
+
+    await Promise.all([
+      updateDebt({
+        id: debt.id,
+        amountPaid: nextPaid,
+        dueDate: debt.due_date,
+        notes: debt.notes ?? undefined,
+      }),
+      addTransaction({
+        title: txTitle,
+        amount: input.amount,
+        type: isOwe ? 'expense' : 'income',
+        walletId: input.walletId,
+        categoryId: input.categoryId,
+        date: input.date,
+        note: linkedNote,
+      }),
+    ]);
   };
 
   return (
@@ -169,6 +214,38 @@ export default function DebtDetailScreen() {
             </View>
           </View>
 
+          {/* Payment History */}
+          {paymentTransactions.length > 0 ? (
+            <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[s.historySectionLabel, { color: theme.secondary }]}>PAYMENT HISTORY</Text>
+              {paymentTransactions.map((tx, index) => {
+                const wallet = state.wallets.find((w) => w.id === tx.wallet_id);
+                const category = state.categories.find((c) => c.id === tx.category_id);
+                const isLast = index === paymentTransactions.length - 1;
+                return (
+                  <View
+                    key={tx.id}
+                    style={[
+                      s.historyRow,
+                      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
+                    ]}
+                  >
+                    <View style={s.historyLeft}>
+                      <Text style={[s.historyDate, { color: theme.text }]}>{toDateLabel(tx.date)}</Text>
+                      <Text style={[s.historyMeta, { color: theme.tertiary }]}>
+                        {wallet?.name ?? 'Wallet'}
+                        {category ? ` · ${category.name}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={[s.historyAmount, { color: accentColor }]}>
+                      {finance.formatCurrency(tx.amount)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+
         </ScrollView>
 
         {/* Fixed bottom CTA */}
@@ -199,6 +276,9 @@ export default function DebtDetailScreen() {
           visible={paymentVisible}
           mode={debt.type}
           maxAmount={remainingAmount}
+          personName={personName}
+          wallets={activeWallets}
+          fixedCategory={fixedPaymentCategory}
           onClose={() => setPaymentVisible(false)}
           onSave={savePayment}
         />
@@ -307,7 +387,7 @@ const s = StyleSheet.create({
   infoCard: {
     borderWidth: 1,
     borderRadius: 20,
-    marginBottom: 16,
+    marginBottom: 12,
     overflow: 'hidden',
   },
   infoRow: {
@@ -339,6 +419,46 @@ const s = StyleSheet.create({
     fontWeight: '600',
     maxWidth: '55%',
     textAlign: 'right',
+  },
+
+  // Payment history card
+  historyCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  historySectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  historyLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  historyDate: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyMeta: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  historyAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginLeft: 8,
   },
 
   // Fixed footer

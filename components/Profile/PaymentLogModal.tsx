@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +17,9 @@ import {
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppPreferences } from '@/context/AppPreferencesContext';
+import { CURRENCIES } from '@/constants/currencies';
+import type { CategoryRecord, WalletRecord } from '@/types/finance';
 
 type PaymentMode = 'owe' | 'owed';
 
@@ -22,8 +27,17 @@ interface PaymentLogModalProps {
   visible: boolean;
   mode: PaymentMode;
   maxAmount: number;
+  personName: string;
+  wallets: WalletRecord[];
+  fixedCategory: CategoryRecord | null;
   onClose: () => void;
-  onSave: (input: { amount: number; date: string }) => Promise<void>;
+  onSave: (input: {
+    amount: number;
+    date: string;
+    walletId: string | null;
+    categoryId: string;
+    note: string;
+  }) => Promise<void>;
 }
 
 const toIsoDate = (date: Date) => {
@@ -33,27 +47,91 @@ const toIsoDate = (date: Date) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-export function PaymentLogModal({ visible, mode, maxAmount, onClose, onSave }: PaymentLogModalProps) {
+const pickDefaultWallet = (wallets: WalletRecord[]) =>
+  wallets.find((w) => w.is_default && !w.deleted_at)?.id ?? wallets[0]?.id ?? null;
+
+const toIoniconName = (icon: string | null | undefined): keyof typeof Ionicons.glyphMap | null => {
+  if (!icon) return null;
+  if (icon in Ionicons.glyphMap) return icon as keyof typeof Ionicons.glyphMap;
+  return null;
+};
+
+const formatBalance = (value: number) => {
+  const rounded = Math.round(value * 100) / 100;
+  return Math.abs(rounded).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+export function PaymentLogModal({
+  visible,
+  mode,
+  maxAmount,
+  personName: _personName,
+  wallets,
+  fixedCategory,
+  onClose,
+  onSave,
+}: PaymentLogModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
+  const { currencyCode } = useAppPreferences();
+
+  const currencySymbol = useMemo(
+    () => CURRENCIES.find((c) => c.code === currencyCode)?.symbol ?? '₱',
+    [currencyCode]
+  );
+
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!visible) return;
     setAmount('');
     setDate(new Date());
     setShowAndroidDatePicker(false);
-  }, [visible]);
+    setSelectedWalletId(pickDefaultWallet(wallets));
+    setNote('');
+  }, [visible, wallets]);
 
   const amountValue = useMemo(() => Number(amount || '0'), [amount]);
-  const isValid = Number.isFinite(amountValue) && amountValue > 0 && amountValue <= Math.max(0, maxAmount);
+  const isValid =
+    Number.isFinite(amountValue) &&
+    amountValue > 0 &&
+    amountValue <= Math.max(0, maxAmount) &&
+    selectedWalletId !== null &&
+    fixedCategory !== null;
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
   const title = mode === 'owe' ? 'Log payment' : 'Log collection';
+  const subtitle =
+    mode === 'owe'
+      ? 'Record a payment to update the remaining balance.'
+      : 'Record a collection to update the remaining balance.';
   const amountLabel = mode === 'owe' ? 'PAYMENT AMOUNT' : 'COLLECTION AMOUNT';
+  const fixedCategoryMissingMessage =
+    mode === 'owe'
+      ? 'Debt Payment category is unavailable. Restore it to continue.'
+      : 'Debt Collection category is unavailable. Restore it to continue.';
+  const validationMessage = useMemo(() => {
+    if (!fixedCategory) return fixedCategoryMissingMessage;
+    if (amount === '') return null;
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      return 'Enter an amount greater than 0.';
+    }
+    if (amountValue > maxAmount) {
+      return 'Amount exceeds the remaining balance.';
+    }
+    if (!selectedWalletId) {
+      return 'Select a wallet to continue.';
+    }
+    return null;
+  }, [amount, amountValue, fixedCategory, fixedCategoryMissingMessage, maxAmount, selectedWalletId]);
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -65,12 +143,15 @@ export function PaymentLogModal({ visible, mode, maxAmount, onClose, onSave }: P
   };
 
   const handleSave = async () => {
-    if (!isValid || saving) return;
+    if (!isValid || saving || !fixedCategory) return;
     setSaving(true);
     try {
       await onSave({
         amount: amountValue,
         date: toIsoDate(date),
+        walletId: selectedWalletId,
+        categoryId: fixedCategory.id,
+        note: note.trim(),
       });
       onClose();
     } finally {
@@ -85,30 +166,40 @@ export function PaymentLogModal({ visible, mode, maxAmount, onClose, onSave }: P
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View>
-            <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border, maxHeight: Dimensions.get('window').height * 0.88 }]}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={s.scrollContent}
+            >
+              {/* Header */}
               <View style={s.headerRow}>
                 <View style={s.headerTextWrap}>
-                  <Text style={[s.title, { color: theme.text }]}>{title}</Text>
-                  <Text style={[s.subtitle, { color: theme.secondary }]}>
-                    Record a partial payment to update the remaining balance.
-                  </Text>
+                  <Text style={[s.modalTitle, { color: theme.text }]}>{title}</Text>
+                  <Text style={[s.subtitle, { color: theme.secondary }]}>{subtitle}</Text>
                 </View>
                 <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
 
+              {/* Amount */}
               <View style={s.fieldGroup}>
                 <View style={s.amountLabelRow}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>{amountLabel}</Text>
-                  <Text style={[s.maxText, { color: theme.tertiary }]}>Max: ₱{maxAmount.toFixed(2)}</Text>
+                  <Text style={[s.maxText, { color: theme.tertiary }]}>
+                    Max: {currencySymbol}{maxAmount.toFixed(2)}
+                  </Text>
                 </View>
-                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
-                  <Text style={[s.currencyPrefix, { color: amount ? theme.text : theme.tertiary }]}>₱</Text>
+                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <Text style={[s.currencyPrefix, { color: amount ? theme.text : theme.tertiary }]}>
+                    {currencySymbol}
+                  </Text>
                   <TextInput
                     value={amount}
-                    onChangeText={(value) => setAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                    onChangeText={(value) =>
+                      setAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))
+                    }
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
@@ -118,9 +209,10 @@ export function PaymentLogModal({ visible, mode, maxAmount, onClose, onSave }: P
                 </View>
               </View>
 
+              {/* Date */}
               <View style={s.fieldGroup}>
                 <Text style={[s.sectionLabel, { color: theme.secondary }]}>DATE</Text>
-                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                   <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
                   {Platform.OS === 'ios' ? (
                     <DateTimePicker
@@ -142,21 +234,145 @@ export function PaymentLogModal({ visible, mode, maxAmount, onClose, onSave }: P
                 <DateTimePicker value={date} mode="date" display="default" onChange={handleDateChange} />
               ) : null}
 
-              {!isValid && amount !== '' ? (
+              {/* Wallet Picker */}
+              <View style={s.fieldGroup}>
+                <Text style={[s.sectionLabel, { color: theme.secondary }]}>
+                  {mode === 'owe' ? 'PAY FROM' : 'RECEIVE TO'}
+                </Text>
+                {wallets.length === 0 ? (
+                  <Text style={[s.emptyHint, { color: theme.tertiary }]}>No wallets available.</Text>
+                ) : (
+                  <View style={s.walletGrid}>
+                    {wallets.map((wallet) => {
+                      const active = selectedWalletId === wallet.id;
+                      return (
+                        <Pressable
+                          key={wallet.id}
+                          onPress={() => setSelectedWalletId(wallet.id)}
+                          style={[
+                            s.walletCard,
+                            {
+                              backgroundColor: active
+                                ? isDark ? 'rgba(155,194,58,0.1)' : theme.surface
+                                : theme.surfaceAlt,
+                              borderColor: active ? theme.limeDark : theme.border,
+                            },
+                          ]}
+                        >
+                          <View style={s.walletCardInner}>
+                            <View
+                              style={[
+                                s.walletIconWrap,
+                                {
+                                  backgroundColor: active
+                                    ? 'rgba(155,194,58,0.18)'
+                                    : `${theme.secondary}18`,
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name="wallet"
+                                size={14}
+                                color={active ? theme.limeDark : theme.secondary}
+                              />
+                            </View>
+                            <View style={s.walletCardText}>
+                              <Text
+                                style={[s.walletCardName, { color: active ? theme.text : theme.secondary }]}
+                                numberOfLines={1}
+                              >
+                                {wallet.name}
+                              </Text>
+                              <Text style={[s.walletCardBalance, { color: theme.secondary }]}>
+                                {currencySymbol}{formatBalance(wallet.current_balance ?? 0)}
+                              </Text>
+                            </View>
+                            {active && (
+                              <Ionicons name="checkmark-circle" size={15} color={theme.limeDark} />
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {/* Category */}
+              <View style={s.fieldGroup}>
+                <Text style={[s.sectionLabel, { color: theme.secondary }]}>CATEGORY</Text>
+                <View
+                  style={[
+                    s.dropdownTrigger,
+                    {
+                      backgroundColor: isDark ? 'rgba(200,245,96,0.05)' : theme.surfaceAlt,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <View style={s.dropdownValueWrap}>
+                    {fixedCategory ? (
+                      <>
+                        <View
+                          style={[
+                            s.categoryIconWrap,
+                            { backgroundColor: `${fixedCategory.color ?? '#9DA28F'}20` },
+                          ]}
+                        >
+                          <Ionicons
+                            name={toIoniconName(fixedCategory.icon) ?? 'pricetag'}
+                            size={14}
+                            color={fixedCategory.color ?? theme.text}
+                          />
+                        </View>
+                        <Text style={[s.dropdownValueText, { color: theme.text }]}>
+                          {fixedCategory.name}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <View style={[s.categoryDot, { backgroundColor: theme.secondary }]} />
+                        <Text style={[s.dropdownValueText, { color: theme.secondary }]}>
+                          Debt category unavailable
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+              </View>
+
+              {/* Note */}
+              <View style={s.fieldGroup}>
+                <Text style={[s.sectionLabel, { color: theme.secondary }]}>NOTE (OPTIONAL)</Text>
+                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <TextInput
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder="Add a note..."
+                    placeholderTextColor={theme.tertiary}
+                    style={[s.input, { color: theme.text }]}
+                    selectionColor={theme.lime}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </View>
+              </View>
+
+              {/* Validation */}
+              {validationMessage ? (
                 <Text style={[s.validationText, { color: theme.red }]}>
-                  Enter an amount greater than 0 and not more than the remaining balance.
+                  {validationMessage}
                 </Text>
               ) : null}
 
+              {/* Save button */}
               <View style={s.actions}>
                 <Pressable
                   onPress={() => void handleSave()}
                   disabled={!isValid || saving}
                   style={[
                     s.actionButton,
-                    {
-                      backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime,
-                    },
+                    { backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime },
                   ]}
                 >
                   {saving ? (
@@ -168,7 +384,7 @@ export function PaymentLogModal({ visible, mode, maxAmount, onClose, onSave }: P
                   )}
                 </Pressable>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -185,13 +401,17 @@ const s = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+
+  // Header
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -199,10 +419,10 @@ const s = StyleSheet.create({
     marginBottom: 20,
   },
   headerTextWrap: {
-    flex: 1,           // Forces text to wrap instead of pushing the button
-    paddingRight: 16,  // Gives breathing room between text and the X button
+    flex: 1,
+    paddingRight: 16,
   },
-  title: {
+  modalTitle: {
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
@@ -211,13 +431,14 @@ const s = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     fontWeight: '500',
-    paddingRight: 10,
   },
   closeBtn: {
     backgroundColor: 'transparent',
     padding: 4,
     borderRadius: 12,
   },
+
+  // Fields
   fieldGroup: {
     marginBottom: 16,
   },
@@ -232,6 +453,7 @@ const s = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.2,
     marginLeft: 2,
+    marginBottom: 8,
   },
   maxText: {
     fontSize: 11,
@@ -257,6 +479,8 @@ const s = StyleSheet.create({
     fontWeight: '600',
     height: '100%',
   },
+
+  // Date
   dateRow: {
     height: 52,
     borderWidth: 1,
@@ -282,12 +506,116 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+
+  // Wallet grid
+  walletGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  walletCard: {
+    flex: 1,
+    minWidth: '46%',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 10,
+  },
+  walletCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  walletIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletCardText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  walletCardName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  walletCardBalance: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  emptyHint: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginLeft: 2,
+  },
+
+  // Category dropdown
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+  },
+  dropdownValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dropdownValueText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  autoBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  categoryDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginLeft: 2,
+    marginRight: 2,
+  },
+  categoryIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownMenu: {
+    marginTop: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    height: 52,
+    gap: 10,
+  },
+  dropdownOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Validation
   validationText: {
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 8,
     lineHeight: 18,
   },
+
+  // Actions
   actions: {
     marginTop: 10,
   },
