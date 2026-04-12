@@ -33,7 +33,7 @@ export function DebtSummaryCard({ entry, formatCurrency, onPress }: DebtSummaryC
       style={({ pressed }) => pressed && { opacity: 0.75 }}
       onPress={onPress}
     >
-      <View style={[s.card, { backgroundColor: theme.isDark ? theme.surfaceDeep : theme.surface, borderColor: theme.border }]}>
+      <View style={[{ backgroundColor: theme.surface, borderColor: theme.border }, s.card]}>
       <View style={s.topRow}>
         <View style={s.info}>
           <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>

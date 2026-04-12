@@ -359,12 +359,12 @@ export default function InsightsScreen() {
 
           <View style={s.statCard}>
             <Text style={s.statLabel}>NET FLOW</Text>
-            <Text style={[s.statValue, { color: netFlow >= 0 ? theme.lime : theme.red }]}>
+            <Text style={[s.statValue, { color: netFlow >= 0 ? (theme.isDark ? theme.lime : '#3F7D36') : theme.red }]}>
               {netFlow >= 0 ? '+' : ''}{finance.formatCurrency(netFlow)}
             </Text>
             <View style={s.diffRow}>
-              <Ionicons name={netFlow >= 0 ? 'trending-up' : 'trending-down'} size={11} color={netFlow >= 0 ? theme.lime : theme.red} />
-              <Text style={[s.diffText, { color: netFlow >= 0 ? theme.lime : theme.red }]}>
+              <Ionicons name={netFlow >= 0 ? 'trending-up' : 'trending-down'} size={11} color={netFlow >= 0 ? (theme.isDark ? theme.lime : '#3F7D36') : theme.red} />
+              <Text style={[s.diffText, { color: netFlow >= 0 ? (theme.isDark ? theme.lime : '#3F7D36') : theme.red }]}>
                 {netFlow >= 0 ? 'Saving well' : 'Overspending'}
               </Text>
             </View>
