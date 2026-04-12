@@ -67,8 +67,8 @@ export default function DebtDetailScreen() {
   const directionLabel = isOwe ? `You owe ${personName}` : `${personName} owes you`;
   const statusLabel = isSettled ? (isOwe ? 'Settled' : 'Collected') : 'Active';
 
-  const accentColor = isOwe ? theme.orange : theme.green;
-  const accentBg = isOwe ? 'rgba(255,173,92,0.12)' : 'rgba(61,217,123,0.12)';
+  const accentColor = isOwe ? theme.orange : (theme.isDark ? theme.green : '#3F7D36');
+  const accentBg = isOwe ? 'rgba(255,173,92,0.12)' : (theme.isDark ? 'rgba(61,217,123,0.12)' : 'rgba(63,125,54,0.10)');
   const directionIcon: React.ComponentProps<typeof Ionicons>['name'] = isOwe
     ? 'arrow-up-circle'
     : 'arrow-down-circle';
@@ -169,28 +169,31 @@ export default function DebtDetailScreen() {
             </View>
           </View>
 
-          {/* Primary action */}
+        </ScrollView>
+
+        {/* Fixed bottom CTA */}
+        <View style={[s.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
           <Pressable
             onPress={() => setPaymentVisible(true)}
             disabled={isSettled}
             style={[
               s.logButton,
               {
-                backgroundColor: isSettled ? theme.surfaceDeep : theme.text,
-                borderColor: isSettled ? theme.border : theme.text,
+                backgroundColor: isSettled ? theme.surfaceDeep : (theme.isDark ? theme.lime : '#3F7D36'),
+                borderColor: isSettled ? theme.border : (theme.isDark ? theme.lime : '#3F7D36'),
               },
             ]}
           >
             <Ionicons
               name={isOwe ? 'cash-outline' : 'wallet-outline'}
               size={16}
-              color={isSettled ? theme.tertiary : theme.bg}
+              color={isSettled ? theme.tertiary : (theme.isDark ? theme.bg : '#FFFFFF')}
             />
-            <Text style={[s.logButtonText, { color: isSettled ? theme.tertiary : theme.bg }]}>
+            <Text style={[s.logButtonText, { color: isSettled ? theme.tertiary : (theme.isDark ? theme.bg : '#FFFFFF') }]}>
               {isOwe ? 'Log Payment' : 'Log Collection'}
             </Text>
           </Pressable>
-        </ScrollView>
+        </View>
 
         <PaymentLogModal
           visible={paymentVisible}
@@ -211,7 +214,7 @@ const s = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
 
   // Pills
@@ -336,6 +339,14 @@ const s = StyleSheet.create({
     fontWeight: '600',
     maxWidth: '55%',
     textAlign: 'right',
+  },
+
+  // Fixed footer
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 
   // CTA button

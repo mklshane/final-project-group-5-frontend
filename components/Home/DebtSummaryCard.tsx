@@ -18,7 +18,7 @@ export function DebtSummaryCard({ entry, formatCurrency, onPress }: DebtSummaryC
   const progress = total > 0 ? Math.min(1, paid / total) : 0;
 
   const isOwe = entry.type === 'owe';
-  const accentColor = isOwe ? theme.red : theme.green;
+  const accentColor = isOwe ? theme.red : (theme.isDark ? theme.green : '#3F7D36');
 
   const name = entry.counterparty_name ?? entry.person_name ?? 'Unknown';
   const typeLabel = isOwe ? 'Payable' : 'Receivable';

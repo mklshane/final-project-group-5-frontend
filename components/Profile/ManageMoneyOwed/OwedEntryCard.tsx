@@ -107,7 +107,7 @@ export function OwedEntryCard({ debt, formatCurrency, onPressDetails, onEdit, on
           </Text>
         </View>
         <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}>
-          <View style={[s.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.blue }]} />
+          <View style={[s.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.isDark ? theme.green : '#3F7D36' }]} />
         </View>
       </View>
 
