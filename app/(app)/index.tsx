@@ -112,10 +112,17 @@ export default function HomeScreen() {
     if (walletPreview.length === 3) return [[walletPreview[0]], [walletPreview[1], walletPreview[2]]];
     return [walletPreview.slice(0, 2), walletPreview.slice(2, 4)];
   }, [walletPreview]);
-  const debtEntries = useMemo(
-    () => [...finance.debts.lists.unsettledOwe, ...finance.debts.lists.unsettledOwed],
-    [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]
-  );
+  const debtEntries = useMemo(() => {
+    const byDue = (a: { due_date?: string | null }, b: { due_date?: string | null }) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return a.due_date.localeCompare(b.due_date);
+    };
+    const nearestOwe = [...finance.debts.lists.unsettledOwe].sort(byDue)[0];
+    const nearestOwed = [...finance.debts.lists.unsettledOwed].sort(byDue)[0];
+    return [nearestOwe, nearestOwed].filter(Boolean) as typeof finance.debts.lists.unsettledOwe;
+  }, [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]);
   const showDebtSummary = debtEntries.length > 0;
 
   return (
@@ -224,10 +231,11 @@ export default function HomeScreen() {
             <Text style={[s.debtSummaryLabel, { color: theme.tertiary }]}>DEBT TRACKER</Text>
             <View style={s.debtSummaryList}>
               {debtEntries.map((entry) => (
-                <DebtSummaryCard 
-                  key={entry.id} 
-                  entry={entry} 
-                  formatCurrency={finance.formatCurrency} 
+                <DebtSummaryCard
+                  key={entry.id}
+                  entry={entry}
+                  formatCurrency={finance.formatCurrency}
+                  onPress={() => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
                 />
               ))}
             </View>
