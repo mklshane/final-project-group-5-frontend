@@ -89,16 +89,15 @@ const s = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 10,
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 10,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 8,
+    gap: 12,
   },
   info: {
     flex: 1,
@@ -108,7 +107,7 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 5,
   },
   metaRow: {
     flexDirection: 'row',
@@ -116,8 +115,8 @@ const s = StyleSheet.create({
   },
   typePill: {
     borderRadius: 5,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
   typeLabel: {
     fontSize: 10,
@@ -146,7 +145,7 @@ const s = StyleSheet.create({
   amountSub: {
     fontSize: 10,
     fontWeight: '500',
-    marginTop: 1,
+    marginTop: 2,
   },
   progressTrack: {
     height: 5,
@@ -160,6 +159,7 @@ const s = StyleSheet.create({
   progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 2,
   },
   progressLabel: {
     fontSize: 10,

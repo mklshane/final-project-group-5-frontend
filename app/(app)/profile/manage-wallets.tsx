@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { WalletEditorModal } from '@/components/Profile/WalletEditorModal';
 import { WalletListSection } from '@/components/Profile/WalletListSection';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import { useTheme } from '@/hooks/useTheme';
 import type { WalletRecord, WalletType } from '@/types/finance';
 
 export default function ManageWalletsScreen() {
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
   const { loading, addWallet, updateWallet, archiveWallet } = useFinanceData();
   const finance = useFinanceSelectors();
 
@@ -19,16 +19,8 @@ export default function ManageWalletsScreen() {
   const [selectedWallet, setSelectedWallet] = useState<WalletRecord | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<WalletRecord | null>(null);
 
-  const isDark = colorScheme === 'dark';
-  const palette = {
-    screenBg: isDark ? '#111410' : '#F4F5E9',
-    heading: isDark ? '#EDF0E4' : '#1A1E14',
-    sub: isDark ? '#8A8F7C' : '#6B7060',
-    addBg: isDark ? '#C8F560' : '#1A1E14',
-    addText: isDark ? '#1A1E14' : '#C8F560',
-    border: isDark ? '#2C3122' : '#E4E6D6',
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-  };
+  const addBg = theme.isDark ? theme.lime : '#3F7D36';
+  const addTextColor = theme.isDark ? theme.bg : '#FFFFFF';
 
   const wallets = finance.wallets;
   const generalWallets = useMemo(() => wallets.filter((wallet) => wallet.type === 'general'), [wallets]);
@@ -76,32 +68,35 @@ export default function ManageWalletsScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.screen, { backgroundColor: palette.screenBg }]}> 
+    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.header}>
-          <Text style={[s.title, { color: palette.heading }]}>Your wallets</Text>
-          <Text style={[s.subtitle, { color: palette.sub }]}>Track balances across General, Bank, E-wallet and Cash.</Text>
+          <Text style={[s.title, { color: theme.text }]}>Your wallets</Text>
+          <Text style={[s.subtitle, { color: theme.secondary }]}>Track balances across General, Bank, E-wallet and Cash.</Text>
         </View>
 
-        <View style={[s.balanceCard, { backgroundColor: palette.cardBg, borderColor: palette.border }]}> 
-          <Text style={[s.balanceLabel, { color: palette.sub }]}>TOTAL BALANCE</Text>
-          <Text style={[s.balanceAmount, { color: palette.heading }]}>{finance.formatCurrency(finance.balances.total)}</Text>
+        <View style={[s.balanceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[s.balanceLabel, { color: theme.secondary }]}>TOTAL BALANCE</Text>
+          <Text style={[s.balanceAmount, { color: theme.text }]}>{finance.formatCurrency(finance.balances.total)}</Text>
         </View>
 
-        <Pressable onPress={openCreateModal} style={[s.addButton, { backgroundColor: palette.addBg }]}> 
-          <Ionicons name="add" size={18} color={palette.addText} />
-          <Text style={[s.addLabel, { color: palette.addText }]}>Add Wallet</Text>
+        <Pressable
+          onPress={openCreateModal}
+          style={[s.addButton, { backgroundColor: addBg, borderColor: addBg }]}
+        >
+          <Ionicons name="add" size={18} color={addTextColor} />
+          <Text style={[s.addLabel, { color: addTextColor }]}>Add Wallet</Text>
         </Pressable>
 
         {loading ? (
-          <View style={[s.loadingCard, { borderColor: palette.border, backgroundColor: palette.cardBg }]}>
-            <Text style={{ color: palette.sub }}>Loading wallets...</Text>
+          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+            <Text style={{ color: theme.secondary }}>Loading wallets...</Text>
           </View>
         ) : (
           <>
             <WalletListSection
               title="GENERAL"
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               wallets={generalWallets}
               emptyText="No general wallet."
               formatCurrency={finance.formatCurrency}
@@ -111,7 +106,7 @@ export default function ManageWalletsScreen() {
 
             <WalletListSection
               title="BANK"
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               wallets={bankWallets}
               emptyText="No bank wallets yet."
               formatCurrency={finance.formatCurrency}
@@ -121,7 +116,7 @@ export default function ManageWalletsScreen() {
 
             <WalletListSection
               title="E-WALLET"
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               wallets={ewallets}
               emptyText="No e-wallets yet."
               formatCurrency={finance.formatCurrency}
@@ -131,7 +126,7 @@ export default function ManageWalletsScreen() {
 
             <WalletListSection
               title="CASH"
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               wallets={cashWallets}
               emptyText="No cash wallets yet."
               formatCurrency={finance.formatCurrency}
@@ -211,12 +206,13 @@ const s = StyleSheet.create({
     letterSpacing: -0.6,
   },
   addButton: {
-    borderRadius: 14,
-    height: 46,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 4,
+    gap: 8,
     marginBottom: 20,
   },
   addLabel: {

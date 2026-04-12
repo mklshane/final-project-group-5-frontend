@@ -18,11 +18,13 @@ export function WalletRow({ wallet, amountLabel, onEdit, onArchive }: WalletRowP
   const icon = WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap;
   const defaultBg = isDark ? 'rgba(200,245,96,0.18)' : 'rgba(200,245,96,0.28)';
   const defaultText = isDark ? '#C8F560' : '#6E8F1A';
+  const iconBg = isDark ? theme.surfaceDeep : 'rgba(155,194,58,0.16)';
+  const iconColor = isDark ? theme.lime : theme.limeDark;
 
   return (
     <View style={[s.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={[s.iconWrap, { backgroundColor: theme.surfaceDeep }]}>
-        <Ionicons name={icon} size={18} color={theme.lime} />
+      <View style={[s.iconWrap, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={18} color={iconColor} />
       </View>
 
       <View style={s.info}>
@@ -40,7 +42,7 @@ export function WalletRow({ wallet, amountLabel, onEdit, onArchive }: WalletRowP
       </View>
 
       <View style={s.right}>
-        <Text style={[s.amount, { color: theme.lime }]}>{amountLabel}</Text>
+        <Text style={[s.amount, { color: iconColor }]}>{amountLabel}</Text>
         <View style={s.actions}>
           <Pressable onPress={() => onEdit(wallet)} style={s.actionBtn}>
             <Ionicons name="create-outline" size={18} color={theme.secondary} />
