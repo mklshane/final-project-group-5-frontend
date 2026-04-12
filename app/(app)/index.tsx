@@ -12,6 +12,7 @@ import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
+import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -222,106 +223,13 @@ export default function HomeScreen() {
           <View style={s.debtSummaryWrap}>
             <Text style={[s.debtSummaryLabel, { color: theme.tertiary }]}>DEBT TRACKER</Text>
             <View style={s.debtSummaryList}>
-              {debtEntries.map((entry) => {
-                const isOwe = entry.type === 'owe';
-                const counterparty = entry.counterparty_name ?? entry.person_name ?? 'Unknown';
-                const dueText = entry.due_date ? `Due ${entry.due_date}` : 'No due date';
-                const progressPercent =
-                  entry.totalAmount > 0
-                    ? Math.max(0, Math.min(100, Math.round((entry.amountPaid / entry.totalAmount) * 100)))
-                    : 0;
-                const statusLabel = isOwe ? 'PAYABLE' : 'RECEIVABLE';
-                const statusColor = isOwe ? '#C9793B' : '#3E78C2';
-                const iconName = isOwe ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline';
-
-                return (
-                  <Pressable
-                    key={entry.id}
-                    onPress={() => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
-                    style={[
-                      s.debtSummaryCard,
-                      {
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(26,30,20,0.10)',
-                      },
-                    ]}
-                  >
-                    <View style={s.debtSummaryTopRow}>
-                      <View style={s.debtSummaryIdentityRow}>
-                        <View
-                          style={[
-                            s.debtSummaryIconWrap,
-                            {
-                              backgroundColor: isDark
-                                ? isOwe
-                                  ? 'rgba(255,173,92,0.17)'
-                                  : 'rgba(107,163,255,0.17)'
-                                : isOwe
-                                  ? 'rgba(255,173,92,0.14)'
-                                  : 'rgba(107,163,255,0.12)',
-                            },
-                          ]}
-                        >
-                          <Ionicons name={iconName as keyof typeof Ionicons.glyphMap} size={15} color={statusColor} />
-                        </View>
-                        <View style={s.debtSummaryTextWrap}>
-                          <Text style={[s.debtSummaryTitle, { color: theme.text }]} numberOfLines={1}>
-                            {counterparty}
-                          </Text>
-                          <Text style={[s.debtSummaryMeta, { color: theme.secondary }]} numberOfLines={1}>
-                            {dueText}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View
-                        style={[
-                          s.debtSummaryPill,
-                          {
-                            backgroundColor: isDark
-                              ? isOwe
-                                ? 'rgba(255,173,92,0.2)'
-                                : 'rgba(107,163,255,0.2)'
-                              : isOwe
-                                ? 'rgba(255,173,92,0.16)'
-                                : 'rgba(107,163,255,0.14)',
-                          },
-                        ]}
-                      >
-                        <Text style={[s.debtSummaryPillText, { color: statusColor }]}>{statusLabel}</Text>
-                      </View>
-                    </View>
-
-                    <View style={s.debtSummaryBottomRow}>
-                      <Text style={[s.debtSummaryAmount, { color: theme.text }]}>{finance.formatCurrency(entry.remainingAmount)}</Text>
-                      <Ionicons name="chevron-forward" size={16} color={theme.tertiary} />
-                    </View>
-
-                    {entry.amountPaid > 0 && entry.totalAmount > 0 ? (
-                      <>
-                        <View style={[s.debtProgressTrack, { backgroundColor: theme.surfaceDeep }]}> 
-                          <View
-                            style={[
-                              s.debtProgressFill,
-                              {
-                                width: `${progressPercent}%`,
-                                backgroundColor: isOwe ? '#6AAE44' : '#4F93DD',
-                              },
-                            ]}
-                          />
-                        </View>
-                        <View style={s.debtProgressRow}>
-                          <Text style={[s.debtProgressText, { color: theme.secondary }]}>
-                            {isOwe ? 'Paid' : 'Collected'} {finance.formatCurrency(entry.amountPaid)} of{' '}
-                            {finance.formatCurrency(entry.totalAmount)}
-                          </Text>
-                          <Text style={[s.debtProgressPercent, { color: theme.text }]}>{progressPercent}%</Text>
-                        </View>
-                      </>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+              {debtEntries.map((entry) => (
+                <DebtSummaryCard 
+                  key={entry.id} 
+                  entry={entry} 
+                  formatCurrency={finance.formatCurrency} 
+                />
+              ))}
             </View>
           </View>
         ) : null}
@@ -436,93 +344,6 @@ const s = StyleSheet.create({
   debtSummaryList: {
     gap: 8,
   },
-  debtSummaryCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  debtSummaryTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 10,
-  },
-  debtSummaryIdentityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-    gap: 9,
-  },
-  debtSummaryIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  debtSummaryTextWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  debtSummaryTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: -0.1,
-  },
-  debtSummaryMeta: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  debtSummaryPill: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  debtSummaryPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.65,
-  },
-  debtSummaryBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  debtSummaryAmount: {
-    fontSize: 19,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  debtProgressTrack: {
-    height: 7,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  debtProgressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  debtProgressRow: {
-    marginTop: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  debtProgressText: {
-    fontSize: 11,
-    fontWeight: '600',
-    flex: 1,
-  },
-  debtProgressPercent: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
   walletHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -561,9 +382,6 @@ const s = StyleSheet.create({
     flex: 1,
   },
   walletItemHalf: {
-    flex: 1,
-  },
-  walletItemThird: {
     flex: 1,
   },
   walletLeft: {
@@ -744,5 +562,4 @@ const s = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-
 });

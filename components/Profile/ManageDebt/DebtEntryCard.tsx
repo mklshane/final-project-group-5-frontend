@@ -25,8 +25,11 @@ export function DebtEntryCard({ debt, formatCurrency, onPressDetails, onEdit, on
 
   const { total, paid, remaining } = debtAmounts(debt);
   const progress = total > 0 ? Math.min(1, paid / total) : 0;
-  const dueText = debt.due_date ? `Due ${debt.due_date}` : 'No due date';
-  const counterpartyKind = (debt.counterparty_kind ?? 'person').toUpperCase();
+  const counterpartyName = debt.counterparty_name ?? debt.person_name ?? 'Unknown';
+  const formattedDue = debt.due_date
+    ? new Date(debt.due_date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
+  const dueText = formattedDue ? `Due ${formattedDue}` : 'No due date';
 
   return (
     <Pressable
@@ -34,25 +37,16 @@ export function DebtEntryCard({ debt, formatCurrency, onPressDetails, onEdit, on
         setMenuOpen(false);
         onPressDetails(debt);
       }}
-      style={({ pressed }) => [
-        s.debtCard,
-        {
-          backgroundColor: theme.isDark ? '#1F261A' : '#FFFFFF',
-          borderColor: theme.isDark ? theme.borderHighlight : '#CDD3BE',
-          shadowOpacity: theme.isDark ? 0.34 : 0.16,
-        },
-        pressed ? { opacity: 0.92 } : null,
-      ]}
+      style={({ pressed }) => pressed && s.cardPressed}
     >
-      <View style={[s.cardRail, { backgroundColor: theme.isDark ? theme.limeDark : '#5A8F45' }]} />
-
-      <View style={s.debtTopRow}>
-        <View style={s.debtTitleWrap}>
-          <Text style={[s.debtTitle, { color: theme.text }]} numberOfLines={1}>
-            {debt.counterparty_name ?? debt.person_name ?? 'Unknown'}
+      <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={s.headerRow}>
+        <View style={s.headerText}>
+          <Text style={[s.title, { color: theme.text }]} numberOfLines={1}>
+            {counterpartyName}
           </Text>
-          <Text style={[s.debtMeta, { color: theme.secondary }]} numberOfLines={1}>
-            {counterpartyKind} • {dueText}
+          <Text style={[s.subtitle, { color: theme.secondary }]} numberOfLines={1}>
+            {dueText}
           </Text>
         </View>
 
@@ -61,13 +55,14 @@ export function DebtEntryCard({ debt, formatCurrency, onPressDetails, onEdit, on
             event.stopPropagation();
             setMenuOpen((prev) => !prev);
           }}
-          style={[s.menuButton, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+          style={s.menuBtn}
+          hitSlop={8}
         >
-          <Ionicons name="ellipsis-vertical" size={16} color={theme.secondary} />
+          <Ionicons name="ellipsis-horizontal" size={20} color={theme.tertiary} />
         </Pressable>
 
         {menuOpen ? (
-          <View style={[s.menuPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[s.menuPanel, { backgroundColor: theme.surface, borderColor: theme.borderHighlight, shadowColor: '#000' }]}>
             <Pressable
               onPress={(event) => {
                 event.stopPropagation();
@@ -76,9 +71,10 @@ export function DebtEntryCard({ debt, formatCurrency, onPressDetails, onEdit, on
               }}
               style={s.menuItem}
             >
-              <Ionicons name="create-outline" size={14} color={theme.text} />
+              <Ionicons name="create-outline" size={16} color={theme.text} />
               <Text style={[s.menuItemText, { color: theme.text }]}>Edit</Text>
             </Pressable>
+            <View style={[s.menuDivider, { backgroundColor: theme.border }]} />
             <Pressable
               onPress={(event) => {
                 event.stopPropagation();
@@ -87,163 +83,172 @@ export function DebtEntryCard({ debt, formatCurrency, onPressDetails, onEdit, on
               }}
               style={s.menuItem}
             >
-              <Ionicons name="trash-outline" size={14} color={theme.red} />
+              <Ionicons name="trash-outline" size={16} color={theme.red} />
               <Text style={[s.menuItemText, { color: theme.red }]}>Delete</Text>
             </Pressable>
           </View>
         ) : null}
       </View>
 
-      <View style={s.amountRow}>
-        <Text style={[s.amountLabel, { color: theme.secondary }]}>Remaining</Text>
-        <Text style={[s.debtRemaining, { color: remaining > 0 ? theme.text : theme.green }]}>
+      <View style={s.amountContainer}>
+        <Text style={[s.amountLabel, { color: theme.secondary }]}>Remaining Balance</Text>
+        <Text style={[s.amountValue, { color: remaining > 0 ? theme.text : theme.green }]}>
           {formatCurrency(remaining)}
         </Text>
       </View>
 
-      <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}>
-        <View style={[s.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.limeDark }]} />
-      </View>
-
-      <View style={s.progressRow}>
-        <Text style={[s.debtNumbers, { color: theme.secondary }]}>Paid {formatCurrency(paid)} / {formatCurrency(total)}</Text>
-        <Text style={[s.progressPercent, { color: theme.text }]}>{Math.round(progress * 100)}%</Text>
+      <View style={s.progressContainer}>
+        <View style={s.progressLabels}>
+          <Text style={[s.progressText, { color: theme.secondary }]}>
+            Paid {formatCurrency(paid)} of {formatCurrency(total)}
+          </Text>
+          <Text style={[s.progressPercent, { color: theme.text }]}>
+            {Math.round(progress * 100)}%
+          </Text>
+        </View>
+        <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}>
+          <View style={[s.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.red }]} />
+        </View>
       </View>
 
       {debt.notes ? (
-        <View style={[s.noteWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-          <Text style={[s.debtNote, { color: theme.secondary }]} numberOfLines={1}>
+        <View style={[s.notesContainer, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+          <Ionicons name="document-text-outline" size={14} color={theme.tertiary} style={s.noteIcon} />
+          <Text style={[s.notesText, { color: theme.secondary }]} numberOfLines={2}>
             {debt.notes}
           </Text>
         </View>
       ) : null}
+      </View>
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  debtCard: {
+  card: {
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 10,
-    marginHorizontal: 1,
-    position: 'relative',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 6,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    elevation: 4,
   },
-  cardRail: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: 4,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
+  cardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
   },
-  debtTopRow: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+    position: 'relative',
+    zIndex: 10,
   },
-  debtTitleWrap: {
+  headerText: {
     flex: 1,
     minWidth: 0,
   },
-  menuButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    borderWidth: 1,
-    alignItems: 'center',
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  menuBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   menuPanel: {
     position: 'absolute',
     right: 0,
-    top: 34,
+    top: 36,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 4,
-    minWidth: 122,
-    zIndex: 30,
-    elevation: 6,
+    borderRadius: 14,
+    width: 140,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 100,
+    overflow: 'hidden',
   },
   menuItem: {
-    height: 34,
-    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
   },
   menuItemText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  debtTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.1,
-  },
-  debtMeta: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 3,
   },
-  amountRow: {
-    marginBottom: 7,
+  menuDivider: {
+    height: 1,
+    width: '100%',
+  },
+  amountContainer: {
+    marginBottom: 16,
   },
   amountLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    marginBottom: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 6,
   },
-  debtRemaining: {
-    fontSize: 18,
+  amountValue: {
+    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.8,
+  },
+  progressContainer: {
+    marginBottom: 4,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  progressPercent: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   progressTrack: {
     height: 6,
-    borderRadius: 999,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 999,
+    borderRadius: 3,
   },
-  progressRow: {
-    marginTop: 6,
+  notesContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  debtNumbers: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  progressPercent: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  noteWrap: {
+    marginTop: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 9,
-    marginTop: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
   },
-  debtNote: {
-    fontSize: 11,
-    fontWeight: '500',
-    lineHeight: 15,
+  noteIcon: {
+    marginRight: 8,
+  },
+  notesText: {
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 18,
+    flex: 1,
   },
 });
