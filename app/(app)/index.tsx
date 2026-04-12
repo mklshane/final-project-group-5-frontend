@@ -12,6 +12,7 @@ import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
+import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -111,10 +112,17 @@ export default function HomeScreen() {
     if (walletPreview.length === 3) return [[walletPreview[0]], [walletPreview[1], walletPreview[2]]];
     return [walletPreview.slice(0, 2), walletPreview.slice(2, 4)];
   }, [walletPreview]);
-  const debtEntries = useMemo(
-    () => [...finance.debts.lists.unsettledOwe, ...finance.debts.lists.unsettledOwed],
-    [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]
-  );
+  const debtEntries = useMemo(() => {
+    const byDue = (a: { due_date?: string | null }, b: { due_date?: string | null }) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return a.due_date.localeCompare(b.due_date);
+    };
+    const nearestOwe = [...finance.debts.lists.unsettledOwe].sort(byDue)[0];
+    const nearestOwed = [...finance.debts.lists.unsettledOwed].sort(byDue)[0];
+    return [nearestOwe, nearestOwed].filter(Boolean) as typeof finance.debts.lists.unsettledOwe;
+  }, [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]);
   const showDebtSummary = debtEntries.length > 0;
 
   return (
@@ -222,60 +230,14 @@ export default function HomeScreen() {
           <View style={s.debtSummaryWrap}>
             <Text style={[s.debtSummaryLabel, { color: theme.tertiary }]}>DEBT TRACKER</Text>
             <View style={s.debtSummaryList}>
-              {debtEntries.map((entry) => {
-                const isOwe = entry.type === 'owe';
-                const counterparty = entry.counterparty_name ?? entry.person_name ?? 'Unknown';
-                const dueText = entry.due_date ? `Due ${entry.due_date}` : 'No due date';
-
-                return (
-                  <Pressable
-                    key={entry.id}
-                    onPress={() => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
-                    style={[
-                      s.debtSummaryCard,
-                      {
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(26,30,20,0.03)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(26,30,20,0.10)',
-                      },
-                    ]}
-                  >
-                    <View style={s.debtSummaryTopRow}>
-                      <Text style={[s.debtSummaryTitle, { color: theme.text }]} numberOfLines={1}>
-                        {counterparty}
-                      </Text>
-                      <Text style={[s.debtSummaryType, { color: theme.secondary }]}>
-                        {isOwe ? 'You Owe' : 'Owed To You'}
-                      </Text>
-                    </View>
-                    <Text style={[s.debtSummaryMeta, { color: theme.secondary }]} numberOfLines={1}>
-                      {dueText}
-                    </Text>
-                    <Text style={[s.debtSummaryAmount, { color: theme.text }]}>
-                      {finance.formatCurrency(entry.remainingAmount)}
-                    </Text>
-
-                    {entry.amountPaid > 0 && entry.totalAmount > 0 ? (
-                      <>
-                        <View style={s.debtProgressTrack}>
-                          <View
-                            style={[
-                              s.debtProgressFill,
-                              {
-                                width: `${Math.max(0, Math.min(100, Math.round((entry.amountPaid / entry.totalAmount) * 100)))}%`,
-                                backgroundColor: theme.lime,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <Text style={[s.debtProgressText, { color: theme.secondary }]}>
-                          {isOwe ? 'Paid' : 'Collected'} {finance.formatCurrency(entry.amountPaid)} of{' '}
-                          {finance.formatCurrency(entry.totalAmount)}
-                        </Text>
-                      </>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+              {debtEntries.map((entry) => (
+                <DebtSummaryCard
+                  key={entry.id}
+                  entry={entry}
+                  formatCurrency={finance.formatCurrency}
+                  onPress={() => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+                />
+              ))}
             </View>
           </View>
         ) : null}
@@ -390,54 +352,6 @@ const s = StyleSheet.create({
   debtSummaryList: {
     gap: 8,
   },
-  debtSummaryCard: {
-    borderWidth: 1,
-    borderRadius: 13,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-  debtSummaryTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  debtSummaryTitle: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  debtSummaryType: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  debtSummaryMeta: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 4,
-    marginBottom: 6,
-  },
-  debtSummaryAmount: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  debtProgressTrack: {
-    marginTop: 8,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(140,148,124,0.25)',
-    overflow: 'hidden',
-  },
-  debtProgressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  debtProgressText: {
-    marginTop: 4,
-    fontSize: 11,
-    fontWeight: '600',
-  },
   walletHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -476,9 +390,6 @@ const s = StyleSheet.create({
     flex: 1,
   },
   walletItemHalf: {
-    flex: 1,
-  },
-  walletItemThird: {
     flex: 1,
   },
   walletLeft: {
@@ -659,5 +570,4 @@ const s = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-
 });

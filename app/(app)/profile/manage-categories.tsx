@@ -1,31 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
 import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { CategoryEditorModal } from '@/components/Profile/CategoryEditorModal';
 import { CategoryListSection } from '@/components/Profile/CategoryListSection';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useTheme } from '@/hooks/useTheme';
 import type { CategoryRecord } from '@/types/finance';
 
 export default function ManageCategoriesScreen() {
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
   const { state, loading, addCategory, updateCategory, deleteCategory } = useFinanceData();
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [selectedCategory, setSelectedCategory] = useState<CategoryRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CategoryRecord | null>(null);
-
-  const isDark = colorScheme === 'dark';
-  const palette = {
-    screenBg: isDark ? '#111410' : '#F4F5E9',
-    heading: isDark ? '#EDF0E4' : '#1A1E14',
-    sub: isDark ? '#8A8F7C' : '#6B7060',
-    addBg: isDark ? '#C8F560' : '#1A1E14',
-    addText: isDark ? '#1A1E14' : '#C8F560',
-    border: isDark ? '#2C3122' : '#E4E6D6',
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-  };
 
   const activeCategories = useMemo(
     () => state.categories.filter((category) => !category.deleted_at),
@@ -45,6 +34,7 @@ export default function ManageCategoriesScreen() {
   const expenseCategories = sortedCategories.filter((category) => category.type === 'expense');
   const incomeCategories = sortedCategories.filter((category) => category.type === 'income');
   const bothCategories = sortedCategories.filter((category) => category.type === 'both');
+  const customCount = sortedCategories.length;
 
   const openCreateModal = () => {
     setEditorMode('create');
@@ -84,21 +74,36 @@ export default function ManageCategoriesScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.screen, { backgroundColor: palette.screenBg }]}> 
+    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}> 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={s.header}>
-          <Text style={[s.title, { color: palette.heading }]}>Personalize your categories</Text>
-          <Text style={[s.subtitle, { color: palette.sub }]}>Create custom categories with your own icon, color, and type.</Text>
+        <View style={[s.heroCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <Text style={[s.title, { color: theme.text }]}>Categories</Text>
+          <Text style={[s.subtitle, { color: theme.secondary }]}>Build a cleaner taxonomy for spending and income analytics.</Text>
+
+          <View style={s.metricsRow}>
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <Text style={[s.metricLabel, { color: theme.secondary }]}>TOTAL</Text>
+              <Text style={[s.metricValue, { color: theme.text }]}>{customCount}</Text>
+            </View>
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <Text style={[s.metricLabel, { color: theme.secondary }]}>EXPENSE</Text>
+              <Text style={[s.metricValue, { color: theme.text }]}>{expenseCategories.length}</Text>
+            </View>
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <Text style={[s.metricLabel, { color: theme.secondary }]}>INCOME</Text>
+              <Text style={[s.metricValue, { color: theme.text }]}>{incomeCategories.length}</Text>
+            </View>
+          </View>
+
+          <Pressable onPress={openCreateModal} style={[s.addButton, { backgroundColor: theme.isDark ? theme.lime : '#3F7D36' }]}> 
+            <Ionicons name="add" size={18} color={theme.isDark ? theme.bg : '#FFFFFF'} />
+            <Text style={[s.addLabel, { color: theme.isDark ? theme.bg : '#FFFFFF' }]}>Add New Category</Text>
+          </Pressable>
         </View>
 
-        <Pressable onPress={openCreateModal} style={[s.addButton, { backgroundColor: palette.addBg }]}> 
-          <Ionicons name="add" size={18} color={palette.addText} />
-          <Text style={[s.addLabel, { color: palette.addText }]}>Add New Category</Text>
-        </Pressable>
-
         {loading ? (
-          <View style={[s.loadingCard, { borderColor: palette.border, backgroundColor: palette.cardBg }]}>
-            <Text style={{ color: palette.sub }}>Loading categories...</Text>
+          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+            <Text style={{ color: theme.secondary }}>Loading categories...</Text>
           </View>
         ) : (
           <>
@@ -106,7 +111,7 @@ export default function ManageCategoriesScreen() {
               title="EXPENSE"
               categories={expenseCategories}
               emptyText="No expense categories yet."
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
             />
@@ -115,7 +120,7 @@ export default function ManageCategoriesScreen() {
               title="INCOME"
               categories={incomeCategories}
               emptyText="No income categories yet."
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
             />
@@ -124,7 +129,7 @@ export default function ManageCategoriesScreen() {
               title="BOTH"
               categories={bothCategories}
               emptyText="No shared categories yet."
-              titleColor={palette.sub}
+              titleColor={theme.secondary}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
             />
@@ -162,42 +167,67 @@ const s = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 30,
   },
-  header: {
-    marginBottom: 14,
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 18,
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    letterSpacing: -0.8,
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     lineHeight: 20,
-    maxWidth: 340,
+    marginBottom: 14,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  metricCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  metricLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   addButton: {
-    borderRadius: 14,
-    height: 46,
+    borderRadius: 12,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 4,
-    marginBottom: 20,
+    gap: 6,
   },
   addLabel: {
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
   },
   loadingCard: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 16,
   },
