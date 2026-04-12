@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from 'nativewind';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { DebtEditorModal } from '@/components/Profile/DebtEditorModal';
+import { OwedEntryCard } from '@/components/Profile/ManageMoneyOwed/OwedEntryCard';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import { useTheme } from '@/hooks/useTheme';
 import type { DebtRecord } from '@/types/finance';
 
 const debtAmounts = (debt: DebtRecord) => {
@@ -18,23 +19,12 @@ const debtAmounts = (debt: DebtRecord) => {
 
 export default function ManageMoneyOwedToYouScreen() {
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
+  const theme = useTheme();
   const { state, loading, addDebt, updateDebt, deleteDebt } = useFinanceData();
   const finance = useFinanceSelectors();
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DebtRecord | null>(null);
-
-  const isDark = colorScheme === 'dark';
-  const palette = {
-    screenBg: isDark ? '#111410' : '#F4F5E9',
-    heading: isDark ? '#EDF0E4' : '#1A1E14',
-    sub: isDark ? '#8A8F7C' : '#6B7060',
-    addBg: isDark ? '#C8F560' : '#1A1E14',
-    addText: isDark ? '#1A1E14' : '#C8F560',
-    border: isDark ? '#2C3122' : '#E4E6D6',
-    cardBg: isDark ? '#1A1E14' : '#FFFFFF',
-  };
 
   const owedEntries = useMemo(
     () => state.debts.filter((debt) => !debt.deleted_at && debt.type === 'owed'),
@@ -95,87 +85,65 @@ export default function ManageMoneyOwedToYouScreen() {
     setDeleteTarget(null);
   };
 
-  const renderOwedCard = (debt: DebtRecord) => {
-    const { total, collected, remaining } = debtAmounts(debt);
-    return (
-      <View key={debt.id} style={[s.debtCard, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
-        <View style={s.debtTopRow}>
-          <View style={s.debtTitleWrap}>
-            <Text style={[s.debtTitle, { color: palette.heading }]} numberOfLines={1}>
-              {debt.counterparty_name ?? debt.person_name ?? 'Unknown'}
-            </Text>
-            <Text style={[s.debtMeta, { color: palette.sub }]} numberOfLines={1}>
-              Expected by {debt.due_date || 'N/A'}
-            </Text>
-          </View>
-          <Text style={[s.debtRemaining, { color: remaining > 0 ? '#D9534F' : '#3E8C3E' }]}>
-            {finance.formatCurrency(remaining)}
-          </Text>
-        </View>
-
-        <Text style={[s.debtNumbers, { color: palette.sub }]}>
-          Collected {finance.formatCurrency(collected)} / {finance.formatCurrency(total)}
-        </Text>
-
-        {debt.notes ? (
-          <Text style={[s.debtNote, { color: palette.sub }]} numberOfLines={2}>
-            {debt.notes}
-          </Text>
-        ) : null}
-
-        <View style={s.debtActions}>
-          <Pressable
-            onPress={() => router.push(`/(app)/profile/debt-detail/${debt.id}`)}
-            style={[s.inlineButton, { borderColor: palette.border }]}
-          >
-            <Text style={[s.inlineLabel, { color: palette.heading }]}>Details</Text>
-          </Pressable>
-          <Pressable onPress={() => openEdit(debt)} style={[s.inlineButton, { borderColor: palette.border }]}>
-            <Text style={[s.inlineLabel, { color: palette.heading }]}>Edit</Text>
-          </Pressable>
-          <Pressable onPress={() => setDeleteTarget(debt)} style={[s.inlineButton, { borderColor: palette.border }]}>
-            <Text style={[s.inlineLabel, { color: '#D9534F' }]}>Delete</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView style={[s.screen, { backgroundColor: palette.screenBg }]}> 
+    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}> 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={s.header}>
-          <Text style={[s.title, { color: palette.heading }]}>Manage money owed to you</Text>
-          <Text style={[s.subtitle, { color: palette.sub }]}>Track collections, expected dates, and remaining amounts.</Text>
+        <View style={[s.heroCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <Text style={[s.title, { color: theme.text }]}>Money Owed To You</Text>
+          <Text style={[s.subtitle, { color: theme.secondary }]}>Stay on top of receivables and expected collection timelines.</Text>
+
+          <View style={s.metricsRow}>
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <Text style={[s.metricLabel, { color: theme.secondary }]}>OUTSTANDING</Text>
+              <Text style={[s.metricValue, { color: theme.text }]}>{finance.formatCurrency(finance.debts.totals.owedRemaining)}</Text>
+            </View>
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <Text style={[s.metricLabel, { color: theme.secondary }]}>OPEN ITEMS</Text>
+              <Text style={[s.metricValue, { color: theme.text }]}>{activeOwed.length}</Text>
+            </View>
+          </View>
+
+          <Pressable onPress={openCreate} style={[s.addButton, { backgroundColor: theme.isDark ? theme.lime : '#3F7D36' }]}> 
+            <Ionicons name="add" size={18} color={theme.isDark ? theme.bg : '#FFFFFF'} />
+            <Text style={[s.addLabel, { color: theme.isDark ? theme.bg : '#FFFFFF' }]}>Add Entry</Text>
+          </Pressable>
         </View>
 
-        <View style={[s.summaryCard, { backgroundColor: palette.cardBg, borderColor: palette.border }]}> 
-          <Text style={[s.summaryLabel, { color: palette.sub }]}>TOTAL REMAINING</Text>
-          <Text style={[s.summaryAmount, { color: palette.heading }]}>{finance.formatCurrency(finance.debts.totals.owedRemaining)}</Text>
-        </View>
-
-        <Pressable onPress={openCreate} style={[s.addButton, { backgroundColor: palette.addBg }]}> 
-          <Ionicons name="add" size={18} color={palette.addText} />
-          <Text style={[s.addLabel, { color: palette.addText }]}>Add Entry</Text>
-        </Pressable>
-
-        <Text style={[s.sectionTitle, { color: palette.sub }]}>ACTIVE</Text>
+        <Text style={[s.sectionTitle, { color: theme.secondary }]}>ACTIVE</Text>
         {loading ? (
-          <View style={[s.loadingCard, { borderColor: palette.border, backgroundColor: palette.cardBg }]}> 
-            <Text style={{ color: palette.sub }}>Loading entries...</Text>
+          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+            <Text style={{ color: theme.secondary }}>Loading entries...</Text>
           </View>
         ) : activeOwed.length === 0 ? (
-          <View style={[s.emptyCard, { borderColor: palette.border, backgroundColor: palette.cardBg }]}> 
-            <Text style={[s.emptyText, { color: palette.sub }]}>No active money owed entries yet.</Text>
+          <View style={[s.emptyCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+            <Text style={[s.emptyText, { color: theme.secondary }]}>No active money owed entries yet.</Text>
           </View>
         ) : (
-          activeOwed.map(renderOwedCard)
+          activeOwed.map((debt) => (
+            <OwedEntryCard
+              key={debt.id}
+              debt={debt}
+              formatCurrency={finance.formatCurrency}
+              onPressDetails={(entry) => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+              onEdit={openEdit}
+              onDelete={setDeleteTarget}
+            />
+          ))
         )}
 
         {collectedOwed.length > 0 ? (
           <>
-            <Text style={[s.sectionTitle, { color: palette.sub, marginTop: 16 }]}>COLLECTED</Text>
-            {collectedOwed.map(renderOwedCard)}
+            <Text style={[s.sectionTitle, { color: theme.secondary, marginTop: 14 }]}>COLLECTED</Text>
+            {collectedOwed.map((debt) => (
+              <OwedEntryCard
+                key={debt.id}
+                debt={debt}
+                formatCurrency={finance.formatCurrency}
+                onPressDetails={(entry) => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+                onEdit={openEdit}
+                onDelete={setDeleteTarget}
+              />
+            ))}
           </>
         ) : null}
       </ScrollView>
@@ -210,130 +178,80 @@ const s = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 30,
   },
-  header: {
-    marginBottom: 14,
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 18,
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    letterSpacing: -0.8,
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     lineHeight: 20,
-    maxWidth: 340,
-  },
-  summaryCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
     marginBottom: 14,
   },
-  summaryLabel: {
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  metricCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  metricLabel: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: 6,
+    letterSpacing: 0.9,
+    marginBottom: 5,
   },
-  summaryAmount: {
-    fontSize: 26,
+  metricValue: {
+    fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
   },
   addButton: {
-    borderRadius: 14,
-    height: 46,
+    borderRadius: 12,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 4,
-    marginBottom: 16,
+    gap: 6,
   },
   addLabel: {
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     marginBottom: 8,
-  },
-  debtCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 8,
-  },
-  debtTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  debtTitleWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  debtTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  debtMeta: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  debtRemaining: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  debtNumbers: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 6,
-  },
-  debtNote: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 6,
-    lineHeight: 17,
-  },
-  debtActions: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  inlineButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    height: 34,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inlineLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    paddingLeft: 2,
   },
   loadingCard: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 16,
   },
   emptyCard: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 16,
   },

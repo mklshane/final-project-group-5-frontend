@@ -22,7 +22,7 @@ export function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
   const iconColor = category.color ?? (isDark ? '#C8F560' : '#1A1E14');
 
   return (
-    <View style={[s.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <View style={[s.row, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
       <View style={[s.iconWrap, { backgroundColor: iconBg }]}>
         <Ionicons name={iconName} size={18} color={iconColor} />
       </View>
@@ -31,16 +31,16 @@ export function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
         <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>
           {category.name}
         </Text>
-        <View style={[s.badge, { backgroundColor: theme.surfaceDeep }]}>
+        <View style={[s.badge, { backgroundColor: theme.surfaceDeep, borderColor: theme.borderHighlight }]}> 
           <Text style={[s.badgeText, { color: theme.secondary }]}>{(category.type ?? 'expense').toUpperCase()}</Text>
         </View>
       </View>
 
       <View style={s.actions}>
-        <Pressable onPress={() => onEdit(category)} style={s.actionBtn}>
+        <Pressable onPress={() => onEdit(category)} style={[s.actionBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Ionicons name="create-outline" size={18} color={theme.secondary} />
         </Pressable>
-        <Pressable onPress={() => onDelete(category)} style={s.actionBtn}>
+        <Pressable onPress={() => onDelete(category)} style={[s.actionBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Ionicons name="trash-outline" size={18} color="#FF6B6B" />
         </Pressable>
       </View>
@@ -50,17 +50,17 @@ export function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
 
 const s = StyleSheet.create({
   row: {
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
   },
   iconWrap: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -70,31 +70,33 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   name: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 5,
   },
   badge: {
     alignSelf: 'flex-start',
-    borderRadius: 999,
+    borderRadius: 8,
+    borderWidth: 1,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 6,
   },
   actionBtn: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 17,
+    borderRadius: 8,
   },
 });

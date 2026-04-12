@@ -32,16 +32,29 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 const normalizeAuthErrorMessage = (message: string | null | undefined) => {
   if (!message) return 'Unable to sign in right now. Please try again.';
 
   const msg = message.toLowerCase();
-  if (
-    msg.includes('invalid login credentials')
-    || msg.includes('user not found')
-    || msg.includes('email not confirmed')
-  ) {
-    return 'No account was found with that email and password.';
+  if (msg.includes('invalid login credentials') || msg.includes('user not found')) {
+    return 'Incorrect email or password.';
+  }
+
+  if (msg.includes('email not confirmed')) {
+    return 'Please verify your email before signing in.';
+  }
+
+  return message;
+};
+
+const normalizeSignUpErrorMessage = (message: string | null | undefined) => {
+  if (!message) return null;
+
+  const msg = message.toLowerCase();
+  if (msg.includes('already registered') || msg.includes('already exists')) {
+    return 'This email is already registered. Sign in instead, or delete it from Supabase Authentication if you need to reuse it.';
   }
 
   return message;
@@ -108,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
       if (error) {
         return { error: normalizeAuthErrorMessage(error.message) };
       }
@@ -135,11 +148,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
-      email,
+      email: normalizeEmail(email),
       password,
       options: { data: { full_name: fullName } },
     });
-    return { error: error?.message ?? null };
+    return { error: normalizeSignUpErrorMessage(error?.message) };
   };
 
   const signInWithGoogle = async () => {

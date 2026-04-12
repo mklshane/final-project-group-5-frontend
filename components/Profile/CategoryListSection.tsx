@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { CategoryRecord } from '@/types/finance';
 import { CategoryRow } from '@/components/Profile/CategoryRow';
+import { useTheme } from '@/hooks/useTheme';
 
 interface CategoryListSectionProps {
   title: string;
@@ -19,12 +20,19 @@ export function CategoryListSection({
   onEdit,
   onDelete,
 }: CategoryListSectionProps) {
+  const theme = useTheme();
+
   return (
-    <View style={s.section}>
-      <Text style={[s.title, { color: titleColor }]}>{title}</Text>
+    <View style={[s.section, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+      <View style={s.titleRow}>
+        <Text style={[s.title, { color: titleColor }]}>{title}</Text>
+        <Text style={[s.count, { color: theme.tertiary }]}>{categories.length}</Text>
+      </View>
 
       {categories.length === 0 ? (
-        <Text style={[s.empty, { color: titleColor }]}>{emptyText}</Text>
+        <View style={[s.emptyWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+          <Text style={[s.empty, { color: titleColor }]}>{emptyText}</Text>
+        </View>
       ) : (
         <View style={s.list}>
           {categories.map((category) => (
@@ -38,20 +46,38 @@ export function CategoryListSection({
 
 const s = StyleSheet.create({
   section: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 12,
     marginBottom: 20,
   },
-  title: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10,
   },
+  title: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  count: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyWrap: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
   empty: {
-    fontSize: 13,
-    fontWeight: '500',
-    opacity: 0.7,
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.82,
   },
   list: {
-    gap: 10,
+    gap: 8,
   },
 });

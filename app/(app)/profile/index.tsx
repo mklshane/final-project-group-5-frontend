@@ -82,7 +82,7 @@ export default function ProfileScreen() {
                 <Ionicons name="grid-outline" size={18} color={isDark ? theme.lime : theme.limeDark} />
               </View>
               <View className="flex-1">
-                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Manage Categories</Text>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Categories</Text>
                 <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
                   Customize expense and income categories.
                 </Text>
@@ -114,7 +114,7 @@ export default function ProfileScreen() {
                 <Ionicons name="document-text-outline" size={18} color={isDark ? '#FF9B9B' : '#D9534F'} />
               </View>
               <View className="flex-1">
-                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Manage Debt</Text>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Debt</Text>
                 <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
                   Track debts you owe with due dates and payment progress.
                 </Text>
@@ -146,7 +146,7 @@ export default function ProfileScreen() {
                 <Ionicons name="cash-outline" size={18} color={isDark ? '#9ADE9A' : '#3E8C3E'} />
               </View>
               <View className="flex-1">
-                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Manage Money Owed To You</Text>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Money Owed To You</Text>
                 <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
                   Track collections and expected dates from people who owe you.
                 </Text>
