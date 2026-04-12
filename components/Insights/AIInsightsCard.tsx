@@ -68,7 +68,7 @@ export default function AIInsightsCard({ summary }: Props) {
 
       {error != null && <Text style={s.errorText}>{error}</Text>}
 
-      {insightLines.length > 0 && (
+      {insightLines.length > 0 && (  
         <View style={s.insightList}>
           {insightLines.map((line, i) => (
             <View key={i} style={s.insightRow}>

@@ -11,12 +11,12 @@ import SmartInsightsSection from '@/components/Insights/SmartInsightsSection';
 import type { SmartInsight } from '@/components/Insights/SmartInsightsSection';
 import type { FinanceSummary } from '@/lib/gemini';
 
-type Period = 'week' | 'month' | '3months' | 'year';
+type Period = 'day' | 'week' | 'month' | 'year';
 
 const PERIOD_LABELS: { key: Period; label: string }[] = [
+  { key: 'day', label: 'Day' },
   { key: 'week', label: 'Week' },
   { key: 'month', label: 'Month' },
-  { key: '3months', label: '3 months' },
   { key: 'year', label: 'Year' },
 ];
 
@@ -25,15 +25,58 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 // Default colors for categories without a color
 const SLICE_COLORS = ['#FF6B6B', '#FFAD5C', '#6BA3FF', '#B07BFF', '#8A8F7C', '#3DD97B', '#FF7EB3'];
 
-function getPeriodRange(period: Period) {
+function getDefaultAnchor(period: Period): Date {
   const now = new Date();
-
+  if (period === 'day') {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
   if (period === 'week') {
     const day = now.getDay();
     const diffToMon = day === 0 ? -6 : 1 - day;
     const weekStart = new Date(now);
     weekStart.setHours(0, 0, 0, 0);
     weekStart.setDate(now.getDate() + diffToMon);
+    return weekStart;
+  }
+  if (period === 'month') {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return new Date(now.getFullYear(), 0, 1);
+}
+
+function stepAnchor(period: Period, anchor: Date, dir: 1 | -1): Date {
+  if (period === 'day') {
+    const d = new Date(anchor);
+    d.setDate(d.getDate() + dir);
+    return d;
+  }
+  if (period === 'week') {
+    const d = new Date(anchor);
+    d.setDate(d.getDate() + dir * 7);
+    return d;
+  }
+  if (period === 'month') {
+    return new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1);
+  }
+  return new Date(anchor.getFullYear() + dir, 0, 1);
+}
+
+function getPeriodRange(period: Period, anchor: Date) {
+  if (period === 'day') {
+    const start = new Date(anchor);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 1);
+    const prevStart = new Date(start);
+    prevStart.setDate(start.getDate() - 1);
+    return { start, end, prevStart, prevEnd: start };
+  }
+
+  if (period === 'week') {
+    const weekStart = new Date(anchor);
+    weekStart.setHours(0, 0, 0, 0);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 7);
     const prevStart = new Date(weekStart);
@@ -42,23 +85,56 @@ function getPeriodRange(period: Period) {
   }
 
   if (period === 'month') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
+    const prevStart = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1);
     return { start, end, prevStart, prevEnd: start };
   }
 
-  if (period === '3months') {
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const prevStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    return { start, end, prevStart, prevEnd: start };
-  }
-
-  const start = new Date(now.getFullYear(), 0, 1);
-  const end = new Date(now.getFullYear() + 1, 0, 1);
-  const prevStart = new Date(now.getFullYear() - 1, 0, 1);
+  const start = new Date(anchor.getFullYear(), 0, 1);
+  const end = new Date(anchor.getFullYear() + 1, 0, 1);
+  const prevStart = new Date(anchor.getFullYear() - 1, 0, 1);
   return { start, end, prevStart, prevEnd: start };
+}
+
+function formatAnchorLabel(period: Period, anchor: Date): string {
+  const now = new Date();
+  if (period === 'day') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (anchor.getTime() === today.getTime()) return 'Today';
+    if (anchor.getTime() === yesterday.getTime()) return 'Yesterday';
+    return anchor.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: anchor.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+  }
+  if (period === 'week') {
+    const weekEnd = new Date(anchor);
+    weekEnd.setDate(anchor.getDate() + 6);
+    const startStr = anchor.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const endStr = weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${startStr} – ${endStr}`;
+  }
+  if (period === 'month') {
+    return anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }
+  return String(anchor.getFullYear());
+}
+
+function isFutureAnchor(period: Period, anchor: Date): boolean {
+  const now = new Date();
+  if (period === 'day') {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return anchor >= today;
+  }
+  if (period === 'week') {
+    const thisWeekStart = getDefaultAnchor('week');
+    return anchor >= thisWeekStart;
+  }
+  if (period === 'month') {
+    return anchor.getFullYear() === now.getFullYear() && anchor.getMonth() >= now.getMonth();
+  }
+  return anchor.getFullYear() >= now.getFullYear();
 }
 
 export default function InsightsScreen() {
@@ -67,8 +143,14 @@ export default function InsightsScreen() {
   const finance = useFinanceSelectors();
   const { currencyCode } = useAppPreferences();
   const [period, setPeriod] = useState<Period>('month');
+  const [anchor, setAnchor] = useState<Date>(() => getDefaultAnchor('month'));
 
-  const { start, end, prevStart, prevEnd } = useMemo(() => getPeriodRange(period), [period]);
+  function handleSetPeriod(p: Period) {
+    setPeriod(p);
+    setAnchor(getDefaultAnchor(p));
+  }
+
+  const { start, end, prevStart, prevEnd } = useMemo(() => getPeriodRange(period, anchor), [period, anchor]);
 
   const periodTransactions = useMemo(
     () => finance.allTransactionsView.filter((tx) => {
@@ -197,7 +279,7 @@ export default function InsightsScreen() {
           iconBg: isDown ? 'rgba(61,217,123,0.15)' : 'rgba(255,107,107,0.15)',
           iconColor: isDown ? theme.green : theme.red,
           boldText: `${top.label} spending is ${isDown ? 'down' : 'up'} ${Math.abs(diff)}%`,
-          bodyText: `compared to last ${period === 'week' ? 'week' : period === 'month' ? 'month' : 'period'}.`,
+          bodyText: `compared to last ${period === 'day' ? 'day' : period === 'week' ? 'week' : period === 'month' ? 'month' : 'year'}.`,
         });
       } else if (top.total > 0) {
         insights.push({
@@ -308,7 +390,9 @@ export default function InsightsScreen() {
   };
 
   const s = makeStyles(theme);
-  const periodLabel = period === 'week' ? 'wk' : period === 'month' ? 'mo' : 'period';
+  const periodLabel = period === 'day' ? 'day' : period === 'week' ? 'wk' : period === 'month' ? 'mo' : 'yr';
+  const anchorLabel = formatAnchorLabel(period, anchor);
+  const atPresent = isFutureAnchor(period, anchor);
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -319,10 +403,25 @@ export default function InsightsScreen() {
         {/* Period tabs */}
         <View style={s.tabRow}>
           {PERIOD_LABELS.map(({ key, label }) => (
-            <Pressable key={key} onPress={() => setPeriod(key)} style={[s.tab, period === key && s.tabActive]}>
+            <Pressable key={key} onPress={() => handleSetPeriod(key)} style={[s.tab, period === key && s.tabActive]}>
               <Text style={[s.tabText, period === key && s.tabTextActive]}>{label}</Text>
             </Pressable>
           ))}
+        </View>
+
+        {/* Secondary date navigator */}
+        <View style={s.navigator}>
+          <Pressable onPress={() => setAnchor(stepAnchor(period, anchor, -1))} style={s.navArrow} hitSlop={8}>
+            <Ionicons name="chevron-back" size={16} color={theme.text} />
+          </Pressable>
+          <Text style={s.navLabel}>{anchorLabel}</Text>
+          <Pressable
+            onPress={() => !atPresent && setAnchor(stepAnchor(period, anchor, 1))}
+            style={[s.navArrow, atPresent && s.navArrowDisabled]}
+            hitSlop={8}
+          >
+            <Ionicons name="chevron-forward" size={16} color={atPresent ? theme.tertiary : theme.text} />
+          </Pressable>
         </View>
 
         {/* 2×2 stat grid */}
@@ -456,6 +555,32 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
     tabActive: { backgroundColor: theme.lime },
     tabText: { fontSize: 12, fontWeight: '600', color: theme.secondary },
     tabTextActive: { color: '#1A1E14', fontWeight: '700' },
+
+    // Date navigator
+    navigator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.surface,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    navArrow: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      backgroundColor: theme.surfaceDeep,
+    },
+    navArrowDisabled: { opacity: 0.3 },
+    navLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.text,
+      letterSpacing: -0.2,
+    },
 
     // Grid
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
