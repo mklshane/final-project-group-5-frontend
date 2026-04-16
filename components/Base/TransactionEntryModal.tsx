@@ -259,7 +259,10 @@ export function TransactionEntryModal({
   );
 
   const availableCategories = useMemo(
-    () => categories.filter((category) => categoryMatchesMode(category, mode)),
+    () =>
+      categories
+        .filter((category) => categoryMatchesMode(category, mode))
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
     [categories, mode]
   );
 
@@ -277,7 +280,7 @@ export function TransactionEntryModal({
     wasVisibleRef.current = true;
 
     const defaultWalletId = pickDefaultWallet(wallets);
-    const defaultCategoryId = availableCategories[0]?.id ?? null;
+    const defaultCategoryId = null;
 
     setTitle('');
     setExpression('0');
