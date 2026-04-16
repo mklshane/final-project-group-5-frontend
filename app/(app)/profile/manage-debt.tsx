@@ -84,8 +84,9 @@ export default function ManageDebtScreen() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await deleteDebt(deleteTarget.id);
+    const targetId = deleteTarget.id;
     setDeleteTarget(null);
+    await deleteDebt(targetId);
   };
 
   return (

@@ -343,7 +343,11 @@ const applyServerChange = (state: FinanceDataState, change: SyncChange): Finance
     return { ...state, transactions: upsertById(state.transactions, toTransaction(change.record)) };
   }
   if (change.table === 'categories') {
-    return { ...state, categories: upsertById(state.categories, toCategory(change.record)) };
+    const newCat = toCategory(change.record);
+    const deduped = state.categories.filter(
+      (c) => c.id === newCat.id || c.name.trim().toLowerCase() !== newCat.name.trim().toLowerCase()
+    );
+    return { ...state, categories: upsertById(deduped, newCat) };
   }
   if (change.table === 'wallets') {
     return { ...state, wallets: upsertById(state.wallets, toWallet(change.record)) };
@@ -563,10 +567,24 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
       setState(cachedState);
       setHydratedUserId(session.user.id);
-      setLoading(false);
+
+      // If we already have wallets in the local cache we can reveal the UI
+      // immediately (cache-first) while the background sync runs.
+      // If the cache has no wallets we must keep loading=true until the
+      // initial sync finishes so that existing server wallets arrive before
+      // the wallet-seeding effect has a chance to fire — otherwise it would
+      // create a duplicate "General" wallet and hit the unique constraint.
+      const hasLocalWallets = cachedState.wallets.some((w) => !w.deleted_at);
+      if (hasLocalWallets) {
+        setLoading(false);
+      }
 
       if (API_BASE_URL) {
         await runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+      }
+
+      if (!cancelled) {
+        setLoading(false); // no-op when already false (warm-cache path)
       }
     };
 

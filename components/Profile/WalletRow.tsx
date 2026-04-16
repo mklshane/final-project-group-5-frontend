@@ -47,11 +47,9 @@ export function WalletRow({ wallet, amountLabel, onEdit, onArchive }: WalletRowP
           <Pressable onPress={() => onEdit(wallet)} style={s.actionBtn}>
             <Ionicons name="create-outline" size={18} color={theme.secondary} />
           </Pressable>
-          {!wallet.is_default ? (
-            <Pressable onPress={() => onArchive(wallet)} style={s.actionBtn}>
-              <Ionicons name="archive-outline" size={18} color="#FF6B6B" />
-            </Pressable>
-          ) : null}
+          <Pressable onPress={() => onArchive(wallet)} style={s.actionBtn}>
+            <Ionicons name="archive-outline" size={18} color="#FF6B6B" />
+          </Pressable>
         </View>
       </View>
     </View>
