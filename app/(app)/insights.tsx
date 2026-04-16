@@ -1,24 +1,20 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import AIInsightsCard from '@/components/Insights/AIInsightsCard';
-import DonutChart from '@/components/Insights/DonutChart';
 import SmartInsightsSection from '@/components/Insights/SmartInsightsSection';
 import type { SmartInsight } from '@/components/Insights/SmartInsightsSection';
 import type { FinanceSummary } from '@/lib/gemini';
+import InsightsHeader from '@/components/Insights/InsightsHeader';
+import PeriodNavigator from '@/components/Insights/PeriodNavigator';
+import StatsGrid from '@/components/Insights/StatsGrid';
+import SpendingThisWeek from '@/components/Insights/SpendingThisWeek';
+import CategoryBreakdown from '@/components/Insights/CategoryBreakdown';
 
 type Period = 'day' | 'week' | 'month' | 'year';
-
-const PERIOD_LABELS: { key: Period; label: string }[] = [
-  { key: 'day', label: 'Day' },
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
-  { key: 'year', label: 'Year' },
-];
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -391,153 +387,43 @@ export default function InsightsScreen() {
 
   const s = makeStyles(theme);
   const periodLabel = period === 'day' ? 'day' : period === 'week' ? 'wk' : period === 'month' ? 'mo' : 'yr';
-  const anchorLabel = formatAnchorLabel(period, anchor);
-  const atPresent = isFutureAnchor(period, anchor);
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <InsightsHeader period={period} onSetPeriod={handleSetPeriod} />
 
-        <Text style={s.title}>Insights</Text>
+        <PeriodNavigator
+          period={period}
+          anchor={anchor}
+          onSetAnchor={setAnchor}
+          formatAnchorLabel={formatAnchorLabel}
+          isFutureAnchor={isFutureAnchor}
+          stepAnchor={stepAnchor}
+        />
 
-        {/* Period tabs */}
-        <View style={s.tabRow}>
-          {PERIOD_LABELS.map(({ key, label }) => (
-            <Pressable key={key} onPress={() => handleSetPeriod(key)} style={[s.tab, period === key && s.tabActive]}>
-              <Text style={[s.tabText, period === key && s.tabTextActive]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <StatsGrid
+          spentTotal={spentTotal}
+          incomeTotal={incomeTotal}
+          netFlow={netFlow}
+          txCount={txCount}
+          avgTx={avgTx}
+          spentDiff={spentDiff}
+          incomeDiff={incomeDiff}
+          periodLabel={periodLabel}
+        />
 
-        {/* Secondary date navigator */}
-        <View style={s.navigator}>
-          <Pressable onPress={() => setAnchor(stepAnchor(period, anchor, -1))} style={s.navArrow} hitSlop={8}>
-            <Ionicons name="chevron-back" size={16} color={theme.text} />
-          </Pressable>
-          <Text style={s.navLabel}>{anchorLabel}</Text>
-          <Pressable
-            onPress={() => !atPresent && setAnchor(stepAnchor(period, anchor, 1))}
-            style={[s.navArrow, atPresent && s.navArrowDisabled]}
-            hitSlop={8}
-          >
-            <Ionicons name="chevron-forward" size={16} color={atPresent ? theme.tertiary : theme.text} />
-          </Pressable>
-        </View>
+        <SpendingThisWeek
+          barData={barData}
+          maxBar={maxBar}
+          todayDayIndex={todayDayIndex}
+        />
 
-        {/* 2×2 stat grid */}
-        <View style={s.grid}>
-          <View style={s.statCard}>
-            <Text style={s.statLabel}>TOTAL SPENT</Text>
-            <Text style={[s.statValue, { color: theme.red }]}>{finance.formatCurrency(spentTotal)}</Text>
-            {spentDiff !== null ? (
-              <View style={s.diffRow}>
-                <Ionicons name={spentDiff >= 0 ? 'arrow-up' : 'arrow-down'} size={11} color={spentDiff >= 0 ? theme.red : theme.green} />
-                <Text style={[s.diffText, { color: spentDiff >= 0 ? theme.red : theme.green }]}>
-                  {Math.abs(spentDiff)}% vs last {periodLabel}
-                </Text>
-              </View>
-            ) : (
-              <Text style={s.diffNeutral}>No prior data</Text>
-            )}
-          </View>
+        <CategoryBreakdown data={categoryBreakdown} />
 
-          <View style={s.statCard}>
-            <Text style={s.statLabel}>TOTAL INCOME</Text>
-            <Text style={[s.statValue, { color: theme.green }]}>{finance.formatCurrency(incomeTotal)}</Text>
-            {incomeDiff !== null ? (
-              <View style={s.diffRow}>
-                <Ionicons name={incomeDiff >= 0 ? 'arrow-up' : 'arrow-down'} size={11} color={incomeDiff >= 0 ? theme.green : theme.red} />
-                <Text style={[s.diffText, { color: incomeDiff >= 0 ? theme.green : theme.red }]}>
-                  {Math.abs(incomeDiff)}% vs last {periodLabel}
-                </Text>
-              </View>
-            ) : (
-              <Text style={s.diffNeutral}>Same as last mo</Text>
-            )}
-          </View>
-
-          <View style={s.statCard}>
-            <Text style={s.statLabel}>NET FLOW</Text>
-            <Text style={[s.statValue, { color: netFlow >= 0 ? (theme.isDark ? theme.lime : '#3F7D36') : theme.red }]}>
-              {netFlow >= 0 ? '+' : ''}{finance.formatCurrency(netFlow)}
-            </Text>
-            <View style={s.diffRow}>
-              <Ionicons name={netFlow >= 0 ? 'trending-up' : 'trending-down'} size={11} color={netFlow >= 0 ? (theme.isDark ? theme.lime : '#3F7D36') : theme.red} />
-              <Text style={[s.diffText, { color: netFlow >= 0 ? (theme.isDark ? theme.lime : '#3F7D36') : theme.red }]}>
-                {netFlow >= 0 ? 'Saving well' : 'Overspending'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={s.statCard}>
-            <Text style={s.statLabel}>TRANSACTIONS</Text>
-            <Text style={[s.statValue, { color: theme.text }]}>{txCount}</Text>
-            <Text style={s.diffNeutral}>
-              {txCount > 0 ? `Avg ${finance.formatCurrency(avgTx)} each` : 'No transactions'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Spending this week bar chart */}
-        <View style={s.card}>
-          <Text style={s.cardLabel}>SPENDING THIS WEEK</Text>
-          <View style={s.barChart}>
-            {barData.map((bar, i) => {
-              const heightPct = bar.total / maxBar;
-              const isToday = i === todayDayIndex;
-              return (
-                <View key={bar.label} style={s.barCol}>
-                  <View style={s.barTrack}>
-                    <View
-                      style={[
-                        s.barFill,
-                        {
-                          height: `${Math.max(heightPct * 100, bar.total > 0 ? 8 : 0)}%`,
-                          backgroundColor: isToday ? theme.lime : (theme.isDark ? '#2C3122' : '#DDE1CF'),
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[s.barDayLabel, isToday && { color: theme.lime, fontWeight: '700' }]}>
-                    {bar.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Where your money goes — donut + legend */}
-        <View style={s.card}>
-          <Text style={s.cardLabel}>WHERE YOUR MONEY GOES</Text>
-          {categoryBreakdown.length === 0 ? (
-            <Text style={s.emptyText}>No expense data for this period.</Text>
-          ) : (
-            <View style={s.donutRow}>
-              <DonutChart
-                data={categoryBreakdown.map((c) => ({ label: c.label, percentage: c.percentage, color: c.color }))}
-                size={130}
-                strokeWidth={26}
-              />
-              <View style={s.legend}>
-                {categoryBreakdown.map((entry) => (
-                  <View key={entry.label} style={s.legendRow}>
-                    <View style={[s.legendDot, { backgroundColor: entry.color }]} />
-                    <Text style={s.legendLabel} numberOfLines={1}>{entry.label}</Text>
-                    <Text style={s.legendPct}>{entry.percentage}%</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Smart Insights */}
         <SmartInsightsSection insights={smartInsights} />
 
-        {/* AI Insights */}
         <AIInsightsCard summary={aiSummary} />
-
       </ScrollView>
     </View>
   );
@@ -547,71 +433,5 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
     scroll: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-    title: { fontSize: 30, fontWeight: '800', color: theme.text, letterSpacing: -0.8, marginTop: 4, marginBottom: 2 },
-
-    // Tabs
-    tabRow: { flexDirection: 'row', backgroundColor: theme.surface, borderRadius: 14, padding: 4, gap: 2 },
-    tab: { flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center' },
-    tabActive: { backgroundColor: theme.lime },
-    tabText: { fontSize: 12, fontWeight: '600', color: theme.secondary },
-    tabTextActive: { color: '#1A1E14', fontWeight: '700' },
-
-    // Date navigator
-    navigator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.surface,
-      borderRadius: 14,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    navArrow: {
-      width: 28,
-      height: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 8,
-      backgroundColor: theme.surfaceDeep,
-    },
-    navArrowDisabled: { opacity: 0.3 },
-    navLabel: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: theme.text,
-      letterSpacing: -0.2,
-    },
-
-    // Grid
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    statCard: { width: '47.5%', backgroundColor: theme.surface, borderRadius: 18, padding: 14, gap: 3 },
-    statLabel: { fontSize: 9, fontWeight: '800', color: theme.secondary, letterSpacing: 1.2 },
-    statValue: { fontSize: 24, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 },
-    diffRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },
-    diffText: { fontSize: 11, fontWeight: '600' },
-    diffNeutral: { fontSize: 11, fontWeight: '500', color: theme.secondary, marginTop: 1 },
-
-    // Card shell
-    card: { backgroundColor: theme.surface, borderRadius: 20, padding: 16, gap: 12 },
-    cardLabel: { fontSize: 9, fontWeight: '800', color: theme.secondary, letterSpacing: 1.4 },
-    emptyText: { fontSize: 13, color: theme.secondary, fontWeight: '500' },
-
-    // Bar chart
-    barChart: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 6 },
-    barCol: { flex: 1, alignItems: 'center', height: '100%', gap: 5 },
-    barTrack: {
-      flex: 1, width: '100%', justifyContent: 'flex-end', borderRadius: 6, overflow: 'hidden',
-      backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(26,30,20,0.06)',
-    },
-    barFill: { width: '100%', borderRadius: 6 },
-    barDayLabel: { fontSize: 9, fontWeight: '600', color: theme.secondary },
-
-    // Donut
-    donutRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    legend: { flex: 1, gap: 8 },
-    legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    legendDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-    legendLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: theme.text },
-    legendPct: { fontSize: 13, fontWeight: '700', color: theme.secondary },
   });
 }
