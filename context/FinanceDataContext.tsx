@@ -73,6 +73,21 @@ interface UpdateCategoryInput {
   sortOrder?: number;
 }
 
+interface AddGoalInput {
+  title: string;
+  targetAmount: number;
+  savedAmount?: number;
+  deadline?: string | null;
+}
+
+interface UpdateGoalInput {
+  id: string;
+  title?: string;
+  targetAmount?: number;
+  savedAmount?: number;
+  deadline?: string | null;
+}
+
 interface AddDebtInput {
   type: 'owe' | 'owed';
   counterpartyKind?: DebtCounterpartyKind;
@@ -107,6 +122,9 @@ interface FinanceDataContextValue {
   addCategory: (input: AddCategoryInput) => Promise<void>;
   updateCategory: (input: UpdateCategoryInput) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  addGoal: (input: AddGoalInput) => Promise<void>;
+  updateGoal: (input: UpdateGoalInput) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   addDebt: (input: AddDebtInput) => Promise<void>;
   updateDebt: (input: UpdateDebtInput) => Promise<void>;
   deleteDebt: (id: string) => Promise<void>;
@@ -1033,9 +1051,125 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     [runSync, state.categories, state.lastSyncedAt]
   );
 
-    const addDebt = useCallback(
-      async (input: AddDebtInput) => {
-        if (!session) return;
+  const addGoal = useCallback(
+    async (input: AddGoalInput) => {
+      if (!session) return;
+
+      const title = input.title.trim();
+      const targetAmount = Math.max(0, toNumber(input.targetAmount));
+      const savedAmount = Math.max(0, toNumber(input.savedAmount, 0));
+      const deadline = input.deadline?.trim() ? input.deadline.trim() : null;
+
+      if (!title || targetAmount <= 0 || savedAmount > targetAmount) return;
+
+      const id = createId();
+      const version = 1;
+      const date = nowIso();
+
+      const record: GoalRecord = {
+        id,
+        user_id: session.user.id,
+        title,
+        target_amount: targetAmount,
+        saved_amount: savedAmount,
+        deadline,
+        version,
+        created_at: date,
+        updated_at: date,
+        deleted_at: null,
+      };
+
+      const change: SyncChange = {
+        table: 'goals',
+        action: 'create',
+        record_id: id,
+        record: record as unknown as Record<string, unknown>,
+        version,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        goals: upsertById(prev.goals, record),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, session, state.lastSyncedAt]
+  );
+
+  const updateGoal = useCallback(
+    async (input: UpdateGoalInput) => {
+      const existing = state.goals.find((goal) => goal.id === input.id && !goal.deleted_at);
+      if (!existing) return;
+
+      const title = input.title !== undefined ? input.title.trim() : existing.title;
+      const targetAmount =
+        input.targetAmount !== undefined ? Math.max(0, toNumber(input.targetAmount)) : toNumber(existing.target_amount);
+      const savedAmount =
+        input.savedAmount !== undefined ? Math.max(0, toNumber(input.savedAmount)) : toNumber(existing.saved_amount, 0);
+      const deadline =
+        input.deadline !== undefined ? (input.deadline?.trim() ? input.deadline.trim() : null) : (existing.deadline ?? null);
+
+      if (!title || targetAmount <= 0 || savedAmount > targetAmount) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const updated: GoalRecord = {
+        ...existing,
+        title,
+        target_amount: targetAmount,
+        saved_amount: savedAmount,
+        deadline,
+        version: nextVersion,
+        updated_at: nowIso(),
+      };
+
+      const change: SyncChange = {
+        table: 'goals',
+        action: 'update',
+        record_id: updated.id,
+        record: updated as unknown as Record<string, unknown>,
+        version: nextVersion,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        goals: upsertById(prev.goals, updated),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.goals, state.lastSyncedAt]
+  );
+
+  const deleteGoal = useCallback(
+    async (id: string) => {
+      const existing = state.goals.find((goal) => goal.id === id && !goal.deleted_at);
+      if (!existing) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const change: SyncChange = {
+        table: 'goals',
+        action: 'delete',
+        record_id: id,
+        version: nextVersion,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        goals: prev.goals.filter((goal) => goal.id !== id),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      await runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.goals, state.lastSyncedAt]
+  );
+
+  const addDebt = useCallback(
+    async (input: AddDebtInput) => {
+      if (!session) return;
 
         const counterpartyName = input.counterpartyName.trim();
         const dueDate = input.dueDate.trim();
@@ -1083,14 +1217,14 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         }));
 
         await runSync([change], state.lastSyncedAt);
-      },
-      [runSync, session, state.lastSyncedAt]
-    );
+    },
+    [runSync, session, state.lastSyncedAt]
+  );
 
-    const updateDebt = useCallback(
-      async (input: UpdateDebtInput) => {
-        const existing = state.debts.find((debt) => debt.id === input.id && !debt.deleted_at);
-        if (!existing) return;
+  const updateDebt = useCallback(
+    async (input: UpdateDebtInput) => {
+      const existing = state.debts.find((debt) => debt.id === input.id && !debt.deleted_at);
+      if (!existing) return;
 
         const counterpartyName =
           input.counterpartyName !== undefined ? input.counterpartyName.trim() : existing.counterparty_name;
@@ -1137,14 +1271,14 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         }));
 
         await runSync([change], state.lastSyncedAt);
-      },
-      [runSync, state.debts, state.lastSyncedAt]
-    );
+    },
+    [runSync, state.debts, state.lastSyncedAt]
+  );
 
-    const deleteDebt = useCallback(
-      async (id: string) => {
-        const existing = state.debts.find((debt) => debt.id === id && !debt.deleted_at);
-        if (!existing) return;
+  const deleteDebt = useCallback(
+    async (id: string) => {
+      const existing = state.debts.find((debt) => debt.id === id && !debt.deleted_at);
+      if (!existing) return;
 
         const nextVersion = Math.max(1, existing.version + 1);
         const change: SyncChange = {
@@ -1161,9 +1295,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         }));
 
         await runSync([change], state.lastSyncedAt);
-      },
-      [runSync, state.debts, state.lastSyncedAt]
-    );
+    },
+    [runSync, state.debts, state.lastSyncedAt]
+  );
 
   const value = useMemo<FinanceDataContextValue>(
     () => ({
@@ -1180,6 +1314,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addCategory,
       updateCategory,
       deleteCategory,
+      addGoal,
+      updateGoal,
+      deleteGoal,
       addDebt,
       updateDebt,
       deleteDebt,
@@ -1198,6 +1335,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addCategory,
       updateCategory,
       deleteCategory,
+      addGoal,
+      updateGoal,
+      deleteGoal,
       addDebt,
       updateDebt,
       deleteDebt,
