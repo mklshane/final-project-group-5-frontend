@@ -42,6 +42,13 @@ const startOfWeek = (date: Date) => {
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
+const toIoniconName = (icon: string | null | undefined): keyof typeof Ionicons.glyphMap => {
+  if (icon && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, icon)) {
+    return icon as keyof typeof Ionicons.glyphMap;
+  }
+  return 'pricetag-outline';
+};
+
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -51,6 +58,7 @@ export default function ActivityScreen() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterKey>('all');
+  const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
@@ -143,6 +151,14 @@ export default function ActivityScreen() {
   }, [filteredTransactions]);
 
   const hasNoSearchMatches = search.trim().length > 0 && filteredTransactions.length === 0;
+  const activeCategory =
+    categoryFilter === 'all'
+      ? null
+      : categoryFilters.find((item) => item.id === categoryFilter) ?? null;
+  const activeCategoryLabel =
+    activeCategory?.name ?? 'All';
+  const activeCategoryIcon = toIoniconName(activeCategory?.icon);
+  const activeCategoryColor = activeCategory?.color ?? theme.tertiary;
 
   const handleQuickScan = () => {
     setEntryMode('expense');
@@ -212,66 +228,186 @@ export default function ActivityScreen() {
 
         {/* Filter chips */}
         {!hasNoSearchMatches && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.filterRow}
-            style={s.filterScroll}
-          >
-            {FILTERS.map((f) => {
-              const active = filter === f.key;
-              return (
-                <Pressable
-                  key={f.key}
-                  onPress={() => setFilter(f.key)}
-                  style={[
-                    s.chip,
-                    f.key === 'all' ? s.chipCompact : s.chipWide,
-                    {
-                      backgroundColor: active ? theme.lime : theme.chipBg,
-                      borderColor: active ? theme.lime : theme.chipBorder,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
-                  >
-                    {f.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View style={s.filtersSection}>
+            <View style={s.filterGroup}>
+              <Text style={[s.filterGroupLabel, { color: theme.tertiary }]}>Period</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={s.filterRow}
+                style={s.filterScroll}
+              >
+                {FILTERS.map((f) => {
+                  const active = filter === f.key;
+                  return (
+                    <Pressable
+                      key={f.key}
+                      onPress={() => setFilter(f.key)}
+                      style={[
+                        s.chip,
+                        f.key === 'all' ? s.chipCompact : s.chipWide,
+                        {
+                          backgroundColor: active ? theme.lime : theme.chipBg,
+                          borderColor: active ? theme.lime : theme.chipBorder,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.85}
+                      >
+                        {f.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-            {categoryFilters.map((category) => {
-              const active = categoryFilter === category.id;
-              return (
+            <View style={s.filterGroup}>
+              <Text style={[s.filterGroupLabel, { color: theme.tertiary }]}>Category</Text>
+              <View style={s.dropdownWrap}>
                 <Pressable
-                  key={category.id}
-                  onPress={() => setCategoryFilter(active ? 'all' : category.id)}
+                  onPress={() => setCategoryMenuVisible((current) => !current)}
                   style={[
-                    s.chip,
-                    s.categoryChip,
+                    s.dropdownTrigger,
                     {
-                      backgroundColor: active ? theme.lime : theme.chipBg,
-                      borderColor: active ? theme.lime : theme.chipBorder,
+                      backgroundColor: theme.surface,
+                      borderColor: theme.lime,
                     },
                   ]}
                 >
-                  <Text
-                    style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
-                  >
-                    {category.name}
-                  </Text>
+                  <View style={s.dropdownTriggerContent}>
+                    <View
+                      style={[
+                        s.categoryIconWrap,
+                        {
+                          backgroundColor:
+                            categoryFilter === 'all'
+                              ? theme.surfaceDeep
+                              : `${activeCategoryColor}20`,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={categoryFilter === 'all' ? 'ellipse' : activeCategoryIcon}
+                        size={14}
+                        color={categoryFilter === 'all' ? theme.tertiary : activeCategoryColor}
+                      />
+                    </View>
+                    <Text
+                      style={[s.dropdownTriggerText, { color: theme.text }]}
+                      numberOfLines={1}
+                    >
+                      {categoryFilter === 'all' ? 'Select a category...' : activeCategoryLabel}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={categoryMenuVisible ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={theme.secondary}
+                  />
                 </Pressable>
-              );
-            })}
-          </ScrollView>
+
+                {categoryMenuVisible && (
+                  <View
+                    style={[
+                      s.dropdownMenu,
+                      {
+                        backgroundColor: theme.surface,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <ScrollView
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
+                      contentContainerStyle={s.dropdownMenuScrollContent}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          setCategoryFilter('all');
+                          setCategoryMenuVisible(false);
+                        }}
+                        style={[
+                          s.dropdownMenuItem,
+                          categoryFilter === 'all' && {
+                            backgroundColor: theme.chipBg,
+                          },
+                        ]}
+                      >
+                        <View style={s.dropdownMenuItemContent}>
+                          <View
+                            style={[
+                              s.categoryIconWrap,
+                              { backgroundColor: theme.surfaceDeep },
+                            ]}
+                          >
+                            <Ionicons name="ellipse" size={14} color={theme.tertiary} />
+                          </View>
+                          <Text
+                            style={[
+                              s.dropdownMenuItemText,
+                              { color: categoryFilter === 'all' ? theme.text : theme.secondary },
+                            ]}
+                          >
+                            All
+                          </Text>
+                        </View>
+                        {categoryFilter === 'all' && (
+                          <Ionicons name="checkmark" size={16} color={theme.lime} />
+                        )}
+                      </Pressable>
+
+                      {categoryFilters.map((category) => {
+                        const active = categoryFilter === category.id;
+                        const iconName = toIoniconName(category.icon);
+                        const iconColor = category.color ?? theme.text;
+                        return (
+                          <Pressable
+                            key={category.id}
+                            onPress={() => {
+                              setCategoryFilter(category.id);
+                              setCategoryMenuVisible(false);
+                            }}
+                            style={[
+                              s.dropdownMenuItem,
+                              active && {
+                                backgroundColor: theme.chipBg,
+                              },
+                            ]}
+                          >
+                            <View style={s.dropdownMenuItemContent}>
+                              <View
+                                style={[
+                                  s.categoryIconWrap,
+                                  { backgroundColor: `${iconColor}20` },
+                                ]}
+                              >
+                                <Ionicons name={iconName} size={14} color={iconColor} />
+                              </View>
+                              <Text
+                                style={[
+                                  s.dropdownMenuItemText,
+                                  { color: active ? theme.text : theme.secondary },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {category.name}
+                              </Text>
+                            </View>
+                            {active && <Ionicons name="checkmark" size={16} color={theme.lime} />}
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
         )}
 
         {/* Spent / Earned summary */}
@@ -411,13 +547,100 @@ const s = StyleSheet.create({
     padding: 0,
   },
   // Filters
-  filterScroll: {
-    flexGrow: 0,
-    height: 60,
+  filtersSection: {
+    marginHorizontal: 24,
+    gap: 10,
     marginBottom: 14,
   },
+  filterGroup: {
+    gap: 4,
+  },
+  filterGroupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    paddingHorizontal: 4,
+    marginBottom: 2,
+  },
+  dropdownWrap: {
+    position: 'relative',
+    zIndex: 20,
+    paddingHorizontal: 4,
+  },
+  dropdownTrigger: {
+    minHeight: 42,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownTriggerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    gap: 10,
+  },
+  dropdownTriggerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 48,
+    left: 4,
+    right: 4,
+    maxHeight: 280,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  dropdownMenuScrollContent: {
+    paddingVertical: 2,
+  },
+  dropdownMenuItem: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    marginHorizontal: 6,
+  },
+  dropdownMenuItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginRight: 12,
+  },
+  dropdownMenuItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  categoryIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterScroll: {
+    flexGrow: 0,
+    height: 48,
+  },
   filterRow: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     gap: 8,
     flexDirection: 'row',
