@@ -483,7 +483,7 @@ const s = StyleSheet.create({
   cardDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 20, marginBottom: 12 },
   cardSub: { fontSize: 12, fontWeight: '500' },
 
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, opacity: 0.9 },
   sectionLink: { fontSize: 12, fontWeight: '700' },
 
