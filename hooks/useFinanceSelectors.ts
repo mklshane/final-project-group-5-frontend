@@ -4,7 +4,7 @@ import { useFinanceData } from '@/context/FinanceDataContext';
 import { CURRENCIES } from '@/constants/currencies';
 import { FALLBACK_CATEGORY_VISUALS, getDefaultTemplateByName } from '@/constants/defaultCategories';
 import { WALLET_TYPE_LABELS } from '@/constants/defaultWallets';
-import type { BudgetRecord, CategoryRecord, TransactionRecord, WalletRecord } from '@/types/finance';
+import type { BudgetPeriod, BudgetRecord, CategoryRecord, TransactionRecord, WalletRecord } from '@/types/finance';
 
 const startOfDay = (date: Date) => {
   const copy = new Date(date);
@@ -13,6 +13,40 @@ const startOfDay = (date: Date) => {
 };
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const startOfYear = (date: Date) => new Date(date.getFullYear(), 0, 1);
+
+const startOfWeek = (date: Date) => {
+  const copy = startOfDay(date);
+  const daysSinceMonday = (copy.getDay() + 6) % 7;
+  copy.setDate(copy.getDate() - daysSinceMonday);
+  return copy;
+};
+
+const budgetPeriodRange = (period: BudgetPeriod, anchor = new Date()) => {
+  if (period === 'daily') {
+    const start = startOfDay(anchor);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { start, end };
+  }
+
+  if (period === 'weekly') {
+    const start = startOfWeek(anchor);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    return { start, end };
+  }
+
+  if (period === 'yearly') {
+    const start = startOfYear(anchor);
+    const end = new Date(start.getFullYear() + 1, 0, 1);
+    return { start, end };
+  }
+
+  const start = startOfMonth(anchor);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+  return { start, end };
+};
 
 const isWithin = (value: string, start: Date, end: Date) => {
   const current = new Date(value);
@@ -54,15 +88,16 @@ const walletMap = (wallets: WalletRecord[]) => {
   return map;
 };
 
-const spendForCategory = (transactions: TransactionRecord[], categoryId: string) => {
+const spendForCategory = (transactions: TransactionRecord[], categoryId: string, period: BudgetPeriod) => {
+  const { start, end } = budgetPeriodRange(period);
   return transactions
-    .filter((tx) => tx.type === 'expense' && tx.category_id === categoryId)
+    .filter((tx) => tx.type === 'expense' && tx.category_id === categoryId && isWithin(tx.date, start, end))
     .reduce((sum, tx) => sum + tx.amount, 0);
 };
 
 const budgetUtilization = (budgets: BudgetRecord[], transactions: TransactionRecord[]) => {
   return budgets.map((budget) => {
-    const spent = spendForCategory(transactions, budget.category_id);
+    const spent = spendForCategory(transactions, budget.category_id, budget.period);
     const limit = budget.amount_limit || 0;
     const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
     return {
@@ -146,7 +181,7 @@ export function useFinanceSelectors() {
       }))
       .sort((a, b) => b.total - a.total);
 
-    const budgets = budgetUtilization(state.budgets.filter((budget) => !budget.deleted_at), monthTransactions);
+    const budgets = budgetUtilization(state.budgets.filter((budget) => !budget.deleted_at), activeTransactions);
     const activeDebts = state.debts.filter((debt) => !debt.deleted_at);
     const debtRows = activeDebts.map((debt) => {
       const totalAmount = Number.isFinite(debt.total_amount) ? debt.total_amount : debt.amount ?? 0;

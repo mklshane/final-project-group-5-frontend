@@ -15,6 +15,8 @@ import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
 import { GoalSummaryCard } from '@/components/Home/GoalSummaryCard';
+import { BudgetSummaryCard } from '@/components/Home/BudgetSummaryCard';
+import type { CategoryRecord } from '@/types/finance';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -98,8 +100,46 @@ export default function HomeScreen() {
     };
     const nearestOwe = [...finance.debts.lists.unsettledOwe].sort(byDue)[0];
     const nearestOwed = [...finance.debts.lists.unsettledOwed].sort(byDue)[0];
-    return [nearestOwe, nearestOwed].filter(Boolean) as typeof finance.debts.lists.unsettledOwe;
+    return [nearestOwe, nearestOwed].filter(Boolean);
   }, [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]);
+
+  const categoryById = useMemo(() => {
+    const map = new Map<string, CategoryRecord>();
+    for (const category of state.categories) {
+      if (!category.deleted_at) {
+        map.set(category.id, category);
+      }
+    }
+    return map;
+  }, [state]);
+
+  const budgetEntries = useMemo(() => {
+    const toPeriodLabel = (period: string) => {
+      if (period === 'daily') return 'Daily';
+      if (period === 'weekly') return 'Weekly';
+      if (period === 'yearly') return 'Annual';
+      return 'Monthly';
+    };
+
+    return finance.insights.budgetUtilization
+      .map((entry) => {
+        const category = categoryById.get(entry.budget.category_id);
+        const fallback = entry.budget.category_id ? 'Category' : 'Uncategorized';
+        return {
+          id: entry.budget.id,
+          title: category?.name ?? fallback,
+          icon: category?.icon ?? 'apps-outline',
+          color: category?.color ?? (isDark ? theme.lime : theme.limeDark),
+          periodLabel: toPeriodLabel(entry.budget.period),
+          spent: entry.spent,
+          limit: entry.budget.amount_limit,
+          percentage: entry.percentage,
+          overLimit: entry.overLimit,
+          remaining: Math.max(0, entry.budget.amount_limit - entry.spent),
+        };
+      })
+      .sort((a, b) => b.percentage - a.percentage);
+  }, [finance, categoryById, isDark, theme.lime, theme.limeDark]);
 
   const goalEntries = useMemo(() => {
     const activeGoals = finance.goals.filter((goal) => {
@@ -262,6 +302,61 @@ export default function HomeScreen() {
           </Animated.View>
         ) : null}
 
+        <Animated.View entering={FadeInDown.delay(275).duration(600)} style={s.budgetSection}>
+          <View style={s.sectionHeader}>
+            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>BUDGETS</Text>
+            <Pressable onPress={() => router.push('/profile/manage-budgets')} hitSlop={10}>
+              <Text style={[s.sectionLink, { color: theme.secondary }]}>Manage</Text>
+            </Pressable>
+          </View>
+
+          {budgetEntries.length === 0 ? (
+            <Pressable onPress={() => router.push('/profile/manage-budgets')}>
+              {({ pressed }) => (
+                <View
+                  style={[
+                    s.budgetEmptyCard,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.94 : 1,
+                    },
+                  ]}
+                >
+                  <View style={[s.budgetEmptyIconWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+                    <Ionicons name="pie-chart-outline" size={18} color={theme.secondary} />
+                  </View>
+                  <View style={s.budgetEmptyTextWrap}>
+                    <Text style={[s.budgetEmptyTitle, { color: theme.text }]}>No budgets yet</Text>
+                    <Text style={[s.budgetEmptyBody, { color: theme.secondary }]}>Set your first category budget to start tracking spending limits.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={theme.tertiary} />
+                </View>
+              )}
+            </Pressable>
+          ) : (
+            <>
+              <View style={s.budgetList}>
+                {budgetEntries.slice(0, 3).map((entry) => (
+                  <BudgetSummaryCard
+                    key={entry.id}
+                    title={entry.title}
+                    icon={entry.icon}
+                    color={entry.color}
+                    periodLabel={entry.periodLabel}
+                    spentLabel={finance.formatCurrency(entry.spent)}
+                    limitLabel={finance.formatCurrency(entry.limit)}
+                    statusText={entry.overLimit ? `Over by ${finance.formatCurrency(entry.spent - entry.limit)}` : `${finance.formatCurrency(entry.remaining)} remaining`}
+                    percentage={entry.percentage}
+                    overLimit={entry.overLimit}
+                    onPress={() => router.push('/profile/manage-budgets')}
+                  />
+                ))}
+              </View>
+            </>
+          )}
+        </Animated.View>
+
         {/* ── Debt Tracker ─────────────────────────────── */}
         {debtEntries.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(300).duration(600)} style={s.debtSection}>
@@ -416,6 +511,40 @@ const s = StyleSheet.create({
   // Debt Section
   goalSection: { marginBottom: 24 },
   goalList: { gap: 10 },
+  budgetSection: { marginBottom: 24 },
+  budgetList: {
+    gap: 10,
+  },
+  budgetEmptyCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  budgetEmptyIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  budgetEmptyTextWrap: {
+    flex: 1,
+  },
+  budgetEmptyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  budgetEmptyBody: {
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 17,
+  },
   debtSection: { marginBottom: 24 },
   debtList: { gap: 10 },
 

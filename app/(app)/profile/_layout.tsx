@@ -30,6 +30,7 @@ export default function ProfileLayout() {
     >
       <Stack.Screen name="manage-wallets" options={{ title: 'Wallets' }} />
       <Stack.Screen name="manage-categories" options={{ title: 'Categories' }} />
+      <Stack.Screen name="manage-budgets" options={{ title: 'Category Budgeting' }} />
       <Stack.Screen name="manage-goals" options={{ title: 'Goals' }} />
       <Stack.Screen name="manage-debt" options={{ title: 'Debt' }} />
       <Stack.Screen name="manage-money-owed-to-you" options={{ title: 'Money Owed To You' }} />

@@ -137,6 +137,38 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          onPress={() => router.push('/profile/manage-budgets')}
+          activeOpacity={0.8}
+          className="rounded-2xl border"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14, marginTop: 10 }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1 pr-3">
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? theme.surfaceDeep : 'rgba(63,125,54,0.16)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 10,
+                }}
+              >
+                <Ionicons name="pie-chart-outline" size={18} color={isDark ? theme.lime : '#3F7D36'} />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Category Budgeting</Text>
+                <Text style={{ color: theme.secondary, fontSize: 12, fontWeight: '500', marginTop: 2 }}>
+                  Set daily, weekly, monthly, or annual spending limits by category.
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={isDark ? theme.secondary : theme.text} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={() => router.push('/profile/manage-goals')}
           activeOpacity={0.8}
           className="rounded-2xl border"
