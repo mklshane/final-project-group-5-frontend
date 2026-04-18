@@ -6,6 +6,8 @@ import { GoalEditorModal } from '@/components/Profile/GoalEditorModal';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
+import { useRouter } from 'expo-router';
+import { GoalEntryCard } from '@/components/Profile/GoalEntryCard';
 import type { GoalRecord } from '@/types/finance';
 
 const progressPercent = (goal: GoalRecord) => {
@@ -17,6 +19,7 @@ export default function ManageGoalsScreen() {
   const theme = useTheme();
   const { loading, addGoal, updateGoal, deleteGoal } = useFinanceData();
   const finance = useFinanceSelectors();
+  const router = useRouter();
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<GoalRecord | null>(null);
@@ -124,73 +127,16 @@ export default function ManageGoalsScreen() {
             <Text style={[s.stateText, { color: theme.secondary }]}>No goals yet. Create your first one to get started.</Text>
           </View>
         ) : (
-          activeGoals.map((goal) => {
-            const saved = Math.max(0, goal.saved_amount);
-            const target = Math.max(0, goal.target_amount);
-            const remaining = Math.max(0, target - saved);
-            const progress = progressPercent(goal);
-
-            return (
-              <View
-                key={goal.id}
-                style={[s.goalCard, { borderColor: theme.border, backgroundColor: theme.surface }]}
-              >
-                <View style={s.goalHeader}>
-                  <View style={s.goalInfo}>
-                    <Text style={[s.goalTitle, { color: theme.text }]} numberOfLines={1}>
-                      {goal.title}
-                    </Text>
-                    <Text style={[s.goalMeta, { color: theme.secondary }]}>
-                      {goal.deadline ? `Target date: ${goal.deadline}` : 'No target date'}
-                    </Text>
-                  </View>
-
-                  <View style={s.goalActions}>
-                    <Pressable onPress={() => openEdit(goal)} style={s.iconButton} hitSlop={10}>
-                      <Ionicons name="create-outline" size={18} color={theme.secondary} />
-                    </Pressable>
-                    <Pressable onPress={() => setDeleteTarget(goal)} style={s.iconButton} hitSlop={10}>
-                      <Ionicons name="trash-outline" size={18} color={theme.red} />
-                    </Pressable>
-                  </View>
-                </View>
-
-                <View style={s.amountRow}>
-                  <View>
-                    <Text style={[s.amountLabel, { color: theme.secondary }]}>Saved</Text>
-                    <Text style={[s.amountValue, { color: theme.text }]}>{finance.formatCurrency(saved)}</Text>
-                  </View>
-                  <View>
-                    <Text style={[s.amountLabel, { color: theme.secondary, textAlign: 'right' }]}>Remaining</Text>
-                    <Text style={[s.amountValue, { color: theme.text, textAlign: 'right' }]}>
-                      {finance.formatCurrency(remaining)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={[s.progressTrack, { backgroundColor: theme.surfaceAlt }]}>
-                  <View
-                    style={[
-                      s.progressFill,
-                      {
-                        backgroundColor: theme.lime,
-                        width: `${progress}%`,
-                      },
-                    ]}
-                  />
-                </View>
-
-                <View style={s.progressFooter}>
-                  <Text style={[s.progressText, { color: theme.secondary }]}>
-                    {progress}% complete
-                  </Text>
-                  <Text style={[s.progressText, { color: theme.secondary }]}>
-                    Goal: {finance.formatCurrency(target)}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
+          activeGoals.map((goal) => (
+            <GoalEntryCard
+              key={goal.id}
+              goal={goal}
+              formatCurrency={finance.formatCurrency}
+              onPressDetails={(g) => router.push(`/profile/goal-detail/${g.id}`)}
+              onEdit={openEdit}
+              onDelete={setDeleteTarget}
+            />
+          ))
         )}
       </ScrollView>
 
@@ -204,15 +150,9 @@ export default function ManageGoalsScreen() {
       <ConfirmDeleteModal
         visible={Boolean(deleteTarget)}
         title="Delete goal?"
-        message={
-          deleteTarget
-            ? `Delete "${deleteTarget.title}"?`
-            : 'Delete this goal?'
-        }
+        message={deleteTarget ? `Delete "${deleteTarget.title}"?` : 'Delete this goal?'}
         onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          void handleDelete();
-        }}
+        onConfirm={() => { void handleDelete(); }}
       />
     </SafeAreaView>
   );
