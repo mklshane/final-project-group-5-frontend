@@ -286,7 +286,7 @@ export default function HomeScreen() {
             <View style={s.sectionHeader}>
               <Text style={[s.sectionTitle, { color: theme.tertiary }]}>GOALS</Text>
               <Pressable onPress={() => router.push('/profile/manage-goals')} hitSlop={10}>
-                <Text style={[s.sectionLink, { color: theme.secondary }]}>View all</Text>
+                <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
               </Pressable>
             </View>
             <View style={s.goalList}>
@@ -306,7 +306,7 @@ export default function HomeScreen() {
           <View style={s.sectionHeader}>
             <Text style={[s.sectionTitle, { color: theme.tertiary }]}>BUDGETS</Text>
             <Pressable onPress={() => router.push('/profile/manage-budgets')} hitSlop={10}>
-              <Text style={[s.sectionLink, { color: theme.secondary }]}>Manage</Text>
+              <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
             </Pressable>
           </View>
 
