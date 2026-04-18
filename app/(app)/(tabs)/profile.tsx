@@ -21,15 +21,15 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 }}>
-        <Text className="text-3xl font-extrabold tracking-tight mb-4" style={{ color: theme.text }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 36 }}>
+        <Text className="text-3xl font-extrabold tracking-tight mb-5" style={{ color: theme.text }}>
           Settings
         </Text>
 
         <TouchableOpacity
           onPress={() => router.push('/profile/profile-details')}
           activeOpacity={0.8}
-          className="rounded-2xl border mb-2"
+          className="rounded-2xl border mb-4"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
         >
           <View className="flex-row items-center justify-between">
@@ -66,7 +66,7 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">WALLETS</Text>
+        <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mb-3">WALLETS</Text>
 
         <WalletPreviewSection wallets={finance.wallets} formatCurrency={finance.formatCurrency} />
 
@@ -102,13 +102,13 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">MANAGE</Text>
+        <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-6 mb-3">MANAGE</Text>
 
         <TouchableOpacity
           onPress={() => router.push('/profile/manage-categories')}
           activeOpacity={0.8}
           className="rounded-2xl border"
-          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14, marginTop: 10 }}
         >
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 pr-3">
@@ -139,8 +139,8 @@ export default function ProfileScreen() {
         <TouchableOpacity
           onPress={() => router.push('/profile/manage-goals')}
           activeOpacity={0.8}
-          className="rounded-2xl border mt-3"
-          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+          className="rounded-2xl border"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14, marginTop: 10 }}
         >
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 pr-3">
@@ -171,8 +171,8 @@ export default function ProfileScreen() {
         <TouchableOpacity
           onPress={() => router.push('/profile/manage-debt')}
           activeOpacity={0.8}
-          className="rounded-2xl border mt-3"
-          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+          className="rounded-2xl border"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14, marginTop: 10 }}
         >
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 pr-3">
@@ -203,8 +203,8 @@ export default function ProfileScreen() {
         <TouchableOpacity
           onPress={() => router.push('/profile/manage-money-owed-to-you')}
           activeOpacity={0.8}
-          className="rounded-2xl border mt-3"
-          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
+          className="rounded-2xl border"
+          style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14, marginTop: 10 }}
         >
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 pr-3">
@@ -232,14 +232,14 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        <View className="mt-5">
+        <View className="mt-6">
           <AppearanceModeSelector />
         </View>
 
         <TouchableOpacity
           onPress={signOut}
           activeOpacity={0.7}
-          className="flex-row items-center justify-center w-full rounded-2xl h-[56px] mt-6 border"
+          className="flex-row items-center justify-center w-full rounded-2xl h-[56px] mt-5 border"
           style={{ backgroundColor: theme.surface, borderColor: theme.border }}
         >
           <Ionicons name="log-out-outline" size={20} color="#FF6B6B" style={{ marginRight: 8 }} />

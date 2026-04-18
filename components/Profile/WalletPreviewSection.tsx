@@ -34,15 +34,15 @@ export function WalletPreviewSection({ wallets, formatCurrency }: WalletPreviewS
 
 const s = StyleSheet.create({
   list: {
-    gap: 6,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 10,
   },
   emptyWrap: {
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 14,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   emptyText: {
     fontSize: 13,
