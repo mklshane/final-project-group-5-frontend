@@ -657,7 +657,8 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
       const id = createId();
       const version = 1;
-      const date = input.date ?? nowIso();
+      const timestamp = nowIso();
+      const date = input.date ?? timestamp;
       const resolvedWalletId =
         input.walletId ??
         state.wallets.find((wallet) => wallet.is_default && !wallet.deleted_at)?.id ??
@@ -675,8 +676,8 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         date,
         note: input.note ?? null,
         version,
-        created_at: date,
-        updated_at: date,
+        created_at: timestamp,
+        updated_at: timestamp,
         deleted_at: null,
       };
 
@@ -691,7 +692,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
             ...walletToAdjust,
             current_balance: toNumber(walletToAdjust.current_balance) + walletDelta,
             version: Math.max(1, walletToAdjust.version + 1),
-            updated_at: date,
+            updated_at: timestamp,
           }
         : null;
 

@@ -19,6 +19,29 @@ const toDateLabel = (value: string) => {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const toTimeLabel = (value: string | null | undefined) => {
+  if (!value) return '--:--';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return '--:--';
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return '--:--';
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+};
+
+const toDaysLabel = (value: string | null | undefined) => {
+  if (!value) return 'No due date';
+  const parsed = new Date(`${value}T00:00:00`);
+  if (!Number.isFinite(parsed.getTime())) return 'No due date';
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.ceil((parsed.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (diffDays > 0) return `${diffDays} day${diffDays === 1 ? '' : 's'} to go`;
+  if (diffDays === 0) return 'Due today';
+  const overdueDays = Math.abs(diffDays);
+  return `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`;
+};
+
 export default function DebtDetailScreen() {
   const theme = useTheme();
   const { state, updateDebt, deleteDebt, addTransaction } = useFinanceData();
@@ -74,9 +97,13 @@ export default function DebtDetailScreen() {
   const dateLabel = isOwe ? 'Due Date' : 'Expected By';
   const directionLabel = isOwe ? `You owe ${personName}` : `${personName} owes you`;
   const statusLabel = isSettled ? (isOwe ? 'Settled' : 'Collected') : 'Active';
+  const timelineLabel = toDaysLabel(debt.due_date);
+  const subtitleLabel = debt.due_date ? `${dateLabel}: ${toDateLabel(debt.due_date)}` : 'No due date';
 
   const accentColor = isOwe ? theme.orange : (theme.isDark ? theme.green : '#3F7D36');
   const accentBg = isOwe ? 'rgba(255,173,92,0.12)' : (theme.isDark ? 'rgba(61,217,123,0.12)' : 'rgba(63,125,54,0.10)');
+  const logButtonColor = theme.isDark ? theme.lime : '#3F7D36';
+  const logButtonLabelColor = theme.isDark ? theme.bg : '#FFFFFF';
   const directionIcon: React.ComponentProps<typeof Ionicons>['name'] = isOwe
     ? 'arrow-up-circle'
     : 'arrow-down-circle';
@@ -161,66 +188,76 @@ export default function DebtDetailScreen() {
       <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-          <View style={s.pillRow}>
-            <View style={s.pillMainRow}>
-              <View style={[s.directionPill, { backgroundColor: accentBg }]}> 
-                <Ionicons name={directionIcon} size={13} color={accentColor} />
-                <Text style={[s.directionPillText, { color: accentColor }]}>{directionLabel}</Text>
+          <View style={[s.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={s.heroHeaderRow}>
+              <View style={s.heroTextBlock}>
+                <Text style={[s.heroTitle, { color: theme.text }]} numberOfLines={1}>{personName}</Text>
+                <Text style={[s.heroSubtitle, { color: theme.secondary }]} numberOfLines={1}>{subtitleLabel}</Text>
               </View>
+
+              <View style={s.heroHeaderRight}>
+                <View style={[s.changePill, { backgroundColor: accentBg }]}> 
+                  <Ionicons
+                    name={isSettled ? 'checkmark-circle' : 'arrow-up-circle'}
+                    size={13}
+                    color={accentColor}
+                  />
+                  <Text style={[s.changePillText, { color: accentColor }]}>{progress}%</Text>
+                </View>
+                <Text style={[s.changeCaption, { color: theme.secondary }]}>
+                  {isOwe ? 'Payment progress' : 'Collection progress'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={s.metaRow}>
               <View style={[s.statusPill, { backgroundColor: isSettled ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}> 
-                <Text style={[s.statusPillText, { color: isSettled ? theme.green : theme.secondary }]}>
+                <Text style={[s.statusPillText, { color: isSettled ? theme.green : theme.secondary }]}> 
                   {statusLabel}
                 </Text>
               </View>
+
+              <View style={s.metaActions}>
+                <Pressable
+                  onPress={() => setEditorVisible(true)}
+                  style={[s.metaActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="create-outline" size={15} color={theme.text} />
+                </Pressable>
+                <Pressable
+                  onPress={() => setDeleteVisible(true)}
+                  style={[s.metaActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={15} color={theme.red} />
+                </Pressable>
+              </View>
             </View>
 
-            <View style={s.pillActions}>
-              <Pressable
-                onPress={() => setEditorVisible(true)}
-                style={[s.pillActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
-                hitSlop={8}
-              >
-                <Ionicons name="create-outline" size={15} color={theme.text} />
-              </Pressable>
-              <Pressable
-                onPress={() => setDeleteVisible(true)}
-                style={[s.pillActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
-                hitSlop={8}
-              >
-                <Ionicons name="trash-outline" size={15} color={theme.red} />
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={[s.balanceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[s.balanceLabel, { color: theme.secondary }]}>REMAINING</Text>
-            <Text style={[s.balanceAmount, { color: theme.text }]}>{finance.formatCurrency(remainingAmount)}</Text>
-
-            <View style={[s.divider, { backgroundColor: theme.border }]} />
-
-            <View style={s.balanceRow}>
-              <Text style={[s.balanceMeta, { color: theme.secondary }]}>{paidLabel}</Text>
-              <Text style={[s.balanceMetaValue, { color: theme.text }]}>{finance.formatCurrency(paidAmount)}</Text>
-            </View>
-            <View style={s.balanceRow}>
-              <Text style={[s.balanceMeta, { color: theme.secondary }]}>Total</Text>
-              <Text style={[s.balanceMetaValue, { color: theme.text }]}>{finance.formatCurrency(totalAmount)}</Text>
-            </View>
-
-            {paidAmount > 0 && totalAmount > 0 ? (
-              <View style={s.progressSection}>
-                <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}>
-                  <View style={[s.progressFill, { width: `${progress}%`, backgroundColor: accentColor }]} />
-                </View>
-                <Text style={[s.progressLabel, { color: theme.tertiary }]}>
-                  {progress}% {isOwe ? 'paid' : 'collected'}
+            <View style={[s.progressOverviewCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <View style={s.progressAmountRow}>
+                <Text style={[s.progressPrimaryAmount, { color: remainingAmount > 0 ? theme.text : theme.green }]}> 
+                  {finance.formatCurrency(paidAmount)}
+                </Text>
+                <Text style={[s.progressSecondaryAmount, { color: theme.secondary }]}> 
+                  {finance.formatCurrency(totalAmount)}
                 </Text>
               </View>
-            ) : null}
+
+              <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}> 
+                <View style={[s.progressFill, { width: `${progress}%`, backgroundColor: accentColor }]} />
+              </View>
+
+              <View style={s.progressFooterRow}>
+                <Text style={[s.progressFooterText, { color: theme.secondary }]}>{timelineLabel}</Text>
+                <Text style={[s.progressFooterPercent, { color: theme.text }]}>{progress}%</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={[s.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={[s.infoRow, { borderBottomColor: theme.border }]}>
+          <View style={[s.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={[s.infoRow, { borderBottomColor: theme.border }]}> 
               <View style={s.infoLeft}>
                 <Ionicons name="calendar-outline" size={15} color={theme.tertiary} />
                 <Text style={[s.infoKey, { color: theme.secondary }]}>{dateLabel}</Text>
@@ -229,12 +266,12 @@ export default function DebtDetailScreen() {
             </View>
 
             {isOwe ? (
-              <View style={[s.infoRow, { borderBottomColor: theme.border }]}>
+              <View style={[s.infoRow, { borderBottomColor: theme.border }]}> 
                 <View style={s.infoLeft}>
                   <Ionicons name="person-outline" size={15} color={theme.tertiary} />
                   <Text style={[s.infoKey, { color: theme.secondary }]}>Type</Text>
                 </View>
-                <Text style={[s.infoValue, { color: theme.text }]}>
+                <Text style={[s.infoValue, { color: theme.text }]}> 
                   {(debt.counterparty_kind ?? 'person').charAt(0).toUpperCase() +
                     (debt.counterparty_kind ?? 'person').slice(1)}
                 </Text>
@@ -258,28 +295,36 @@ export default function DebtDetailScreen() {
           </View>
 
           {paymentTransactions.length > 0 ? (
-            <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[s.historySectionLabel, { color: theme.secondary }]}>PAYMENT HISTORY</Text>
+            <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+              <Text style={[s.historySectionLabel, { color: theme.secondary }]}>TRANSACTIONS</Text>
               {paymentTransactions.map((tx, index) => {
                 const wallet = state.wallets.find((w) => w.id === tx.wallet_id);
-                const category = state.categories.find((c) => c.id === tx.category_id);
                 const isLast = index === paymentTransactions.length - 1;
+                const transactionTime = toTimeLabel(tx.created_at ?? tx.updated_at ?? null);
                 return (
                   <View
                     key={tx.id}
                     style={[
                       s.historyRow,
-                      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
+                      {
+                        backgroundColor: theme.surfaceAlt,
+                        borderColor: theme.border,
+                      },
+                      !isLast && s.historyRowGap,
                     ]}
                   >
                     <View style={s.historyLeft}>
-                      <Text style={[s.historyDate, { color: theme.text }]}>{toDateLabel(tx.date)}</Text>
-                      <Text style={[s.historyMeta, { color: theme.tertiary }]}>
-                        {wallet?.name ?? 'Wallet'}
-                        {category ? ` · ${category.name}` : ''}
-                      </Text>
+                      <View style={s.historyTopRow}>
+                        <Text style={[s.historyDate, { color: theme.text }]}>{toDateLabel(tx.date)}</Text>
+                        {wallet?.name ? (
+                          <View style={[s.walletPill, { backgroundColor: theme.surfaceDeep, borderColor: theme.border }]}> 
+                            <Text style={[s.walletPillText, { color: theme.secondary }]} numberOfLines={1}>{wallet.name}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={[s.historyMeta, { color: theme.tertiary }]}>{transactionTime}</Text>
                     </View>
-                    <Text style={[s.historyAmount, { color: accentColor }]}>
+                    <Text style={[s.historyAmount, { color: accentColor }]}> 
                       {finance.formatCurrency(tx.amount)}
                     </Text>
                   </View>
@@ -287,7 +332,6 @@ export default function DebtDetailScreen() {
               })}
             </View>
           ) : null}
-
         </ScrollView>
 
         <View style={[s.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
@@ -297,17 +341,18 @@ export default function DebtDetailScreen() {
             style={[
               s.logButton,
               {
-                backgroundColor: isSettled ? theme.surfaceDeep : (theme.isDark ? theme.lime : '#3F7D36'),
-                borderColor: isSettled ? theme.border : (theme.isDark ? theme.lime : '#3F7D36'),
+                backgroundColor: logButtonColor,
+                borderColor: logButtonColor,
+                opacity: isSettled ? 0.6 : 1,
               },
             ]}
           >
             <Ionicons
               name={isOwe ? 'cash-outline' : 'wallet-outline'}
               size={16}
-              color={isSettled ? theme.tertiary : (theme.isDark ? theme.bg : '#FFFFFF')}
+              color={logButtonLabelColor}
             />
-            <Text style={[s.logButtonText, { color: isSettled ? theme.tertiary : (theme.isDark ? theme.bg : '#FFFFFF') }]}>
+            <Text style={[s.logButtonText, { color: logButtonLabelColor }]}> 
               {isOwe ? 'Log Payment' : 'Log Collection'}
             </Text>
           </Pressable>
@@ -355,46 +400,61 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
-  pillRow: {
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 14,
+    marginBottom: 12,
+  },
+  heroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  heroTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
+  },
+  heroHeaderRight: {
+    alignItems: 'flex-end',
+    gap: 5,
+    flexShrink: 0,
+  },
+  changePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  changePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  changeCaption: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 3,
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    marginBottom: 16,
-  },
-  pillMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    minWidth: 0,
-  },
-  pillActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pillActionBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  directionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 999,
-    flexShrink: 1,
-  },
-  directionPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.1,
+    marginBottom: 10,
   },
   statusPill: {
     paddingHorizontal: 11,
@@ -406,47 +466,43 @@ const s = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.1,
   },
-  balanceCard: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
-  },
-  balanceLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    marginBottom: 6,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: -1,
-    marginBottom: 16,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginBottom: 12,
-  },
-  balanceRow: {
+  metaActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+  },
+  metaActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressOverviewCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  progressAmountRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  balanceMeta: {
-    fontSize: 13,
-    fontWeight: '500',
+  progressPrimaryAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
-  balanceMetaValue: {
-    fontSize: 13,
+  progressSecondaryAmount: {
+    fontSize: 14,
     fontWeight: '600',
-  },
-  progressSection: {
-    marginTop: 14,
+    letterSpacing: -0.3,
   },
   progressTrack: {
-    height: 6,
+    height: 7,
     borderRadius: 999,
     overflow: 'hidden',
   },
@@ -454,10 +510,22 @@ const s = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
-  progressLabel: {
-    marginTop: 6,
-    fontSize: 11,
+  progressFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  progressFooterText: {
+    fontSize: 13,
     fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
+  progressFooterPercent: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   infoCard: {
     borderWidth: 1,
@@ -498,30 +566,54 @@ const s = StyleSheet.create({
   historyCard: {
     borderWidth: 1,
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: 'visible',
     marginBottom: 16,
+    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   historySectionLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: 6,
     paddingBottom: 10,
   },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  historyRowGap: {
+    marginBottom: 8,
   },
   historyLeft: {
     flex: 1,
-    gap: 2,
+    gap: 4,
+  },
+  historyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
   },
   historyDate: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  walletPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    maxWidth: 120,
+  },
+  walletPillText: {
+    fontSize: 11,
     fontWeight: '600',
   },
   historyMeta: {
@@ -529,7 +621,7 @@ const s = StyleSheet.create({
     fontWeight: '500',
   },
   historyAmount: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     marginLeft: 8,
   },

@@ -15,6 +15,14 @@ const toDateLabel = (value: string) => {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const toTimeLabel = (value: string | null | undefined) => {
+  if (!value) return '--:--';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return '--:--';
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return '--:--';
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+};
+
 const toDaysLabel = (value: string | null | undefined) => {
   if (!value) return 'No target date';
   const parsed = new Date(`${value}T00:00:00`);
@@ -157,8 +165,9 @@ export default function GoalDetailScreen() {
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           <View style={[s.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
             <View style={s.heroHeaderRow}>
-              <View style={[s.heroIconWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
-                <Ionicons name="car-sport-outline" size={22} color={accentColor} />
+              <View style={s.heroTextBlock}>
+                <Text style={[s.heroTitle, { color: theme.text }]} numberOfLines={1}>{goal.title}</Text>
+                <Text style={[s.heroSubtitle, { color: theme.secondary }]} numberOfLines={1}>{subtitleLabel}</Text>
               </View>
 
               <View style={s.heroHeaderRight}>
@@ -173,9 +182,6 @@ export default function GoalDetailScreen() {
                 <Text style={[s.changeCaption, { color: theme.secondary }]}>Progress to target</Text>
               </View>
             </View>
-
-            <Text style={[s.heroTitle, { color: theme.text }]}>{goal.title}</Text>
-            <Text style={[s.heroSubtitle, { color: theme.secondary }]}>{subtitleLabel}</Text>
 
             <View style={s.metaRow}>
               <View style={[s.statusPill, { backgroundColor: isCompleted ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}> 
@@ -247,23 +253,23 @@ export default function GoalDetailScreen() {
             <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
               <Text style={[s.historySectionLabel, { color: theme.secondary }]}>TRANSACTIONS</Text>
               {contributionTransactions.map((transaction, index) => {
-                const wallet = state.wallets.find((entry) => entry.id === transaction.wallet_id);
-                const category = state.categories.find((entry) => entry.id === transaction.category_id);
                 const isLast = index === contributionTransactions.length - 1;
+                const transactionTime = toTimeLabel(transaction.created_at ?? transaction.updated_at ?? null);
                 return (
                   <View
                     key={transaction.id}
                     style={[
                       s.historyRow,
-                      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
+                      {
+                        backgroundColor: theme.surfaceAlt,
+                        borderColor: theme.border,
+                      },
+                      !isLast && s.historyRowGap,
                     ]}
                   >
                     <View style={s.historyLeft}>
                       <Text style={[s.historyDate, { color: theme.text }]}>{toDateLabel(transaction.date)}</Text>
-                      <Text style={[s.historyMeta, { color: theme.tertiary }]}> 
-                        {wallet?.name ?? 'Wallet'}
-                        {category ? ` · ${category.name}` : ''}
-                      </Text>
+                      <Text style={[s.historyMeta, { color: theme.tertiary }]}>{transactionTime}</Text>
                     </View>
                     <Text style={[s.historyAmount, { color: accentColor }]}>{finance.formatCurrency(transaction.amount)}</Text>
                   </View>
@@ -339,20 +345,18 @@ const s = StyleSheet.create({
   heroHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 10,
   },
-  heroIconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
   },
   heroHeaderRight: {
     alignItems: 'flex-end',
     gap: 5,
+    flexShrink: 0,
   },
   changePill: {
     flexDirection: 'row',
@@ -372,15 +376,14 @@ const s = StyleSheet.create({
     fontWeight: '500',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.7,
-    marginBottom: 4,
+    letterSpacing: -0.5,
   },
   heroSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    marginBottom: 10,
+    marginTop: 3,
   },
   metaRow: {
     flexDirection: 'row',
@@ -499,30 +502,37 @@ const s = StyleSheet.create({
   historyCard: {
     borderWidth: 1,
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: 'visible',
     marginBottom: 16,
+    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   historySectionLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: 6,
     paddingBottom: 10,
   },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  historyRowGap: {
+    marginBottom: 8,
   },
   historyLeft: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   historyDate: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   historyMeta: {
@@ -530,7 +540,7 @@ const s = StyleSheet.create({
     fontWeight: '500',
   },
   historyAmount: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     marginLeft: 8,
   },
