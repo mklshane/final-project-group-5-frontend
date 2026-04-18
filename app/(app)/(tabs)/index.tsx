@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,9 +14,6 @@ import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
-import { ActivityIndicator } from 'react-native';
-
-const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -130,7 +127,7 @@ export default function HomeScreen() {
           <View style={s.cardDeco2} />
 
           <View style={s.cardHeaderRow}>
-            <Text style={[s.cardLabel, { color: heroSub }]}>TODAY'S FLOW</Text>
+            <Text style={[s.cardLabel, { color: heroSub }]}>TODAY&apos;S FLOW</Text>
           </View>
 
           <View style={s.cardStatsRow}>
@@ -162,7 +159,7 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(200).duration(600)} style={s.walletSection}>
             <View style={s.sectionHeader}>
               <Text style={[s.sectionTitle, { color: theme.tertiary }]}>ACCOUNTS</Text>
-              <Pressable onPress={() => router.push('/(app)/profile/manage-wallets')} hitSlop={10}>
+              <Pressable onPress={() => router.push('/profile/manage-wallets')} hitSlop={10}>
                 <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
               </Pressable>
             </View>
@@ -220,7 +217,7 @@ export default function HomeScreen() {
                   key={entry.id}
                   entry={entry}
                   formatCurrency={finance.formatCurrency}
-                  onPress={() => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+                  onPress={() => router.push(`/profile/debt-detail/${entry.id}`)}
                 />
               ))}
             </View>

@@ -35,7 +35,7 @@ export default function GoalDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Goal Details' }} />
-        <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}> 
+        <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
           <View style={s.emptyWrap}>
             <Text style={[s.emptyTitle, { color: theme.text }]}>Goal not found</Text>
             <Text style={[s.emptyBody, { color: theme.secondary }]}>This goal may have been deleted or moved.</Text>

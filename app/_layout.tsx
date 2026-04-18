@@ -43,7 +43,7 @@ function RootLayoutNav() {
       if (!profile.onboarding_done && !inOnboarding) {
         router.replace('/(onboarding)/step-1-currency');
       } else if (profile.onboarding_done && !inApp) {
-        router.replace('/(app)');
+        router.replace('/(app)/(tabs)');
       }
     } else {
       // Session exists but profile is still loading — wait before navigating.

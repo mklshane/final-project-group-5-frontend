@@ -74,35 +74,35 @@ export default function ManageCategoriesScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}> 
+    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={[s.heroCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[s.heroCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Text style={[s.title, { color: theme.text }]}>Categories</Text>
           <Text style={[s.subtitle, { color: theme.secondary }]}>Build a cleaner taxonomy for spending and income analytics.</Text>
 
           <View style={s.metricsRow}>
-            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
               <Text style={[s.metricLabel, { color: theme.secondary }]}>TOTAL</Text>
               <Text style={[s.metricValue, { color: theme.text }]}>{customCount}</Text>
             </View>
-            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
               <Text style={[s.metricLabel, { color: theme.secondary }]}>EXPENSE</Text>
               <Text style={[s.metricValue, { color: theme.text }]}>{expenseCategories.length}</Text>
             </View>
-            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
               <Text style={[s.metricLabel, { color: theme.secondary }]}>INCOME</Text>
               <Text style={[s.metricValue, { color: theme.text }]}>{incomeCategories.length}</Text>
             </View>
           </View>
 
-          <Pressable onPress={openCreateModal} style={[s.addButton, { backgroundColor: theme.isDark ? theme.lime : '#3F7D36' }]}> 
+          <Pressable onPress={openCreateModal} style={[s.addButton, { backgroundColor: theme.isDark ? theme.lime : '#3F7D36' }]}>
             <Ionicons name="add" size={18} color={theme.isDark ? theme.bg : '#FFFFFF'} />
             <Text style={[s.addLabel, { color: theme.isDark ? theme.bg : '#FFFFFF' }]}>Add New Category</Text>
           </Pressable>
         </View>
 
         {loading ? (
-          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={{ color: theme.secondary }}>Loading categories...</Text>
           </View>
         ) : (

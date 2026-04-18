@@ -7,8 +7,8 @@ export default function Index() {
 
   if (loading) return <SplashScreenView />;
   if (!session) return <Redirect href="/(auth)/welcome" />;
-  if (!profile) return <Redirect href="/(app)" />;
+  if (!profile) return <Redirect href="/(app)/(tabs)" />;
   if (!profile.onboarding_done) return <Redirect href="/(onboarding)/step-1-currency" />;
 
-  return <Redirect href="/(app)" />;
+  return <Redirect href="/(app)/(tabs)" />;
 }

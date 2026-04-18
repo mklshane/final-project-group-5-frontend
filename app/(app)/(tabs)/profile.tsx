@@ -27,7 +27,7 @@ export default function ProfileScreen() {
         </Text>
 
         <TouchableOpacity
-          onPress={() => router.push('/(app)/profile/profile-details')}
+          onPress={() => router.push('/profile/profile-details')}
           activeOpacity={0.8}
           className="rounded-2xl border mb-2"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
@@ -71,7 +71,7 @@ export default function ProfileScreen() {
         <WalletPreviewSection wallets={finance.wallets} formatCurrency={finance.formatCurrency} />
 
         <TouchableOpacity
-          onPress={() => router.push('/(app)/profile/manage-wallets')}
+          onPress={() => router.push('/profile/manage-wallets')}
           activeOpacity={0.8}
           className="rounded-2xl border"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
@@ -105,7 +105,7 @@ export default function ProfileScreen() {
         <Text className="text-secondary text-[11px] font-extrabold tracking-[2px] mt-5 mb-3">MANAGE</Text>
 
         <TouchableOpacity
-          onPress={() => router.push('/(app)/profile/manage-categories')}
+          onPress={() => router.push('/profile/manage-categories')}
           activeOpacity={0.8}
           className="rounded-2xl border"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
@@ -137,7 +137,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push('/(app)/profile/manage-goals')}
+          onPress={() => router.push('/profile/manage-goals')}
           activeOpacity={0.8}
           className="rounded-2xl border mt-3"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
@@ -169,7 +169,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push('/(app)/profile/manage-debt')}
+          onPress={() => router.push('/profile/manage-debt')}
           activeOpacity={0.8}
           className="rounded-2xl border mt-3"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}
@@ -201,7 +201,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push('/(app)/profile/manage-money-owed-to-you')}
+          onPress={() => router.push('/profile/manage-money-owed-to-you')}
           activeOpacity={0.8}
           className="rounded-2xl border mt-3"
           style={{ backgroundColor: theme.surface, borderColor: theme.border, paddingHorizontal: 14, paddingVertical: 14 }}

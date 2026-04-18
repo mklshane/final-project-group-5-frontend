@@ -77,7 +77,6 @@ export default function DebtDetailScreen() {
     ? 'arrow-up-circle'
     : 'arrow-down-circle';
 
-  // Wallets and fixed category for the payment modal
   const activeWallets = state.wallets.filter((wallet) => !wallet.deleted_at);
 
   const fixedCategoryName = isOwe ? DEBT_PAYMENT_CATEGORY_NAME : DEBT_COLLECTION_CATEGORY_NAME;
@@ -88,7 +87,6 @@ export default function DebtDetailScreen() {
         !category.deleted_at && category.name.trim().toLowerCase() === normalizedCategoryName
     ) ?? null;
 
-  // Transactions linked to this debt via note marker
   const debtMarker = `[#debt:${debtId}]`;
   const paymentTransactions = state.transactions
     .filter((tx) => !tx.deleted_at && tx.note?.includes(debtMarker))
@@ -134,7 +132,6 @@ export default function DebtDetailScreen() {
       <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-          {/* Direction + status pills */}
           <View style={s.pillRow}>
             <View style={[s.directionPill, { backgroundColor: accentBg }]}>
               <Ionicons name={directionIcon} size={13} color={accentColor} />
@@ -147,7 +144,6 @@ export default function DebtDetailScreen() {
             </View>
           </View>
 
-          {/* Balance card */}
           <View style={[s.balanceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[s.balanceLabel, { color: theme.secondary }]}>REMAINING</Text>
             <Text style={[s.balanceAmount, { color: theme.text }]}>{finance.formatCurrency(remainingAmount)}</Text>
@@ -175,7 +171,6 @@ export default function DebtDetailScreen() {
             ) : null}
           </View>
 
-          {/* Details — iOS settings-style rows */}
           <View style={[s.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={[s.infoRow, { borderBottomColor: theme.border }]}>
               <View style={s.infoLeft}>
@@ -214,7 +209,6 @@ export default function DebtDetailScreen() {
             </View>
           </View>
 
-          {/* Payment History */}
           {paymentTransactions.length > 0 ? (
             <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Text style={[s.historySectionLabel, { color: theme.secondary }]}>PAYMENT HISTORY</Text>
@@ -248,7 +242,6 @@ export default function DebtDetailScreen() {
 
         </ScrollView>
 
-        {/* Fixed bottom CTA */}
         <View style={[s.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
           <Pressable
             onPress={() => setPaymentVisible(true)}
@@ -296,8 +289,6 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
-
-  // Pills
   pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -327,8 +318,6 @@ const s = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.1,
   },
-
-  // Balance card
   balanceCard: {
     borderWidth: 1,
     borderRadius: 20,
@@ -382,8 +371,6 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
-
-  // Info card
   infoCard: {
     borderWidth: 1,
     borderRadius: 20,
@@ -420,8 +407,6 @@ const s = StyleSheet.create({
     maxWidth: '55%',
     textAlign: 'right',
   },
-
-  // Payment history card
   historyCard: {
     borderWidth: 1,
     borderRadius: 20,
@@ -460,16 +445,12 @@ const s = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 8,
   },
-
-  // Fixed footer
   footer: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-
-  // CTA button
   logButton: {
     height: 52,
     borderRadius: 16,
@@ -484,8 +465,6 @@ const s = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-
-  // Empty state
   emptyWrap: {
     flex: 1,
     alignItems: 'center',

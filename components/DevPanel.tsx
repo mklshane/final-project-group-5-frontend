@@ -35,10 +35,10 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: 'App',
     items: [
-      { label: 'Home', route: '/(app)', icon: 'home-outline' },
-      { label: 'Activity', route: '/(app)/activity', icon: 'list-outline' },
-      { label: 'Insights', route: '/(app)/insights', icon: 'pie-chart-outline' },
-      { label: 'Profile', route: '/(app)/profile', icon: 'person-outline' },
+      { label: 'Home', route: '/(app)/(tabs)', icon: 'home-outline' },
+      { label: 'Activity', route: '/(app)/(tabs)/activity', icon: 'list-outline' },
+      { label: 'Insights', route: '/(app)/(tabs)/insights', icon: 'pie-chart-outline' },
+      { label: 'Profile', route: '/(app)/(tabs)/profile', icon: 'person-outline' },
     ],
   },
   {

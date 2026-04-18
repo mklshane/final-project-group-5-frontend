@@ -90,24 +90,24 @@ export default function ManageDebtScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}> 
+    <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={[s.heroCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[s.heroCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Text style={[s.title, { color: theme.text }]}>Debt</Text>
           <Text style={[s.subtitle, { color: theme.secondary }]}>Track balances, keep due dates visible, and manage payment progress.</Text>
 
           <View style={s.metricsRow}>
-            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
               <Text style={[s.metricLabel, { color: theme.secondary }]}>REMAINING</Text>
               <Text style={[s.metricValue, { color: theme.text }]}>{finance.formatCurrency(finance.debts.totals.oweRemaining)}</Text>
             </View>
-            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+            <View style={[s.metricCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
               <Text style={[s.metricLabel, { color: theme.secondary }]}>OPEN ITEMS</Text>
               <Text style={[s.metricValue, { color: theme.text }]}>{unsettledDebts.length}</Text>
             </View>
           </View>
 
-          <Pressable onPress={openCreate} style={[s.addButton, { backgroundColor: theme.isDark ? theme.lime : '#3F7D36' }]}> 
+          <Pressable onPress={openCreate} style={[s.addButton, { backgroundColor: theme.isDark ? theme.lime : '#3F7D36' }]}>
             <Ionicons name="add" size={18} color={theme.isDark ? theme.bg : '#FFFFFF'} />
             <Text style={[s.addLabel, { color: theme.isDark ? theme.bg : '#FFFFFF' }]}>Add Debt</Text>
           </Pressable>
@@ -115,11 +115,11 @@ export default function ManageDebtScreen() {
 
         <Text style={[s.sectionTitle, { color: theme.secondary }]}>ACTIVE</Text>
         {loading ? (
-          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <View style={[s.loadingCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={{ color: theme.secondary }}>Loading debt entries...</Text>
           </View>
         ) : unsettledDebts.length === 0 ? (
-          <View style={[s.emptyCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <View style={[s.emptyCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={[s.emptyText, { color: theme.secondary }]}>No active debt entries yet.</Text>
           </View>
         ) : (
@@ -128,7 +128,7 @@ export default function ManageDebtScreen() {
               key={debt.id}
               debt={debt}
               formatCurrency={finance.formatCurrency}
-              onPressDetails={(entry) => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+              onPressDetails={(entry) => router.push(`/profile/debt-detail/${entry.id}`)}
               onEdit={openEdit}
               onDelete={setDeleteTarget}
             />
@@ -143,7 +143,7 @@ export default function ManageDebtScreen() {
                 key={debt.id}
                 debt={debt}
                 formatCurrency={finance.formatCurrency}
-                onPressDetails={(entry) => router.push(`/(app)/profile/debt-detail/${entry.id}`)}
+                onPressDetails={(entry) => router.push(`/profile/debt-detail/${entry.id}`)}
                 onEdit={openEdit}
                 onDelete={setDeleteTarget}
               />
