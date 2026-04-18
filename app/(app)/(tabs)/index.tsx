@@ -14,6 +14,7 @@ import { TransactionCard } from '@/components/Base/TransactionCard';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
+import { GoalSummaryCard } from '@/components/Home/GoalSummaryCard';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -99,6 +100,40 @@ export default function HomeScreen() {
     const nearestOwed = [...finance.debts.lists.unsettledOwed].sort(byDue)[0];
     return [nearestOwe, nearestOwed].filter(Boolean) as typeof finance.debts.lists.unsettledOwe;
   }, [finance.debts.lists.unsettledOwe, finance.debts.lists.unsettledOwed]);
+
+  const goalEntries = useMemo(() => {
+    const activeGoals = finance.goals.filter((goal) => {
+      const total = Number.isFinite(goal.target_amount) ? goal.target_amount : 0;
+      const saved = Number.isFinite(goal.saved_amount) ? goal.saved_amount : 0;
+      return Math.max(0, total - saved) > 0;
+    });
+
+    const byPriority = (a: any, b: any) => {
+      const hasDateA = Boolean(a.deadline);
+      const hasDateB = Boolean(b.deadline);
+
+      if (hasDateA && hasDateB) {
+        const dateCompare = String(a.deadline).localeCompare(String(b.deadline));
+        if (dateCompare !== 0) return dateCompare;
+      } else if (hasDateA) {
+        return -1;
+      } else if (hasDateB) {
+        return 1;
+      }
+
+      const totalA = Number.isFinite(a.target_amount) ? a.target_amount : 0;
+      const savedA = Number.isFinite(a.saved_amount) ? a.saved_amount : 0;
+      const progressA = totalA > 0 ? savedA / totalA : 0;
+
+      const totalB = Number.isFinite(b.target_amount) ? b.target_amount : 0;
+      const savedB = Number.isFinite(b.saved_amount) ? b.saved_amount : 0;
+      const progressB = totalB > 0 ? savedB / totalB : 0;
+
+      return progressB - progressA;
+    };
+
+    return [...activeGoals].sort(byPriority).slice(0, 2);
+  }, [finance.goals]);
 
   return (
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: theme.bg }]}> 
@@ -206,8 +241,30 @@ export default function HomeScreen() {
         ) : null}
 
         {/* ── Debt Tracker ─────────────────────────────── */}
+        {goalEntries.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(250).duration(600)} style={s.goalSection}>
+            <View style={s.sectionHeader}>
+              <Text style={[s.sectionTitle, { color: theme.tertiary }]}>GOALS</Text>
+              <Pressable onPress={() => router.push('/profile/manage-goals')} hitSlop={10}>
+                <Text style={[s.sectionLink, { color: theme.secondary }]}>View all</Text>
+              </Pressable>
+            </View>
+            <View style={s.goalList}>
+              {goalEntries.map((goal) => (
+                <GoalSummaryCard
+                  key={goal.id}
+                  goal={goal}
+                  formatCurrency={finance.formatCurrency}
+                  onPress={() => router.push(`/profile/goal-detail/${goal.id}`)}
+                />
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* ── Debt Tracker ─────────────────────────────── */}
         {debtEntries.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(250).duration(600)} style={s.debtSection}>
+          <Animated.View entering={FadeInDown.delay(300).duration(600)} style={s.debtSection}>
             <View style={s.sectionHeader}>
               <Text style={[s.sectionTitle, { color: theme.tertiary }]}>DEBT TRACKER</Text>
             </View>
@@ -225,7 +282,7 @@ export default function HomeScreen() {
         ) : null}
 
         {/* ── Recent Transactions ───────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+        <Animated.View entering={FadeInDown.delay(350).duration(600)}>
           <View style={s.sectionHeader}>
             <Text style={[s.sectionTitle, { color: theme.tertiary }]}>RECENT ACTIVITY</Text>
           </View>
@@ -357,6 +414,8 @@ const s = StyleSheet.create({
   walletName: { fontSize: 12, fontWeight: '600' },
 
   // Debt Section
+  goalSection: { marginBottom: 24 },
+  goalList: { gap: 10 },
   debtSection: { marginBottom: 24 },
   debtList: { gap: 10 },
 
