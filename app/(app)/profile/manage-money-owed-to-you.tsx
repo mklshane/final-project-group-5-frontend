@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { DebtEditorModal } from '@/components/Profile/DebtEditorModal';
 import { OwedEntryCard } from '@/components/Profile/ManageMoneyOwed/OwedEntryCard';
 import { useFinanceData } from '@/context/FinanceDataContext';
@@ -20,11 +19,10 @@ const debtAmounts = (debt: DebtRecord) => {
 export default function ManageMoneyOwedToYouScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { state, loading, addDebt, updateDebt, deleteDebt } = useFinanceData();
+  const { state, loading, addDebt, updateDebt } = useFinanceData();
   const finance = useFinanceSelectors();
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtRecord | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DebtRecord | null>(null);
 
   const owedEntries = useMemo(
     () => state.debts.filter((debt) => !debt.deleted_at && debt.type === 'owed'),
@@ -42,11 +40,6 @@ export default function ManageMoneyOwedToYouScreen() {
 
   const openCreate = () => {
     setSelectedDebt(null);
-    setEditorVisible(true);
-  };
-
-  const openEdit = (debt: DebtRecord) => {
-    setSelectedDebt(debt);
     setEditorVisible(true);
   };
 
@@ -77,13 +70,6 @@ export default function ManageMoneyOwedToYouScreen() {
       dueDate: input.dueDate,
       notes: input.notes,
     });
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const targetId = deleteTarget.id;
-    setDeleteTarget(null);
-    await deleteDebt(targetId);
   };
 
   return (
@@ -126,8 +112,6 @@ export default function ManageMoneyOwedToYouScreen() {
               debt={debt}
               formatCurrency={finance.formatCurrency}
               onPressDetails={(entry) => router.push(`/profile/debt-detail/${entry.id}`)}
-              onEdit={openEdit}
-              onDelete={setDeleteTarget}
             />
           ))
         )}
@@ -141,8 +125,6 @@ export default function ManageMoneyOwedToYouScreen() {
                 debt={debt}
                 formatCurrency={finance.formatCurrency}
                 onPressDetails={(entry) => router.push(`/profile/debt-detail/${entry.id}`)}
-                onEdit={openEdit}
-                onDelete={setDeleteTarget}
               />
             ))}
           </>
@@ -155,20 +137,6 @@ export default function ManageMoneyOwedToYouScreen() {
         initialDebt={selectedDebt}
         onClose={() => setEditorVisible(false)}
         onSave={handleSave}
-      />
-
-      <ConfirmDeleteModal
-        visible={Boolean(deleteTarget)}
-        title="Delete entry?"
-        message={
-          deleteTarget
-            ? `Delete entry for "${deleteTarget.counterparty_name ?? deleteTarget.person_name ?? 'Unknown'}"?`
-            : 'Delete this entry?'
-        }
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          void handleDelete();
-        }}
       />
     </SafeAreaView>
   );

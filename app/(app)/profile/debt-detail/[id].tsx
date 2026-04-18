@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { DebtEditorModal } from '@/components/Profile/DebtEditorModal';
 import { PaymentLogModal } from '@/components/Profile/PaymentLogModal';
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
@@ -19,11 +21,13 @@ const toDateLabel = (value: string) => {
 
 export default function DebtDetailScreen() {
   const theme = useTheme();
-  const { state, updateDebt, addTransaction } = useFinanceData();
+  const { state, updateDebt, deleteDebt, addTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const [paymentVisible, setPaymentVisible] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
 
   const debtId = useMemo(() => {
     if (!params.id) return '';
@@ -126,6 +130,31 @@ export default function DebtDetailScreen() {
     ]);
   };
 
+  const saveDebtEdits = async (input: {
+    counterpartyKind?: 'person' | 'entity' | 'organization';
+    counterpartyName: string;
+    totalAmount: number;
+    amountPaid: number;
+    dueDate: string;
+    notes?: string;
+  }) => {
+    await updateDebt({
+      id: debt.id,
+      counterpartyKind: input.counterpartyKind,
+      counterpartyName: input.counterpartyName,
+      totalAmount: input.totalAmount,
+      amountPaid: input.amountPaid,
+      dueDate: input.dueDate,
+      notes: input.notes,
+    });
+  };
+
+  const confirmDeleteDebt = async () => {
+    setDeleteVisible(false);
+    await deleteDebt(debt.id);
+    router.back();
+  };
+
   return (
     <>
       <Stack.Screen options={{ title: personName }} />
@@ -133,14 +162,33 @@ export default function DebtDetailScreen() {
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
           <View style={s.pillRow}>
-            <View style={[s.directionPill, { backgroundColor: accentBg }]}>
-              <Ionicons name={directionIcon} size={13} color={accentColor} />
-              <Text style={[s.directionPillText, { color: accentColor }]}>{directionLabel}</Text>
+            <View style={s.pillMainRow}>
+              <View style={[s.directionPill, { backgroundColor: accentBg }]}> 
+                <Ionicons name={directionIcon} size={13} color={accentColor} />
+                <Text style={[s.directionPillText, { color: accentColor }]}>{directionLabel}</Text>
+              </View>
+              <View style={[s.statusPill, { backgroundColor: isSettled ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}> 
+                <Text style={[s.statusPillText, { color: isSettled ? theme.green : theme.secondary }]}>
+                  {statusLabel}
+                </Text>
+              </View>
             </View>
-            <View style={[s.statusPill, { backgroundColor: isSettled ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}>
-              <Text style={[s.statusPillText, { color: isSettled ? theme.green : theme.secondary }]}>
-                {statusLabel}
-              </Text>
+
+            <View style={s.pillActions}>
+              <Pressable
+                onPress={() => setEditorVisible(true)}
+                style={[s.pillActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                hitSlop={8}
+              >
+                <Ionicons name="create-outline" size={15} color={theme.text} />
+              </Pressable>
+              <Pressable
+                onPress={() => setDeleteVisible(true)}
+                style={[s.pillActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                hitSlop={8}
+              >
+                <Ionicons name="trash-outline" size={15} color={theme.red} />
+              </Pressable>
             </View>
           </View>
 
@@ -275,6 +323,24 @@ export default function DebtDetailScreen() {
           onClose={() => setPaymentVisible(false)}
           onSave={savePayment}
         />
+
+        <DebtEditorModal
+          visible={editorVisible}
+          mode={debt.type}
+          initialDebt={debt}
+          onClose={() => setEditorVisible(false)}
+          onSave={saveDebtEdits}
+        />
+
+        <ConfirmDeleteModal
+          visible={deleteVisible}
+          title="Delete debt entry?"
+          message={`Delete debt entry for "${personName}"?`}
+          onCancel={() => setDeleteVisible(false)}
+          onConfirm={() => {
+            void confirmDeleteDebt();
+          }}
+        />
       </SafeAreaView>
     </>
   );
@@ -292,8 +358,29 @@ const s = StyleSheet.create({
   pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
     marginBottom: 16,
+  },
+  pillMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  pillActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pillActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   directionPill: {
     flexDirection: 'row',
@@ -302,6 +389,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 999,
+    flexShrink: 1,
   },
   directionPillText: {
     fontSize: 12,

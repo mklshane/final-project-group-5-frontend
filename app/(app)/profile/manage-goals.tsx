@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { GoalEditorModal } from '@/components/Profile/GoalEditorModal';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
@@ -17,13 +16,12 @@ const progressPercent = (goal: GoalRecord) => {
 
 export default function ManageGoalsScreen() {
   const theme = useTheme();
-  const { loading, addGoal, updateGoal, deleteGoal } = useFinanceData();
+  const { loading, addGoal, updateGoal } = useFinanceData();
   const finance = useFinanceSelectors();
   const router = useRouter();
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<GoalRecord | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<GoalRecord | null>(null);
 
   const activeGoals = useMemo(
     () =>
@@ -56,11 +54,6 @@ export default function ManageGoalsScreen() {
     setEditorVisible(true);
   };
 
-  const openEdit = (goal: GoalRecord) => {
-    setSelectedGoal(goal);
-    setEditorVisible(true);
-  };
-
   const handleSave = async (input: {
     title: string;
     targetAmount: number;
@@ -79,13 +72,6 @@ export default function ManageGoalsScreen() {
       savedAmount: input.savedAmount,
       deadline: input.deadline,
     });
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const targetId = deleteTarget.id;
-    setDeleteTarget(null);
-    await deleteGoal(targetId);
   };
 
   return (
@@ -133,8 +119,6 @@ export default function ManageGoalsScreen() {
               goal={goal}
               formatCurrency={finance.formatCurrency}
               onPressDetails={(g) => router.push(`/profile/goal-detail/${g.id}`)}
-              onEdit={openEdit}
-              onDelete={setDeleteTarget}
             />
           ))
         )}
@@ -145,14 +129,6 @@ export default function ManageGoalsScreen() {
         initialGoal={selectedGoal}
         onClose={() => setEditorVisible(false)}
         onSave={handleSave}
-      />
-
-      <ConfirmDeleteModal
-        visible={Boolean(deleteTarget)}
-        title="Delete goal?"
-        message={deleteTarget ? `Delete "${deleteTarget.title}"?` : 'Delete this goal?'}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => { void handleDelete(); }}
       />
     </SafeAreaView>
   );

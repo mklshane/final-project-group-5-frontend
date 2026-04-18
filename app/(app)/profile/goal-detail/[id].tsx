@@ -5,6 +5,8 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { GoalEditorModal } from '@/components/Profile/GoalEditorModal';
 import { GoalContributionModal } from '@/components/Profile/GoalContributionModal';
 
 const toDateLabel = (value: string) => {
@@ -13,13 +15,30 @@ const toDateLabel = (value: string) => {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const toDaysLabel = (value: string | null | undefined) => {
+  if (!value) return 'No target date';
+  const parsed = new Date(`${value}T00:00:00`);
+  if (!Number.isFinite(parsed.getTime())) return 'No target date';
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.ceil((parsed.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (diffDays > 0) return `${diffDays} day${diffDays === 1 ? '' : 's'} to go`;
+  if (diffDays === 0) return 'Due today';
+  const overdueDays = Math.abs(diffDays);
+  return `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`;
+};
+
 export default function GoalDetailScreen() {
   const theme = useTheme();
-  const { state, updateGoal, addTransaction } = useFinanceData();
+  const { state, updateGoal, deleteGoal, addTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const [contributionVisible, setContributionVisible] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
 
   const goalId = useMemo(() => {
     if (!params.id) return '';
@@ -59,6 +78,10 @@ export default function GoalDetailScreen() {
   const accentColor = theme.isDark ? theme.lime : '#3F7D36';
   const accentBg = theme.isDark ? 'rgba(200,245,96,0.10)' : 'rgba(63,125,54,0.10)';
   const statusLabel = isCompleted ? 'Completed' : 'Active';
+  const timelineLabel = toDaysLabel(goal.deadline);
+  const subtitleLabel = goal.deadline ? `Target ${toDateLabel(goal.deadline)}` : 'No target date';
+  const logButtonColor = theme.isDark ? theme.lime : '#3F7D36';
+  const logButtonLabelColor = theme.isDark ? theme.bg : '#FFFFFF';
   const activeWallets = state.wallets.filter((wallet) => !wallet.deleted_at);
   const fixedGoalCategory =
     state.categories.find((category) => {
@@ -106,53 +129,105 @@ export default function GoalDetailScreen() {
     ]);
   };
 
+  const saveGoalEdits = async (input: {
+    title: string;
+    targetAmount: number;
+    savedAmount: number;
+    deadline?: string | null;
+  }) => {
+    await updateGoal({
+      id: goal.id,
+      title: input.title,
+      targetAmount: input.targetAmount,
+      savedAmount: input.savedAmount,
+      deadline: input.deadline,
+    });
+  };
+
+  const confirmDeleteGoal = async () => {
+    setDeleteVisible(false);
+    await deleteGoal(goal.id);
+    router.back();
+  };
+
   return (
     <>
       <Stack.Screen options={{ title: goal.title || 'Goal Details' }} />
       <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          <View style={s.pillRow}>
-            <View style={[s.directionPill, { backgroundColor: accentBg }]}>
-              <Ionicons name="flag-outline" size={13} color={accentColor} />
-              <Text style={[s.directionPillText, { color: accentColor }]}>Saving for {goal.title}</Text>
-            </View>
-            <View style={[s.statusPill, { backgroundColor: isCompleted ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}>
-              <Text style={[s.statusPillText, { color: isCompleted ? theme.green : theme.secondary }]}>{statusLabel}</Text>
-            </View>
-          </View>
-
-          <View style={[s.balanceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[s.balanceLabel, { color: theme.secondary }]}>REMAINING</Text>
-            <Text style={[s.balanceAmount, { color: theme.text }]}>{finance.formatCurrency(remainingAmount)}</Text>
-
-            <View style={[s.divider, { backgroundColor: theme.border }]} />
-
-            <View style={s.balanceRow}>
-              <Text style={[s.balanceMeta, { color: theme.secondary }]}>Saved</Text>
-              <Text style={[s.balanceMetaValue, { color: theme.text }]}>{finance.formatCurrency(savedAmount)}</Text>
-            </View>
-            <View style={s.balanceRow}>
-              <Text style={[s.balanceMeta, { color: theme.secondary }]}>Target</Text>
-              <Text style={[s.balanceMetaValue, { color: theme.text }]}>{finance.formatCurrency(targetAmount)}</Text>
-            </View>
-
-            {targetAmount > 0 ? (
-              <View style={s.progressSection}>
-                <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}>
-                  <View style={[s.progressFill, { width: `${progress}%`, backgroundColor: accentColor }]} />
-                </View>
-                <Text style={[s.progressLabel, { color: theme.tertiary }]}>{progress}% funded</Text>
+          <View style={[s.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={s.heroHeaderRow}>
+              <View style={[s.heroIconWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+                <Ionicons name="car-sport-outline" size={22} color={accentColor} />
               </View>
-            ) : null}
+
+              <View style={s.heroHeaderRight}>
+                <View style={[s.changePill, { backgroundColor: accentBg }]}> 
+                  <Ionicons
+                    name={isCompleted ? 'checkmark-circle' : 'arrow-up-circle'}
+                    size={13}
+                    color={accentColor}
+                  />
+                  <Text style={[s.changePillText, { color: accentColor }]}>{progress}%</Text>
+                </View>
+                <Text style={[s.changeCaption, { color: theme.secondary }]}>Progress to target</Text>
+              </View>
+            </View>
+
+            <Text style={[s.heroTitle, { color: theme.text }]}>{goal.title}</Text>
+            <Text style={[s.heroSubtitle, { color: theme.secondary }]}>{subtitleLabel}</Text>
+
+            <View style={s.metaRow}>
+              <View style={[s.statusPill, { backgroundColor: isCompleted ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}> 
+                <Text style={[s.statusPillText, { color: isCompleted ? theme.green : theme.secondary }]}>{statusLabel}</Text>
+              </View>
+
+              <View style={s.metaActions}>
+                <Pressable
+                  onPress={() => setEditorVisible(true)}
+                  style={[s.metaActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="create-outline" size={15} color={theme.text} />
+                </Pressable>
+                <Pressable
+                  onPress={() => setDeleteVisible(true)}
+                  style={[s.metaActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={15} color={theme.red} />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={[s.progressOverviewCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+              <View style={s.progressAmountRow}>
+                <Text style={[s.progressPrimaryAmount, { color: remainingAmount > 0 ? theme.text : theme.lime }]}> 
+                  {finance.formatCurrency(savedAmount)}
+                </Text>
+                <Text style={[s.progressSecondaryAmount, { color: theme.secondary }]}> 
+                  {finance.formatCurrency(targetAmount)}
+                </Text>
+              </View>
+
+              <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}> 
+                <View style={[s.progressFill, { width: `${progress}%`, backgroundColor: accentColor }]} />
+              </View>
+
+              <View style={s.progressFooterRow}>
+                <Text style={[s.progressFooterText, { color: theme.secondary }]}>{timelineLabel}</Text>
+                <Text style={[s.progressFooterPercent, { color: theme.text }]}>{progress}%</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={[s.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={[s.infoRow, { borderBottomColor: theme.border }]}>
+          <View style={[s.infoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={[s.infoRow, { borderBottomColor: theme.border }]}> 
               <View style={s.infoLeft}>
                 <Ionicons name="calendar-outline" size={15} color={theme.tertiary} />
                 <Text style={[s.infoKey, { color: theme.secondary }]}>Deadline</Text>
               </View>
-              <Text style={[s.infoValue, { color: theme.text }]}>
+              <Text style={[s.infoValue, { color: theme.text }]}> 
                 {goal.deadline ? toDateLabel(goal.deadline) : 'No target date'}
               </Text>
             </View>
@@ -162,15 +237,15 @@ export default function GoalDetailScreen() {
                 <Ionicons name="analytics-outline" size={15} color={theme.tertiary} />
                 <Text style={[s.infoKey, { color: theme.secondary }]}>Progress</Text>
               </View>
-              <Text style={[s.infoValue, { color: theme.text }]}>
+              <Text style={[s.infoValue, { color: theme.text }]}> 
                 {progress}% complete
               </Text>
             </View>
           </View>
 
           {contributionTransactions.length > 0 ? (
-            <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[s.historySectionLabel, { color: theme.secondary }]}>CONTRIBUTION HISTORY</Text>
+            <View style={[s.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+              <Text style={[s.historySectionLabel, { color: theme.secondary }]}>TRANSACTIONS</Text>
               {contributionTransactions.map((transaction, index) => {
                 const wallet = state.wallets.find((entry) => entry.id === transaction.wallet_id);
                 const category = state.categories.find((entry) => entry.id === transaction.category_id);
@@ -185,7 +260,7 @@ export default function GoalDetailScreen() {
                   >
                     <View style={s.historyLeft}>
                       <Text style={[s.historyDate, { color: theme.text }]}>{toDateLabel(transaction.date)}</Text>
-                      <Text style={[s.historyMeta, { color: theme.tertiary }]}>
+                      <Text style={[s.historyMeta, { color: theme.tertiary }]}> 
                         {wallet?.name ?? 'Wallet'}
                         {category ? ` · ${category.name}` : ''}
                       </Text>
@@ -205,13 +280,14 @@ export default function GoalDetailScreen() {
             style={[
               s.logButton,
               {
-                backgroundColor: isCompleted ? theme.surfaceDeep : (theme.isDark ? theme.lime : '#3F7D36'),
-                borderColor: isCompleted ? theme.border : (theme.isDark ? theme.lime : '#3F7D36'),
+                backgroundColor: logButtonColor,
+                borderColor: logButtonColor,
+                opacity: isCompleted ? 0.6 : 1,
               },
             ]}
           >
-            <Ionicons name="cash-outline" size={16} color={isCompleted ? theme.tertiary : (theme.isDark ? theme.bg : '#FFFFFF')} />
-            <Text style={[s.logButtonText, { color: isCompleted ? theme.tertiary : (theme.isDark ? theme.bg : '#FFFFFF') }]}>Log Contribution</Text>
+            <Ionicons name="cash-outline" size={16} color={logButtonLabelColor} />
+            <Text style={[s.logButtonText, { color: logButtonLabelColor }]}>Log Contribution</Text>
           </Pressable>
         </View>
 
@@ -222,6 +298,23 @@ export default function GoalDetailScreen() {
           wallets={activeWallets}
           onClose={() => setContributionVisible(false)}
           onSave={saveContribution}
+        />
+
+        <GoalEditorModal
+          visible={editorVisible}
+          initialGoal={goal}
+          onClose={() => setEditorVisible(false)}
+          onSave={saveGoalEdits}
+        />
+
+        <ConfirmDeleteModal
+          visible={deleteVisible}
+          title="Delete goal?"
+          message={`Delete "${goal.title}"?`}
+          onCancel={() => setDeleteVisible(false)}
+          onConfirm={() => {
+            void confirmDeleteGoal();
+          }}
         />
       </SafeAreaView>
     </>
@@ -237,25 +330,116 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
-  pillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 14,
+    marginBottom: 12,
   },
-  directionPill: {
+  heroHeaderRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  heroIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroHeaderRight: {
+    alignItems: 'flex-end',
     gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 999,
-    flexShrink: 1,
   },
-  directionPillText: {
+  changePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  changePillText: {
     fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  changeCaption: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 10,
+  },
+  metaActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressOverviewCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  progressAmountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressPrimaryAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  progressSecondaryAmount: {
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 0.1,
+    letterSpacing: -0.3,
+  },
+  progressFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  progressFooterText: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
+  progressFooterPercent: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   statusPill: {
     paddingHorizontal: 11,
@@ -267,58 +451,14 @@ const s = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.1,
   },
-  balanceCard: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
-  },
-  balanceLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    marginBottom: 6,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: -1,
-    marginBottom: 16,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginBottom: 12,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  balanceMeta: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  balanceMetaValue: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  progressSection: {
-    marginTop: 14,
-  },
   progressTrack: {
-    height: 6,
+    height: 7,
     borderRadius: 999,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: 999,
-  },
-  progressLabel: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: '500',
   },
   infoCard: {
     borderWidth: 1,
