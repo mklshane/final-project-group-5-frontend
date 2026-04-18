@@ -187,23 +187,6 @@ export default function GoalDetailScreen() {
               <View style={[s.statusPill, { backgroundColor: isCompleted ? 'rgba(61,217,123,0.12)' : theme.surfaceDeep }]}> 
                 <Text style={[s.statusPillText, { color: isCompleted ? theme.green : theme.secondary }]}>{statusLabel}</Text>
               </View>
-
-              <View style={s.metaActions}>
-                <Pressable
-                  onPress={() => setEditorVisible(true)}
-                  style={[s.metaActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="create-outline" size={15} color={theme.text} />
-                </Pressable>
-                <Pressable
-                  onPress={() => setDeleteVisible(true)}
-                  style={[s.metaActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="trash-outline" size={15} color={theme.red} />
-                </Pressable>
-              </View>
             </View>
 
             <View style={[s.progressOverviewCard, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
@@ -280,6 +263,22 @@ export default function GoalDetailScreen() {
         </ScrollView>
 
         <View style={[s.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
+          <Pressable
+            onPress={() => setEditorVisible(true)}
+            style={[s.footerActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+            hitSlop={8}
+          >
+            <Ionicons name="create-outline" size={18} color={theme.text} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setDeleteVisible(true)}
+            style={[s.footerActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+            hitSlop={8}
+          >
+            <Ionicons name="trash-outline" size={18} color={theme.red} />
+          </Pressable>
+
           <Pressable
             onPress={() => setContributionVisible(true)}
             disabled={isCompleted}
@@ -388,22 +387,9 @@ const s = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     gap: 8,
     marginBottom: 10,
-  },
-  metaActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaActionBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   progressOverviewCard: {
     borderWidth: 1,
@@ -545,13 +531,25 @@ const s = StyleSheet.create({
     marginLeft: 8,
   },
   footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  footerActionBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logButton: {
-    height: 52,
+    flex: 1,
+    height: 48,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
