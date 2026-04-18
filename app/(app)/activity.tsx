@@ -230,13 +230,7 @@ export default function ActivityScreen() {
         {!hasNoSearchMatches && (
           <View style={s.filtersSection}>
             <View style={s.filterGroup}>
-              <Text style={[s.filterGroupLabel, { color: theme.tertiary }]}>Period</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.filterRow}
-                style={s.filterScroll}
-              >
+              <View style={s.filterRow}>
                 {FILTERS.map((f) => {
                   const active = filter === f.key;
                   return (
@@ -245,7 +239,6 @@ export default function ActivityScreen() {
                       onPress={() => setFilter(f.key)}
                       style={[
                         s.chip,
-                        f.key === 'all' ? s.chipCompact : s.chipWide,
                         {
                           backgroundColor: active ? theme.lime : theme.chipBg,
                           borderColor: active ? theme.lime : theme.chipBorder,
@@ -263,7 +256,7 @@ export default function ActivityScreen() {
                     </Pressable>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
 
             <View style={s.filterGroup}>
@@ -635,31 +628,22 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterScroll: {
-    flexGrow: 0,
-    height: 48,
-  },
   filterRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     gap: 8,
     flexDirection: 'row',
     alignItems: 'center',
   },
   chip: {
+    flex: 1,
     height: 34,
-    paddingHorizontal: 18,
+    paddingHorizontal: 10,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-  },
-  chipCompact: {
-    minWidth: 56,
-  },
-  chipWide: {
-    minWidth: 98,
+    minWidth: 0,
   },
   chipText: {
     fontSize: 12,
