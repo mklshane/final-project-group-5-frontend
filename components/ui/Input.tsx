@@ -13,23 +13,23 @@ export function Input({ label, error, leftIcon, rightIcon, onRightIconPress, ...
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <View className="w-full">
+    <View className="w-full mb-4">
       {label && (
-        <Text className="text-text text-sm font-semibold mb-2 ml-1 tracking-wide">{label}</Text>
+        <Text className="text-text-secondary text-xs font-bold mb-1.5 ml-1 tracking-wider uppercase">{label}</Text>
       )}
       <View
-        className={`flex-row items-center h-14 rounded-2xl bg-card border-[1.5px] px-4 transition-colors ${
+        className={`flex-row items-center h-14 rounded-2xl bg-input-bg border-[1.5px] px-4 transition-colors ${
           error 
             ? 'border-budgy-red bg-budgy-red/5' 
             : isFocused 
-              ? 'border-dark bg-bg' 
-              : 'border-card-deep'
+              ? 'border-budgy-lime bg-surface' 
+              : 'border-input-border'
         }`}
       >
         {leftIcon && <View className="mr-3 opacity-70">{leftIcon}</View>}
         <TextInput
           className="flex-1 text-text text-base h-full font-medium"
-          placeholderTextColor="#9DA28F"
+          placeholderTextColor="#8E8E93" // iOS placeholder gray
           onFocus={(e) => {
             setIsFocused(true);
             props.onFocus?.(e);
@@ -47,7 +47,7 @@ export function Input({ label, error, leftIcon, rightIcon, onRightIconPress, ...
         )}
       </View>
       {error && (
-        <Text className="text-budgy-red text-xs mt-2 ml-1 font-medium">{error}</Text>
+        <Text className="text-budgy-red text-xs mt-1.5 ml-1 font-medium">{error}</Text>
       )}
     </View>
   );

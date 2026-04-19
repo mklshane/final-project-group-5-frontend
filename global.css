@@ -5,81 +5,81 @@
 @layer base {
   :root {
     /* Backgrounds */
-    --color-bg: #F4F5E9;
+    --color-bg: #F5F9F8;
     --color-card: #FFFFFF;
-    --color-card-alt: #EEF0E2;
-    --color-card-deep: #E4E6D6;
+    --color-card-alt: #EEF1E8;
+    --color-card-deep: #E2E7DC;
 
     /* Dark surfaces (used for dark UI elements in light mode) */
-    --color-dark: #1A1E14;
-    --color-dark-2: #252A1C;
-    --color-dark-3: #2F3525;
+    --color-dark: #15261F;
+    --color-dark-2: #1E332A;
+    --color-dark-3: #2A4236;
 
     /* Text */
-    --color-text: #1A1E14;
-    --color-text-secondary: #6B7060;
-    --color-text-tertiary: #9DA28F;
+    --color-text: #1A2B23;
+    --color-text-secondary: #637166;
+    --color-text-tertiary: #8E9A90;
 
     /* Surfaces & borders */
     --color-surface:          #FFFFFF;
-    --color-surface-alt:      #F8FAF2;
-    --color-border:           #E4E6D6;
-    --color-border-highlight: #D1D4C2;
+    --color-surface-alt:      #F7F9F2;
+    --color-border:           #DCE2D5;
+    --color-border-highlight: #C9D1C3;
 
     /* Inputs */
-    --color-input-bg:         #F8F9F2;
-    --color-input-border:     #DDE1CF;
+    --color-input-bg:         #F8FAF3;
+    --color-input-border:     #D5DEC9;
 
     /* Accent – lime (primary brand) */
     --color-lime: #C8F560;
-    --color-lime-light: #D4FA7E;
-    --color-lime-dark: #9BC23A;
+    --color-lime-light: #DCF98D;
+    --color-lime-dark: #8AAF2D;
 
     /* Accent – semantic */
-    --color-green: #3DD97B;
-    --color-red: #FF6B6B;
-    --color-blue: #6BA3FF;
-    --color-purple: #B07BFF;
-    --color-orange: #FFAD5C;
-    --color-pink: #FF7EB3;
+    --color-green: #48B86C;
+    --color-red: #E66C6A;
+    --color-blue: #5D9CEB;
+    --color-purple: #9B7BE8;
+    --color-orange: #F59E0B;
+    --color-pink: #EC4899;
   }
 
   .dark {
     /* Backgrounds */
-    --color-bg: #111410;
-    --color-card: #1A1E14;
-    --color-card-alt: #222618;
-    --color-card-deep: #2C3122;
+    --color-bg: #0F1713;
+    --color-card: #16221B;
+    --color-card-alt: #1E2B23;
+    --color-card-deep: #27382E;
 
     /* Dark surfaces (inverted in dark mode — light text/elements) */
-    --color-dark: #EDF0E4;
-    --color-dark-2: #C8CCB8;
-    --color-dark-3: #A8AE96;
+    --color-dark: #EFF4EB;
+    --color-dark-2: #D7DED2;
+    --color-dark-3: #BFC9BC;
 
     /* Text */
-    --color-text: #EDF0E4;
-    --color-text-secondary: #8A8F7C;
-    --color-text-tertiary: #585D4C;
+    --color-text: #E9EFE4;
+    --color-text-secondary: #99A99C;
+    --color-text-tertiary: #738174;
 
     /* Surfaces & borders */
-    --color-surface:          #1A1E14;
-    --color-surface-alt:      #222618;
-    --color-border:           #2C3122;
-    --color-border-highlight: #3A402D;
+    --color-surface:          #16221B;
+    --color-surface-alt:      #1E2B23;
+    --color-border:           #2F4035;
+    --color-border-highlight: #3B4E42;
 
     /* Inputs */
-    --color-input-bg:         #111410;
-    --color-input-border:     #2F3527;
+    --color-input-bg:         #121C17;
+    --color-input-border:     #34463B;
 
     /* Accent colors remain the same in dark mode */
     --color-lime: #C8F560;
-    --color-lime-light: #D4FA7E;
-    --color-lime-dark: #9BC23A;
-    --color-green: #3DD97B;
-    --color-red: #FF6B6B;
-    --color-blue: #6BA3FF;
-    --color-purple: #B07BFF;
-    --color-orange: #FFAD5C;
-    --color-pink: #FF7EB3;
+    --color-lime-light: #DCF98D;
+    --color-lime-dark: #8AAF2D;
+    --color-green: #48B86C;
+    --color-red: #E66C6A;
+    --color-blue: #5D9CEB;
+    --color-purple: #9B7BE8;
+    --color-orange: #F59E0B;
+    --color-pink: #EC4899;
   }
 }

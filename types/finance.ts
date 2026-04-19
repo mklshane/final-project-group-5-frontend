@@ -3,6 +3,7 @@ export type SyncAction = 'create' | 'update' | 'delete';
 
 export type WalletType = 'general' | 'bank' | 'ewallet' | 'cash';
 export type DebtCounterpartyKind = 'person' | 'entity' | 'organization';
+export type BudgetPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface SyncChange {
   table: SyncTable;
@@ -69,7 +70,7 @@ export interface BudgetRecord {
   user_id?: string;
   category_id: string;
   amount_limit: number;
-  period: 'weekly' | 'monthly';
+  period: BudgetPeriod;
   alert_threshold?: number;
   version: number;
   created_at?: string;

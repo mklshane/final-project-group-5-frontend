@@ -3,8 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 
-type Period = 'day' | 'week' | 'month' | 'year';
-
 type StatsGridProps = {
   spentTotal: number;
   incomeTotal: number;
@@ -88,7 +86,20 @@ export default function StatsGrid({
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: { width: '47.5%', backgroundColor: theme.surface, borderRadius: 18, padding: 14, gap: 3 },
+  statCard: {
+    width: '47.5%',
+    backgroundColor: theme.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.border,
+    padding: 14,
+    gap: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: theme.isDark ? 0 : 0.04,
+    shadowRadius: 6,
+    elevation: theme.isDark ? 0 : 2,
+  },
   statLabel: { fontSize: 9, fontWeight: '800', color: theme.secondary, letterSpacing: 1.2 },
   statValue: { fontSize: 24, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 },
   diffRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },

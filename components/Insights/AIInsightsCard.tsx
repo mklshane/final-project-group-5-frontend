@@ -87,8 +87,15 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
     card: {
       backgroundColor: theme.surface,
       borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
       padding: 16,
       gap: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: theme.isDark ? 0 : 0.05,
+      shadowRadius: 8,
+      elevation: theme.isDark ? 0 : 2,
     },
     header: {
       flexDirection: 'row',

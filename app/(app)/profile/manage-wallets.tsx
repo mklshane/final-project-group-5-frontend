@@ -75,9 +75,15 @@ export default function ManageWalletsScreen() {
           <Text style={[s.subtitle, { color: theme.secondary }]}>Track balances across General, Bank, E-wallet and Cash.</Text>
         </View>
 
-        <View style={[s.balanceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[s.balanceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Text style={[s.balanceLabel, { color: theme.secondary }]}>TOTAL BALANCE</Text>
           <Text style={[s.balanceAmount, { color: theme.text }]}>{finance.formatCurrency(finance.balances.total)}</Text>
+          <View style={[s.balanceDivider, { backgroundColor: theme.border }]} />
+          <Text style={[s.balanceCaption, { color: theme.secondary }]}>Across {wallets.length} wallet{wallets.length === 1 ? '' : 's'}</Text>
+          <View style={s.balanceHighlights}>
+            <View style={[s.dot, { backgroundColor: theme.isDark ? theme.lime : theme.limeDark }]} />
+            <Text style={[s.balanceHint, { color: theme.secondary }]}>Tap wallets below to edit or manage options</Text>
+          </View>
         </View>
 
         <Pressable
@@ -99,6 +105,7 @@ export default function ManageWalletsScreen() {
               titleColor={theme.secondary}
               wallets={generalWallets}
               emptyText="No general wallet."
+              emptyDescription="Create a default wallet for everyday spending and quick cashflow tracking."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
               onArchive={setArchiveTarget}
@@ -109,6 +116,7 @@ export default function ManageWalletsScreen() {
               titleColor={theme.secondary}
               wallets={bankWallets}
               emptyText="No bank wallets yet."
+              emptyDescription="Link your bank balances to keep account totals and transfers in one place."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
               onArchive={setArchiveTarget}
@@ -119,6 +127,7 @@ export default function ManageWalletsScreen() {
               titleColor={theme.secondary}
               wallets={ewallets}
               emptyText="No e-wallets yet."
+              emptyDescription="Track digital wallet balances and spending activity in real time."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
               onArchive={setArchiveTarget}
@@ -129,6 +138,7 @@ export default function ManageWalletsScreen() {
               titleColor={theme.secondary}
               wallets={cashWallets}
               emptyText="No cash wallets yet."
+              emptyDescription="Create a dedicated cash wallet to separate physical spending from digital funds."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
               onArchive={setArchiveTarget}
@@ -176,10 +186,10 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    letterSpacing: -0.6,
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
@@ -189,26 +199,52 @@ const s = StyleSheet.create({
   },
   balanceCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     marginBottom: 14,
   },
   balanceLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   balanceAmount: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -0.6,
+    letterSpacing: -0.8,
+    marginBottom: 10,
+  },
+  balanceDivider: {
+    height: 1,
+    marginBottom: 10,
+  },
+  balanceCaption: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  balanceHighlights: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    marginTop: 1,
+  },
+  balanceHint: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
   },
   addButton: {
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    height: 52,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -218,7 +254,7 @@ const s = StyleSheet.create({
   addLabel: {
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   loadingCard: {
     borderWidth: 1,

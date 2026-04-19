@@ -16,6 +16,7 @@ interface WalletListSectionProps {
   titleColor: string;
   wallets: Array<WalletRecord & { typeLabel?: string }>;
   emptyText: string;
+  emptyDescription?: string;
   formatCurrency: (value: number) => string;
   onEdit: (wallet: WalletRecord) => void;
   onArchive: (wallet: WalletRecord) => void;
@@ -26,6 +27,7 @@ export function WalletListSection({
   titleColor,
   wallets,
   emptyText,
+  emptyDescription,
   formatCurrency,
   onEdit,
   onArchive,
@@ -35,14 +37,19 @@ export function WalletListSection({
 
   return (
     <View style={s.section}>
-      <Text style={[s.title, { color: titleColor }]}>{title}</Text>
+      <View style={s.headerRow}>
+        <Text style={[s.title, { color: titleColor }]}>{title}</Text>
+      </View>
 
       {wallets.length === 0 ? (
-        <View style={[s.emptyCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <View style={[s.emptyIconWrap, { backgroundColor: theme.surfaceDeep }]}>
-            <Ionicons name={emptyIcon} size={16} color={theme.tertiary} />
+        <View style={[s.emptyCard, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}> 
+          <View style={[s.emptyIconWrap, { backgroundColor: theme.surface }]}> 
+            <Ionicons name={emptyIcon} size={20} color={theme.isDark ? theme.lime : theme.limeDark} />
           </View>
-          <Text style={[s.emptyText, { color: theme.tertiary }]}>{emptyText}</Text>
+          <View style={s.emptyCopy}>
+            <Text style={[s.emptyText, { color: theme.text }]}>{emptyText}</Text>
+            {emptyDescription ? <Text style={[s.emptySubText, { color: theme.secondary }]}>{emptyDescription}</Text> : null}
+          </View>
         </View>
       ) : (
         <View style={s.list}>
@@ -65,34 +72,44 @@ const s = StyleSheet.create({
   section: {
     marginBottom: 20,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   title: {
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: 10,
+    letterSpacing: 1,
+    flex: 1,
   },
   list: {
     gap: 10,
   },
   emptyCard: {
     borderWidth: 1,
-    borderRadius: 14,
-    borderStyle: 'dashed',
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
   emptyIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  emptyCopy: {
+    gap: 4,
+  },
   emptyText: {
     fontSize: 13,
+    fontWeight: '700',
+  },
+  emptySubText: {
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '500',
   },
 });

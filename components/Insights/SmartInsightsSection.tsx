@@ -57,10 +57,17 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
     card: {
       backgroundColor: theme.surface,
       borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
       padding: 14,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme.isDark ? 0 : 0.04,
+      shadowRadius: 6,
+      elevation: theme.isDark ? 0 : 1,
     },
     iconWrap: {
       width: 38,

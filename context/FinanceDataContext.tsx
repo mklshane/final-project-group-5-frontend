@@ -4,6 +4,7 @@ import { DEFAULT_SYSTEM_CATEGORIES } from '@/constants/defaultCategories';
 import { DEFAULT_WALLET } from '@/constants/defaultWallets';
 import { useAuth } from '@/context/AuthContext';
 import type {
+  BudgetPeriod,
   BudgetRecord,
   CategoryRecord,
   DebtCounterpartyKind,
@@ -73,6 +74,21 @@ interface UpdateCategoryInput {
   sortOrder?: number;
 }
 
+interface AddBudgetInput {
+  categoryId: string;
+  amountLimit: number;
+  period: BudgetPeriod;
+  alertThreshold?: number;
+}
+
+interface UpdateBudgetInput {
+  id: string;
+  categoryId?: string;
+  amountLimit?: number;
+  period?: BudgetPeriod;
+  alertThreshold?: number;
+}
+
 interface AddGoalInput {
   title: string;
   targetAmount: number;
@@ -122,6 +138,9 @@ interface FinanceDataContextValue {
   addCategory: (input: AddCategoryInput) => Promise<void>;
   updateCategory: (input: UpdateCategoryInput) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  addBudget: (input: AddBudgetInput) => Promise<void>;
+  updateBudget: (input: UpdateBudgetInput) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
   addGoal: (input: AddGoalInput) => Promise<void>;
   updateGoal: (input: UpdateGoalInput) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
@@ -196,6 +215,21 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(num) ? num : fallback;
 };
 
+const normalizeBudgetPeriod = (value: unknown): BudgetPeriod => {
+  if (value === 'daily' || value === 'weekly' || value === 'monthly' || value === 'yearly') {
+    return value;
+  }
+
+  if (value === 'annual') return 'yearly';
+  return 'monthly';
+};
+
+const normalizeAlertThreshold = (value: unknown, fallback = 0.8) => {
+  const raw = toNumber(value, fallback);
+  const ratio = raw > 1 ? raw / 100 : raw;
+  return Math.min(1, Math.max(0, ratio));
+};
+
 const toTransaction = (record: Record<string, unknown>): TransactionRecord => ({
   id: String(record.id),
   user_id: record.user_id ? String(record.user_id) : undefined,
@@ -255,8 +289,8 @@ const toBudget = (record: Record<string, unknown>): BudgetRecord => ({
   user_id: record.user_id ? String(record.user_id) : undefined,
   category_id: String(record.category_id ?? ''),
   amount_limit: toNumber(record.amount_limit),
-  period: record.period === 'weekly' ? 'weekly' : 'monthly',
-  alert_threshold: toNumber(record.alert_threshold, 80),
+  period: normalizeBudgetPeriod(record.period),
+  alert_threshold: normalizeAlertThreshold(record.alert_threshold, 0.8),
   version: toNumber(record.version, 1),
   created_at: record.created_at ? String(record.created_at) : undefined,
   updated_at: record.updated_at ? String(record.updated_at) : undefined,
@@ -598,7 +632,11 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       }
 
       if (API_BASE_URL) {
-        await runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+        if (hasLocalWallets) {
+          void runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+        } else {
+          await runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+        }
       }
 
       if (!cancelled) {
@@ -649,7 +687,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
   const syncNow = useCallback(async () => {
     await runSync(state.pendingChanges, state.lastSyncedAt);
-  }, [runSync, state.pendingChanges]);
+  }, [runSync, state.lastSyncedAt, state.pendingChanges]);
 
   const addTransaction = useCallback(
     async (input: AddTransactionInput) => {
@@ -723,7 +761,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
-      await runSync(syncChanges, state.lastSyncedAt);
+      void runSync(syncChanges, state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt, state.wallets]
   );
@@ -773,7 +811,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
-      await runSync(syncChanges, state.lastSyncedAt);
+      void runSync(syncChanges, state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.transactions, state.wallets]
   );
@@ -824,7 +862,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.categories, state.lastSyncedAt]
   );
@@ -878,7 +916,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         };
       });
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt, state.wallets]
   );
@@ -924,7 +962,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         };
       });
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.wallets]
   );
@@ -963,7 +1001,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         };
       });
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.wallets]
   );
@@ -1004,7 +1042,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.categories, state.lastSyncedAt]
   );
@@ -1035,7 +1073,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync(
+      void runSync(
         [
           {
             table: 'categories',
@@ -1050,6 +1088,199 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       );
     },
     [runSync, state.categories, state.lastSyncedAt]
+  );
+
+  const addBudget = useCallback(
+    async (input: AddBudgetInput) => {
+      if (!session) return;
+
+      const categoryId = input.categoryId.trim();
+      const amountLimit = Math.max(0, toNumber(input.amountLimit));
+      const period = normalizeBudgetPeriod(input.period);
+      const alertThreshold = normalizeAlertThreshold(input.alertThreshold, 0.8);
+
+      if (!categoryId || amountLimit <= 0) return;
+
+      const existing = state.budgets.find((budget) => !budget.deleted_at && budget.category_id === categoryId);
+
+      if (existing) {
+        const nextVersion = Math.max(1, existing.version + 1);
+        const updated: BudgetRecord = {
+          ...existing,
+          amount_limit: amountLimit,
+          period,
+          alert_threshold: alertThreshold,
+          version: nextVersion,
+          updated_at: nowIso(),
+        };
+
+        const change: SyncChange = {
+          table: 'budgets',
+          action: 'update',
+          record_id: updated.id,
+          record: updated as unknown as Record<string, unknown>,
+          version: nextVersion,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          budgets: upsertById(prev.budgets, updated),
+          pendingChanges: [...prev.pendingChanges, change],
+        }));
+
+        void runSync([change], state.lastSyncedAt);
+        return;
+      }
+
+      const id = createId();
+      const version = 1;
+      const date = nowIso();
+
+      const record: BudgetRecord = {
+        id,
+        user_id: session.user.id,
+        category_id: categoryId,
+        amount_limit: amountLimit,
+        period,
+        alert_threshold: alertThreshold,
+        version,
+        created_at: date,
+        updated_at: date,
+        deleted_at: null,
+      };
+
+      const change: SyncChange = {
+        table: 'budgets',
+        action: 'create',
+        record_id: id,
+        record: record as unknown as Record<string, unknown>,
+        version,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        budgets: upsertById(prev.budgets, record),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      void runSync([change], state.lastSyncedAt);
+    },
+    [runSync, session, state.budgets, state.lastSyncedAt]
+  );
+
+  const updateBudget = useCallback(
+    async (input: UpdateBudgetInput) => {
+      const existing = state.budgets.find((budget) => budget.id === input.id && !budget.deleted_at);
+      if (!existing) return;
+
+      const categoryId = input.categoryId !== undefined ? input.categoryId.trim() : existing.category_id;
+      const amountLimit =
+        input.amountLimit !== undefined ? Math.max(0, toNumber(input.amountLimit)) : toNumber(existing.amount_limit);
+      const period = input.period !== undefined ? normalizeBudgetPeriod(input.period) : existing.period;
+      const alertThreshold =
+        input.alertThreshold !== undefined
+          ? normalizeAlertThreshold(input.alertThreshold)
+          : normalizeAlertThreshold(existing.alert_threshold, 0.8);
+
+      if (!categoryId || amountLimit <= 0) return;
+
+      const duplicate = state.budgets.find(
+        (budget) =>
+          !budget.deleted_at &&
+          budget.id !== existing.id &&
+          budget.category_id === categoryId
+      );
+
+      if (duplicate) {
+        const mergedVersion = Math.max(1, duplicate.version + 1);
+        const deleteVersion = Math.max(1, existing.version + 1);
+        const updatedAt = nowIso();
+
+        const mergedBudget: BudgetRecord = {
+          ...duplicate,
+          amount_limit: amountLimit,
+          alert_threshold: alertThreshold,
+          version: mergedVersion,
+          updated_at: updatedAt,
+        };
+
+        const mergeChange: SyncChange = {
+          table: 'budgets',
+          action: 'update',
+          record_id: mergedBudget.id,
+          record: mergedBudget as unknown as Record<string, unknown>,
+          version: mergedVersion,
+        };
+
+        const deleteChange: SyncChange = {
+          table: 'budgets',
+          action: 'delete',
+          record_id: existing.id,
+          version: deleteVersion,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          budgets: upsertById(prev.budgets.filter((budget) => budget.id !== existing.id), mergedBudget),
+          pendingChanges: [...prev.pendingChanges, mergeChange, deleteChange],
+        }));
+
+        void runSync([mergeChange, deleteChange], state.lastSyncedAt);
+        return;
+      }
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const updated: BudgetRecord = {
+        ...existing,
+        category_id: categoryId,
+        amount_limit: amountLimit,
+        period,
+        alert_threshold: alertThreshold,
+        version: nextVersion,
+        updated_at: nowIso(),
+      };
+
+      const change: SyncChange = {
+        table: 'budgets',
+        action: 'update',
+        record_id: updated.id,
+        record: updated as unknown as Record<string, unknown>,
+        version: nextVersion,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        budgets: upsertById(prev.budgets, updated),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      void runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.budgets, state.lastSyncedAt]
+  );
+
+  const deleteBudget = useCallback(
+    async (id: string) => {
+      const existing = state.budgets.find((budget) => budget.id === id && !budget.deleted_at);
+      if (!existing) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const change: SyncChange = {
+        table: 'budgets',
+        action: 'delete',
+        record_id: id,
+        version: nextVersion,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        budgets: prev.budgets.filter((budget) => budget.id !== id),
+        pendingChanges: [...prev.pendingChanges, change],
+      }));
+
+      void runSync([change], state.lastSyncedAt);
+    },
+    [runSync, state.budgets, state.lastSyncedAt]
   );
 
   const addGoal = useCallback(
@@ -1094,7 +1325,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt]
   );
@@ -1139,7 +1370,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.goals, state.lastSyncedAt]
   );
@@ -1163,7 +1394,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.goals, state.lastSyncedAt]
   );
@@ -1217,7 +1448,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt]
   );
@@ -1271,7 +1502,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.debts, state.lastSyncedAt]
   );
@@ -1295,7 +1526,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.debts, state.lastSyncedAt]
   );
@@ -1315,6 +1546,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addCategory,
       updateCategory,
       deleteCategory,
+      addBudget,
+      updateBudget,
+      deleteBudget,
       addGoal,
       updateGoal,
       deleteGoal,
@@ -1336,6 +1570,9 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       addCategory,
       updateCategory,
       deleteCategory,
+      addBudget,
+      updateBudget,
+      deleteBudget,
       addGoal,
       updateGoal,
       deleteGoal,

@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { WalletPreviewItem } from '@/components/Profile/WalletPreviewItem';
+import { radius, spacing, typeScale } from '@/constants/designSystem';
 import type { WalletRecord } from '@/types/finance';
 import { useTheme } from '@/hooks/useTheme';
 
 interface WalletPreviewSectionProps {
-  wallets: Array<WalletRecord & { typeLabel?: string }>;
+  wallets: (WalletRecord & { typeLabel?: string })[];
   formatCurrency: (value: number) => string;
 }
 
@@ -34,18 +35,18 @@ export function WalletPreviewSection({ wallets, formatCurrency }: WalletPreviewS
 
 const s = StyleSheet.create({
   list: {
-    gap: 10,
-    marginBottom: 10,
+    gap: spacing.sm + 2,
+    marginBottom: spacing.sm + 2,
   },
   emptyWrap: {
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    marginBottom: 10,
+    borderRadius: radius.sm + 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md + 2,
+    marginBottom: spacing.sm + 2,
   },
   emptyText: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm + 1,
     fontWeight: '500',
   },
 });
