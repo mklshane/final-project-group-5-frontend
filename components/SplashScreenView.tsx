@@ -18,9 +18,9 @@ export function SplashScreenView() {
 
   useEffect(() => {
     // Smooth, refined scale and fade for a premium SaaS feel
-    logoScale.value = withSpring(1, { damping: 20, stiffness: 100 });
-    logoOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.ease) });
-  }, []);
+    logoScale.value = withSpring(1, { damping: 22, stiffness: 130 });
+    logoOpacity.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.ease) });
+  }, [logoOpacity, logoScale]);
 
   const animatedLogoStyle = useAnimatedStyle(() => {
     return {
@@ -45,7 +45,7 @@ export function SplashScreenView() {
         </Animated.View>
 
         {/* Brand Name (Staggered slide up) */}
-        <Animated.View entering={FadeInDown.delay(200).duration(800).springify()}>
+        <Animated.View entering={FadeInDown.delay(100).duration(420).springify()}>
           <View style={s.brandWrap}>
             <View style={s.brandDot} />
             <Text style={s.brandWord}>BUDGY</Text>
@@ -53,7 +53,7 @@ export function SplashScreenView() {
         </Animated.View>
 
         {/* Tagline (Delayed elegant fade in) */}
-        <Animated.View entering={FadeIn.delay(500).duration(800)}>
+        <Animated.View entering={FadeIn.delay(180).duration(360)}>
           <Text style={s.tagline}>Smart money, simple life</Text>
         </Animated.View>
       </View>

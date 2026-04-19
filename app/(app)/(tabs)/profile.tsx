@@ -30,6 +30,7 @@ export default function ProfileScreen() {
   const { isDark } = theme;
   const router = useRouter();
   const finance = useFinanceSelectors();
+  const softLimeIconBg = isDark ? theme.surfaceDeep : 'rgba(200,245,96,0.20)';
 
   const manageCards: ManageCard[] = [
     {
@@ -37,13 +38,14 @@ export default function ProfileScreen() {
       description: 'Customize expense and income categories.',
       route: '/profile/manage-categories',
       icon: 'grid-outline',
+      iconBackground: softLimeIconBg,
     },
     {
       title: 'Category Budgeting',
       description: 'Set daily, weekly, monthly, or annual spending limits by category.',
       route: '/profile/manage-budgets',
       icon: 'pie-chart-outline',
-      iconBackground: isDark ? theme.surfaceDeep : 'rgba(31,122,99,0.14)',
+      iconBackground: softLimeIconBg,
       iconColor: theme.limeDark,
     },
     {
@@ -51,13 +53,14 @@ export default function ProfileScreen() {
       description: 'Create personal savings targets and monitor your progress.',
       route: '/profile/manage-goals',
       icon: 'flag-outline',
+      iconBackground: softLimeIconBg,
     },
     {
       title: 'Debt',
       description: 'Track debts you owe with due dates and payment progress.',
       route: '/profile/manage-debt',
       icon: 'document-text-outline',
-      iconBackground: isDark ? theme.surfaceDeep : 'rgba(239,68,68,0.12)',
+      iconBackground: softLimeIconBg,
       iconColor: theme.red,
     },
     {
@@ -65,7 +68,7 @@ export default function ProfileScreen() {
       description: 'Track collections and expected dates from people who owe you.',
       route: '/profile/manage-money-owed-to-you',
       icon: 'cash-outline',
-      iconBackground: isDark ? theme.surfaceDeep : 'rgba(34,197,94,0.12)',
+      iconBackground: softLimeIconBg,
       iconColor: theme.green,
     },
   ];
@@ -88,7 +91,7 @@ export default function ProfileScreen() {
           iconLabel={initials ?? undefined}
           largeIcon
           onPress={() => router.push('/profile/profile-details')}
-          iconBackground={isDark ? theme.surfaceDeep : 'rgba(123,228,149,0.22)'}
+          iconBackground={softLimeIconBg}
           iconColor={isDark ? theme.lime : theme.limeDark}
         />
 
@@ -100,6 +103,7 @@ export default function ProfileScreen() {
           title="Manage Wallets"
           description="Open wallet settings and add new wallet accounts."
           icon="wallet-outline"
+          iconBackground={softLimeIconBg}
           onPress={() => router.push('/profile/manage-wallets')}
         />
 

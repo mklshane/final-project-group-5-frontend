@@ -21,7 +21,7 @@ export function WalletPreviewItem({ wallet, amountLabel }: WalletPreviewItemProp
   return (
     <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={s.mainRow}>
-        <View style={[s.iconWrap, { backgroundColor: isDark ? theme.surfaceDeep : 'rgba(123,228,149,0.16)' }]}> 
+        <View style={[s.iconWrap, { backgroundColor: isDark ? theme.surfaceDeep : 'rgba(200,245,96,0.20)' }]}> 
           <Ionicons name={icon} size={18} color={isDark ? theme.lime : theme.limeDark} />
         </View>
 

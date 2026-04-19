@@ -632,7 +632,11 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       }
 
       if (API_BASE_URL) {
-        await runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+        if (hasLocalWallets) {
+          void runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+        } else {
+          await runSync(cachedState.pendingChanges, cachedState.lastSyncedAt);
+        }
       }
 
       if (!cancelled) {
@@ -683,7 +687,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
   const syncNow = useCallback(async () => {
     await runSync(state.pendingChanges, state.lastSyncedAt);
-  }, [runSync, state.pendingChanges]);
+  }, [runSync, state.lastSyncedAt, state.pendingChanges]);
 
   const addTransaction = useCallback(
     async (input: AddTransactionInput) => {
@@ -757,7 +761,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
-      await runSync(syncChanges, state.lastSyncedAt);
+      void runSync(syncChanges, state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt, state.wallets]
   );
@@ -807,7 +811,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
-      await runSync(syncChanges, state.lastSyncedAt);
+      void runSync(syncChanges, state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.transactions, state.wallets]
   );
@@ -858,7 +862,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.categories, state.lastSyncedAt]
   );
@@ -912,7 +916,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         };
       });
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt, state.wallets]
   );
@@ -958,7 +962,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         };
       });
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.wallets]
   );
@@ -997,7 +1001,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         };
       });
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.wallets]
   );
@@ -1038,7 +1042,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.categories, state.lastSyncedAt]
   );
@@ -1069,7 +1073,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync(
+      void runSync(
         [
           {
             table: 'categories',
@@ -1124,7 +1128,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
         return;
       }
 
@@ -1159,7 +1163,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.budgets, state.lastSyncedAt]
   );
@@ -1221,7 +1225,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, mergeChange, deleteChange],
         }));
 
-        await runSync([mergeChange, deleteChange], state.lastSyncedAt);
+        void runSync([mergeChange, deleteChange], state.lastSyncedAt);
         return;
       }
 
@@ -1250,7 +1254,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.budgets, state.lastSyncedAt]
   );
@@ -1274,7 +1278,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.budgets, state.lastSyncedAt]
   );
@@ -1321,7 +1325,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt]
   );
@@ -1366,7 +1370,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.goals, state.lastSyncedAt]
   );
@@ -1390,7 +1394,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         pendingChanges: [...prev.pendingChanges, change],
       }));
 
-      await runSync([change], state.lastSyncedAt);
+      void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.goals, state.lastSyncedAt]
   );
@@ -1444,7 +1448,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt]
   );
@@ -1498,7 +1502,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.debts, state.lastSyncedAt]
   );
@@ -1522,7 +1526,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           pendingChanges: [...prev.pendingChanges, change],
         }));
 
-        await runSync([change], state.lastSyncedAt);
+        void runSync([change], state.lastSyncedAt);
     },
     [runSync, state.debts, state.lastSyncedAt]
   );

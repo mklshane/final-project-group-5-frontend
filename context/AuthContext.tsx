@@ -31,6 +31,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const PROFILE_FETCH_TIMEOUT_MS = 2500;
+const PROFILE_FETCH_RETRIES = 2;
+const PROFILE_RETRY_DELAY_MS = 350;
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -61,9 +64,13 @@ const normalizeSignUpErrorMessage = (message: string | null | undefined) => {
 };
 
 const fetchProfile = async (accessToken: string): Promise<Profile | null> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PROFILE_FETCH_TIMEOUT_MS);
+
   try {
     const res = await fetch(`${API_BASE_URL}/api/profile`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
     });
     if (!res.ok) {
       await res.json().catch(() => ({}));
@@ -72,14 +79,16 @@ const fetchProfile = async (accessToken: string): Promise<Profile | null> => {
     return res.json();
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 
-const fetchProfileWithRetry = async (accessToken: string, retries = 3): Promise<Profile | null> => {
+const fetchProfileWithRetry = async (accessToken: string, retries = PROFILE_FETCH_RETRIES): Promise<Profile | null> => {
   for (let i = 0; i < retries; i++) {
     const profile = await fetchProfile(accessToken);
     if (profile) return profile;
-    if (i < retries - 1) await new Promise(r => setTimeout(r, 1500));
+    if (i < retries - 1) await new Promise(r => setTimeout(r, PROFILE_RETRY_DELAY_MS));
   }
   return null;
 };

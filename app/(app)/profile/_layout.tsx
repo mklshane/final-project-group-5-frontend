@@ -1,20 +1,26 @@
 import { Stack } from 'expo-router';
-import { useColorScheme } from 'nativewind';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function ProfileLayout() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const tintColor = isDark ? '#EDF0E4' : '#1A1E14';
+  const theme = useTheme();
+  const tintColor = theme.text;
+  const headerBg = theme.surface;
 
   return (
     <Stack
       screenOptions={({ navigation }) => ({
-        contentStyle: { backgroundColor: isDark ? '#111410' : '#F4F5E9' },
-        headerStyle: { backgroundColor: isDark ? '#111410' : '#F4F5E9' },
+        contentStyle: { backgroundColor: theme.bg },
+        headerStyle: { backgroundColor: headerBg },
+        headerShadowVisible: false,
         headerTintColor: tintColor,
-        headerTitleStyle: { fontWeight: '800' },
+        headerTitleStyle: {
+          fontWeight: '700',
+          fontSize: 17,
+          letterSpacing: 0.2,
+          color: tintColor,
+        },
         headerBackButtonDisplayMode: 'minimal',
         headerLeft: ({ canGoBack }) =>
           canGoBack ? (
@@ -26,6 +32,7 @@ export default function ProfileLayout() {
               <Ionicons name="chevron-back" size={26} color={tintColor} />
             </Pressable>
           ) : null,
+        headerTitleAlign: 'center',
       })}
     >
       <Stack.Screen name="manage-wallets" options={{ title: 'Wallets' }} />
