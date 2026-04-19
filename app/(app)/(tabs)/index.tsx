@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,18 @@ import { BudgetSummaryCard } from '@/components/Home/BudgetSummaryCard';
 import { AccountsSection } from '../../../components/Home/AccountsSection';
 import type { CategoryRecord } from '@/types/finance';
 
+type HomeSectionKey = 'accounts' | 'goals' | 'debt' | 'recent' | 'budget';
+
+const DEFAULT_HOME_SECTION_ORDER: HomeSectionKey[] = ['accounts', 'goals', 'debt', 'recent', 'budget'];
+
+const HOME_SECTION_LABELS: Record<HomeSectionKey, string> = {
+  accounts: 'Accounts',
+  goals: 'Goals',
+  debt: 'Debt',
+  recent: 'Recent Activity',
+  budget: 'Budgets',
+};
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -31,6 +43,8 @@ export default function HomeScreen() {
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
+  const [layoutEditorVisible, setLayoutEditorVisible] = useState(false);
+  const [sectionOrder, setSectionOrder] = useState<HomeSectionKey[]>(DEFAULT_HOME_SECTION_ORDER);
 
   const heroBg = '#1A1E14'; 
   const heroSub = '#8A8F7C';
@@ -175,6 +189,187 @@ export default function HomeScreen() {
     return [...activeGoals].sort(byPriority).slice(0, 2);
   }, [finance.goals]);
 
+  const moveSection = (section: HomeSectionKey, direction: -1 | 1) => {
+    setSectionOrder((prev) => {
+      const currentIndex = prev.indexOf(section);
+      const targetIndex = currentIndex + direction;
+
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= prev.length) {
+        return prev;
+      }
+
+      const next = [...prev];
+      [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+      return next;
+    });
+  };
+
+  const renderReorderableSection = (sectionKey: HomeSectionKey) => {
+    if (sectionKey === 'accounts') {
+      if (finance.wallets.length === 0) {
+        return null;
+      }
+
+      return (
+        <AccountsSection
+          wallets={finance.wallets}
+          formatCurrency={finance.formatCurrency}
+          onPressSeeAll={() => router.push('/profile/manage-wallets')}
+        />
+      );
+    }
+
+    if (sectionKey === 'goals') {
+      if (goalEntries.length === 0) {
+        return null;
+      }
+
+      return (
+        <>
+          <View style={s.sectionHeader}>
+            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>GOALS</Text>
+            <Pressable onPress={() => router.push('/profile/manage-goals')} hitSlop={10}>
+              <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
+            </Pressable>
+          </View>
+          <View style={s.goalList}>
+            {goalEntries.map((goal) => (
+              <GoalSummaryCard
+                key={goal.id}
+                goal={goal}
+                formatCurrency={finance.formatCurrency}
+                onPress={() => router.push(`/profile/goal-detail/${goal.id}`)}
+              />
+            ))}
+          </View>
+        </>
+      );
+    }
+
+    if (sectionKey === 'debt') {
+      if (debtEntries.length === 0) {
+        return null;
+      }
+
+      return (
+        <>
+          <View style={s.sectionHeader}>
+            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>DEBT TRACKER</Text>
+          </View>
+          <View style={s.debtList}>
+            {debtEntries.map((entry) => (
+              <DebtSummaryCard
+                key={entry.id}
+                entry={entry}
+                formatCurrency={finance.formatCurrency}
+                onPress={() => router.push(`/profile/debt-detail/${entry.id}`)}
+              />
+            ))}
+          </View>
+        </>
+      );
+    }
+
+    if (sectionKey === 'budget') {
+      return (
+        <>
+          <View style={s.sectionHeader}>
+            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>BUDGETS</Text>
+            <Pressable onPress={() => router.push('/profile/manage-budgets')} hitSlop={10}>
+              <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
+            </Pressable>
+          </View>
+
+          {budgetEntries.length === 0 ? (
+            <Pressable onPress={() => router.push('/profile/manage-budgets')}>
+              {({ pressed }) => (
+                <View
+                  style={[
+                    s.budgetEmptyCard,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.94 : 1,
+                    },
+                  ]}
+                >
+                  <View style={[s.budgetEmptyIconWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+                    <Ionicons name="pie-chart-outline" size={18} color={theme.secondary} />
+                  </View>
+                  <View style={s.budgetEmptyTextWrap}>
+                    <Text style={[s.budgetEmptyTitle, { color: theme.text }]}>No budgets yet</Text>
+                    <Text style={[s.budgetEmptyBody, { color: theme.secondary }]}>Set your first category budget to start tracking spending limits.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={theme.tertiary} />
+                </View>
+              )}
+            </Pressable>
+          ) : (
+            <View style={s.budgetList}>
+              {budgetEntries.slice(0, 3).map((entry) => (
+                <BudgetSummaryCard
+                  key={entry.id}
+                  title={entry.title}
+                  icon={entry.icon}
+                  color={entry.color}
+                  periodLabel={entry.periodLabel}
+                  spentLabel={finance.formatCurrency(entry.spent)}
+                  limitLabel={finance.formatCurrency(entry.limit)}
+                  statusText={entry.overLimit ? `Over by ${finance.formatCurrency(entry.spent - entry.limit)}` : `${finance.formatCurrency(entry.remaining)} remaining`}
+                  percentage={entry.percentage}
+                  overLimit={entry.overLimit}
+                  onPress={() => router.push('/profile/manage-budgets')}
+                />
+              ))}
+            </View>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <View style={s.sectionHeader}>
+          <Text style={[s.sectionTitle, { color: theme.tertiary }]}>RECENT ACTIVITY</Text>
+        </View>
+
+        <View style={s.transactionList}>
+          {finance.loading ? (
+            <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
+              <ActivityIndicator color={theme.secondary} size="small" />
+            </View>
+          ) : finance.recentTransactions.length === 0 ? (
+            <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
+              <Ionicons name="receipt-outline" size={24} color={theme.tertiary} style={{ marginBottom: 8 }} />
+              <Text style={[s.emptyStateTitle, { color: theme.text }]}>No transactions yet</Text>
+              <Text style={[s.emptyStateBody, { color: theme.tertiary }]}>Start tracking by adding your first expense.</Text>
+            </View>
+          ) : (
+            finance.recentTransactions.map((tx) => {
+              const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
+              const normalized = tx.title.toLowerCase();
+              const kind = normalized.includes('scan') ? 'scan' : tx.type === 'income' ? 'income' : 'expense';
+
+              return (
+                <TransactionCard
+                  key={tx.id}
+                  title={tx.title}
+                  categoryName={`${tx.categoryName} • ${tx.walletName}`}
+                  categoryIcon={tx.categoryIcon}
+                  categoryColor={tx.categoryColor}
+                  amountLabel={amountLabel}
+                  timeLabel={tx.relativeDay}
+                  kind={kind}
+                  onDeletePress={() => setDeleteTargetId(tx.id)}
+                />
+              );
+            })
+          )}
+        </View>
+      </>
+    );
+  };
+
   return (
     <View style={[s.container, { paddingTop: insets.top, backgroundColor: theme.bg }]}> 
       <ScrollView 
@@ -183,11 +378,60 @@ export default function HomeScreen() {
       >
         {/* ── Greeting ──────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(100).duration(500)} style={s.greetingContainer}>
-          <Text style={[s.greetingDate, { color: theme.secondary }]}>{greetingMeta.dateLabel}</Text>
-          <Text style={[s.greetingTitle, { color: theme.text }]}>
-            <Text style={{ fontWeight: '400' }}>{greetingMeta.salutation},{'\n'}</Text>{firstName}
-          </Text>
-          <Text style={[s.greetingSub, { color: theme.secondary }]}>{greetingSub}</Text>
+          <View style={s.greetingRow}>
+            <View style={s.greetingTextWrap}>
+              <Text style={[s.greetingDate, { color: theme.secondary }]}>{greetingMeta.dateLabel}</Text>
+              <Text style={[s.greetingTitle, { color: theme.text }]}> 
+                <Text style={{ fontWeight: '400' }}>{greetingMeta.salutation},{'\n'}</Text>{firstName}
+              </Text>
+              <Text style={[s.greetingSub, { color: theme.secondary }]}>{greetingSub}</Text>
+            </View>
+
+            <View style={s.topActionButtons}>
+              <Pressable
+                onPress={() => setLayoutEditorVisible(true)}
+                hitSlop={10}
+              >
+                {({ pressed }) => (
+                  <View
+                    style={[
+                      s.headerIconButton,
+                      s.arrangeButton,
+                      {
+                        backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(60, 60, 67, 0.14)',
+                        opacity: pressed ? 0.88 : 1,
+                        transform: [{ scale: pressed ? 0.97 : 1 }],
+                      },
+                    ]}
+                  >
+                    <Ionicons name="swap-vertical-outline" size={17} color={isDark ? '#F2F2F7' : '#1C1C1E'} />
+                  </View>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/activity')}
+                hitSlop={10}
+              >
+                {({ pressed }) => (
+                  <View
+                    style={[
+                      s.headerIconButton,
+                      s.notifyButton,
+                      {
+                        backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(60, 60, 67, 0.14)',
+                        opacity: pressed ? 0.88 : 1,
+                        transform: [{ scale: pressed ? 0.97 : 1 }],
+                      },
+                    ]}
+                  >
+                    <Ionicons name="notifications-outline" size={17} color={isDark ? '#F2F2F7' : '#1C1C1E'} />
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          </View>
         </Animated.View>
 
         {financeError ? (
@@ -229,154 +473,131 @@ export default function HomeScreen() {
           <Text style={[s.cardSub, { color: heroSub }]}>{todaySubtitle}</Text>
         </Animated.View>
 
-        {/* ── Wallets Carousel ──────────────────────────── */}
-        {finance.wallets.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(200).duration(600)} style={s.walletSection}>
-            <AccountsSection
-              wallets={finance.wallets}
-              formatCurrency={finance.formatCurrency}
-              onPressSeeAll={() => router.push('/profile/manage-wallets')}
-            />
-          </Animated.View>
-        ) : null}
+        {sectionOrder.map((sectionKey, index) => {
+          const section = renderReorderableSection(sectionKey);
+          if (!section) {
+            return null;
+          }
 
-        {/* ── Debt Tracker ─────────────────────────────── */}
-        {goalEntries.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(250).duration(600)} style={s.goalSection}>
-            <View style={s.sectionHeader}>
-              <Text style={[s.sectionTitle, { color: theme.tertiary }]}>GOALS</Text>
-              <Pressable onPress={() => router.push('/profile/manage-goals')} hitSlop={10}>
-                <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
+          const sectionStyle =
+            sectionKey === 'accounts'
+              ? s.walletSection
+              : sectionKey === 'goals'
+                ? s.goalSection
+                : sectionKey === 'debt'
+                  ? s.debtSection
+                  : sectionKey === 'budget'
+                    ? s.budgetSection
+                  : undefined;
+
+          return (
+            <Animated.View
+              key={sectionKey}
+              entering={FadeInDown.delay(200 + index * 45).duration(600)}
+              style={[s.movableSection, sectionStyle]}
+            >
+              {section}
+            </Animated.View>
+          );
+        })}
+
+      </ScrollView>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={layoutEditorVisible}
+        onRequestClose={() => setLayoutEditorVisible(false)}
+      >
+        <View style={s.layoutEditorBackdrop}>
+          <View style={[s.layoutEditorCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={s.layoutEditorHeader}>
+              <Text style={[s.layoutEditorTitle, { color: theme.text }]}>Arrange Home Sections</Text>
+              <Pressable
+                onPress={() => setLayoutEditorVisible(false)}
+                hitSlop={10}
+                style={({ pressed }) => [s.layoutEditorClose, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Ionicons name="close" size={18} color={theme.text} />
               </Pressable>
             </View>
-            <View style={s.goalList}>
-              {goalEntries.map((goal) => (
-                <GoalSummaryCard
-                  key={goal.id}
-                  goal={goal}
-                  formatCurrency={finance.formatCurrency}
-                  onPress={() => router.push(`/profile/goal-detail/${goal.id}`)}
-                />
-              ))}
-            </View>
-          </Animated.View>
-        ) : null}
 
-        <Animated.View entering={FadeInDown.delay(275).duration(600)} style={s.budgetSection}>
-          <View style={s.sectionHeader}>
-            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>BUDGETS</Text>
-            <Pressable onPress={() => router.push('/profile/manage-budgets')} hitSlop={10}>
-              <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
-            </Pressable>
-          </View>
+            <Text style={[s.layoutEditorHint, { color: theme.secondary }]}>Move sections up or down. Current order is your default until you change it.</Text>
 
-          {budgetEntries.length === 0 ? (
-            <Pressable onPress={() => router.push('/profile/manage-budgets')}>
-              {({ pressed }) => (
-                <View
-                  style={[
-                    s.budgetEmptyCard,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: theme.border,
-                      opacity: pressed ? 0.94 : 1,
-                    },
-                  ]}
-                >
-                  <View style={[s.budgetEmptyIconWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
-                    <Ionicons name="pie-chart-outline" size={18} color={theme.secondary} />
-                  </View>
-                  <View style={s.budgetEmptyTextWrap}>
-                    <Text style={[s.budgetEmptyTitle, { color: theme.text }]}>No budgets yet</Text>
-                    <Text style={[s.budgetEmptyBody, { color: theme.secondary }]}>Set your first category budget to start tracking spending limits.</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={theme.tertiary} />
-                </View>
-              )}
-            </Pressable>
-          ) : (
-            <>
-              <View style={s.budgetList}>
-                {budgetEntries.slice(0, 3).map((entry) => (
-                  <BudgetSummaryCard
-                    key={entry.id}
-                    title={entry.title}
-                    icon={entry.icon}
-                    color={entry.color}
-                    periodLabel={entry.periodLabel}
-                    spentLabel={finance.formatCurrency(entry.spent)}
-                    limitLabel={finance.formatCurrency(entry.limit)}
-                    statusText={entry.overLimit ? `Over by ${finance.formatCurrency(entry.spent - entry.limit)}` : `${finance.formatCurrency(entry.remaining)} remaining`}
-                    percentage={entry.percentage}
-                    overLimit={entry.overLimit}
-                    onPress={() => router.push('/profile/manage-budgets')}
-                  />
-                ))}
-              </View>
-            </>
-          )}
-        </Animated.View>
-
-        {/* ── Debt Tracker ─────────────────────────────── */}
-        {debtEntries.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(300).duration(600)} style={s.debtSection}>
-            <View style={s.sectionHeader}>
-              <Text style={[s.sectionTitle, { color: theme.tertiary }]}>DEBT TRACKER</Text>
-            </View>
-            <View style={s.debtList}>
-              {debtEntries.map((entry) => (
-                <DebtSummaryCard
-                  key={entry.id}
-                  entry={entry}
-                  formatCurrency={finance.formatCurrency}
-                  onPress={() => router.push(`/profile/debt-detail/${entry.id}`)}
-                />
-              ))}
-            </View>
-          </Animated.View>
-        ) : null}
-
-        {/* ── Recent Transactions ───────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(350).duration(600)}>
-          <View style={s.sectionHeader}>
-            <Text style={[s.sectionTitle, { color: theme.tertiary }]}>RECENT ACTIVITY</Text>
-          </View>
-
-          <View style={s.transactionList}>
-            {finance.loading ? (
-              <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
-                <ActivityIndicator color={theme.secondary} size="small" />
-              </View>
-            ) : finance.recentTransactions.length === 0 ? (
-              <View style={[s.emptyStateCard, { borderColor: loadingBorder }]}> 
-                <Ionicons name="receipt-outline" size={24} color={theme.tertiary} style={{ marginBottom: 8 }} />
-                <Text style={[s.emptyStateTitle, { color: theme.text }]}>No transactions yet</Text>
-                <Text style={[s.emptyStateBody, { color: theme.tertiary }]}>Start tracking by adding your first expense.</Text>
-              </View>
-            ) : (
-              finance.recentTransactions.map((tx) => {
-                const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
-                const normalized = tx.title.toLowerCase();
-                const kind = normalized.includes('scan') ? 'scan' : tx.type === 'income' ? 'income' : 'expense';
+            <View style={s.layoutEditorList}>
+              {sectionOrder.map((sectionKey, index) => {
+                const atTop = index === 0;
+                const atBottom = index === sectionOrder.length - 1;
 
                 return (
-                  <TransactionCard
-                    key={tx.id}
-                    title={tx.title}
-                    categoryName={`${tx.categoryName} • ${tx.walletName}`}
-                    categoryIcon={tx.categoryIcon}
-                    categoryColor={tx.categoryColor}
-                    amountLabel={amountLabel}
-                    timeLabel={tx.relativeDay}
-                    kind={kind}
-                    onDeletePress={() => setDeleteTargetId(tx.id)}
-                  />
+                  <View key={sectionKey} style={[s.layoutEditorItem, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}> 
+                    <Text style={[s.layoutEditorItemLabel, { color: theme.text }]}>{HOME_SECTION_LABELS[sectionKey]}</Text>
+                    <View style={s.layoutEditorItemActions}>
+                      <Pressable
+                        onPress={() => moveSection(sectionKey, -1)}
+                        hitSlop={8}
+                        disabled={atTop}
+                        style={({ pressed }) => [
+                          s.layoutEditorAction,
+                          {
+                            borderColor: theme.border,
+                            opacity: atTop ? 0.35 : pressed ? 0.75 : 1,
+                          },
+                        ]}
+                      >
+                        <Ionicons name="chevron-up" size={14} color={theme.text} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => moveSection(sectionKey, 1)}
+                        hitSlop={8}
+                        disabled={atBottom}
+                        style={({ pressed }) => [
+                          s.layoutEditorAction,
+                          {
+                            borderColor: theme.border,
+                            opacity: atBottom ? 0.35 : pressed ? 0.75 : 1,
+                          },
+                        ]}
+                      >
+                        <Ionicons name="chevron-down" size={14} color={theme.text} />
+                      </Pressable>
+                    </View>
+                  </View>
                 );
-              })
-            )}
+              })}
+            </View>
+
+            <View style={s.layoutEditorFooter}>
+              <Pressable
+                onPress={() => setSectionOrder(DEFAULT_HOME_SECTION_ORDER)}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  s.layoutEditorReset,
+                  {
+                    borderColor: theme.border,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Text style={[s.layoutEditorResetText, { color: theme.text }]}>Reset to Default</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setLayoutEditorVisible(false)}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  s.layoutEditorDone,
+                  {
+                    backgroundColor: theme.lime,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text style={[s.layoutEditorDoneText, { color: theme.bg }]}>Done</Text>
+              </Pressable>
+            </View>
           </View>
-        </Animated.View>
-      </ScrollView>
+        </View>
+      </Modal>
 
       <ConfirmDeleteModal
         visible={Boolean(deleteTargetId)}
@@ -410,9 +631,44 @@ const s = StyleSheet.create({
   },
   
   greetingContainer: { marginTop: 8, marginBottom: 20 },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  greetingTextWrap: {
+    flex: 1,
+  },
+  topActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 2,
+  },
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  arrangeButton: {
+    shadowOpacity: 0.12,
+    elevation: 3,
+  },
+  notifyButton: {
+    shadowOpacity: 0.11,
+  },
   greetingDate: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
   greetingTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -1, marginBottom: 4, lineHeight: 36 },
-  greetingSub: { fontSize: 14, fontWeight: '500', lineHeight: 20, paddingRight: 20 },
+  greetingSub: { fontSize: 14, fontWeight: '500', lineHeight: 20, paddingRight: 6 },
   
   syncErrorBanner: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 16 },
   syncErrorText: { color: '#FF6B6B', fontSize: 12, fontWeight: '600' },
@@ -447,10 +703,11 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, opacity: 0.9 },
   sectionLink: { fontSize: 12, fontWeight: '700' },
 
-  walletSection: { marginBottom: 24 },
+  movableSection: { marginBottom: 24 },
+  walletSection: {},
 
   // Debt Section
-  goalSection: { marginBottom: 24 },
+  goalSection: {},
   goalList: { gap: 10 },
   budgetSection: { marginBottom: 24 },
   budgetList: {
@@ -486,11 +743,101 @@ const s = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 17,
   },
-  debtSection: { marginBottom: 24 },
+  debtSection: {},
   debtList: { gap: 10 },
 
   // Recent Activity
   transactionList: { gap: 8 },
+
+  layoutEditorBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  layoutEditorCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+  },
+  layoutEditorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  layoutEditorTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  layoutEditorClose: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  layoutEditorHint: {
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  layoutEditorList: {
+    gap: 8,
+  },
+  layoutEditorItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  layoutEditorItemLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  layoutEditorItemActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  layoutEditorAction: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  layoutEditorFooter: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  layoutEditorReset: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  layoutEditorResetText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  layoutEditorDone: {
+    flex: 1,
+    borderRadius: 10,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  layoutEditorDoneText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
   
   emptyStateCard: {
     borderRadius: 20, borderWidth: 1, borderStyle: 'dashed',
