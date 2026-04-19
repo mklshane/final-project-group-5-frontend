@@ -49,7 +49,19 @@ export default function CategoryBreakdown({ data }: CategoryBreakdownProps) {
 }
 
 const makeStyles = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
-  card: { backgroundColor: theme.surface, borderRadius: 20, padding: 16, gap: 12 },
+  card: {
+    backgroundColor: theme.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.border,
+    padding: 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: theme.isDark ? 0 : 0.05,
+    shadowRadius: 8,
+    elevation: theme.isDark ? 0 : 2,
+  },
   cardLabel: { fontSize: 9, fontWeight: '800', color: theme.secondary, letterSpacing: 1.4 },
   emptyText: { fontSize: 13, color: theme.secondary, fontWeight: '500' },
   donutRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },

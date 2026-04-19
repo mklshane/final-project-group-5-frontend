@@ -633,7 +633,7 @@ export function TransactionEntryModal({
                   onPress={openScanner}
                   style={[s.scanTrigger, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
                 >
-                  <View style={[s.scanTriggerIconWrap, { backgroundColor: isDark ? 'rgba(200,245,96,0.14)' : 'rgba(155,194,58,0.16)' }]}>
+                  <View style={[s.scanTriggerIconWrap, { backgroundColor: isDark ? 'rgba(123,228,149,0.14)' : 'rgba(123,228,149,0.16)' }]}> 
                     <Ionicons name="scan-outline" size={16} color={isDark ? theme.lime : theme.limeDark} />
                   </View>
                   <View style={s.scanTriggerTextWrap}>
@@ -671,13 +671,13 @@ export function TransactionEntryModal({
                       style={[
                         s.walletCard,
                         {
-                          backgroundColor: active ? (isDark ? 'rgba(155,194,58,0.1)' : theme.surface) : theme.surfaceAlt,
+                          backgroundColor: active ? (isDark ? 'rgba(123,228,149,0.10)' : theme.surface) : theme.surfaceAlt,
                           borderColor: active ? theme.limeDark : theme.border,
                         },
                       ]}
                     >
                       <View style={s.walletCardInner}>
-                        <View style={[s.walletIconWrap, { backgroundColor: active ? 'rgba(155,194,58,0.18)' : `${theme.secondary}18` }]}>
+                        <View style={[s.walletIconWrap, { backgroundColor: active ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}> 
                           <Ionicons name="wallet" size={15} color={active ? theme.limeDark : theme.secondary} />
                         </View>
                         <View style={s.walletCardText}>
@@ -708,7 +708,7 @@ export function TransactionEntryModal({
                 style={[
                   s.dropdownTrigger,
                   {
-                    backgroundColor: categoryDropdownOpen ? (isDark ? 'rgba(200,245,96,0.05)' : theme.surfaceAlt) : theme.surface,
+                    backgroundColor: categoryDropdownOpen ? (isDark ? 'rgba(123,228,149,0.06)' : theme.surfaceAlt) : theme.surface,
                     borderColor: categoryDropdownOpen ? theme.lime : theme.border,
                   }
                 ]}
@@ -761,7 +761,7 @@ export function TransactionEntryModal({
                         style={[
                           s.dropdownOption,
                           !isLast && { borderBottomColor: theme.border, borderBottomWidth: 1 },
-                          isActive && { backgroundColor: isDark ? 'rgba(200,245,96,0.05)' : 'rgba(200,245,96,0.1)' }
+                          isActive && { backgroundColor: isDark ? 'rgba(123,228,149,0.06)' : 'rgba(123,228,149,0.10)' }
                         ]}
                       >
                         <View style={[s.categoryIconWrap, { backgroundColor: `${catColor}20` }]}>
@@ -888,14 +888,14 @@ export function TransactionEntryModal({
                 let border: string = theme.keyBorder;
 
                 if (isAction) {
-                  keyColor = isDark ? '#151810' : '#F4F5E9';
+                  keyColor = isDark ? '#0F172A' : '#F7F9FB';
                   bg = theme.text;
                   border = theme.text;
                 }
                 if (isDelete) {
                   keyColor = theme.red;
                   bg = theme.keyDeleteBg;
-                  border = isDark ? 'rgba(255,107,107,0.35)' : 'rgba(255,107,107,0.42)';
+                  border = isDark ? 'rgba(239,68,68,0.35)' : 'rgba(239,68,68,0.42)';
                 }
 
                 return (
@@ -1470,7 +1470,7 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255,107,107,0.1)',
+    backgroundColor: 'rgba(239,68,68,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,

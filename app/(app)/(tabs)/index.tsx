@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
-import { WALLET_TYPE_ICONS } from '@/constants/defaultWallets';
 import { useAuth } from '@/context/AuthContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
@@ -16,6 +15,7 @@ import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
 import { GoalSummaryCard } from '@/components/Home/GoalSummaryCard';
 import { BudgetSummaryCard } from '@/components/Home/BudgetSummaryCard';
+import { AccountsSection } from '../../../components/Home/AccountsSection';
 import type { CategoryRecord } from '@/types/finance';
 
 export default function HomeScreen() {
@@ -232,51 +232,11 @@ export default function HomeScreen() {
         {/* ── Wallets Carousel ──────────────────────────── */}
         {finance.wallets.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(200).duration(600)} style={s.walletSection}>
-            <View style={s.sectionHeader}>
-              <Text style={[s.sectionTitle, { color: theme.tertiary }]}>ACCOUNTS</Text>
-              <Pressable onPress={() => router.push('/profile/manage-wallets')} hitSlop={10}>
-                <Text style={[s.sectionLink, { color: theme.secondary }]}>See all</Text>
-              </Pressable>
-            </View>
-            
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={s.walletScrollWrap}
-              contentContainerStyle={s.walletScrollContent}
-            >
-              {finance.wallets.map((wallet) => (
-                <View
-                  key={wallet.id}
-                  style={[
-                    s.walletCard,
-                    {
-                      backgroundColor: isDark ? theme.surfaceAlt : theme.surface,
-                      borderColor: theme.border,
-                      shadowColor: isDark ? '#000' : '#8A8F7C',
-                    },
-                  ]}
-                >
-                  <View style={s.walletCardTop}>
-                    <View style={[s.walletIconWrap, { backgroundColor: isDark ? 'rgba(200,245,96,0.12)' : 'rgba(155,194,58,0.12)' }]}>
-                      <Ionicons
-                        name={WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap}
-                        size={16}
-                        color={isDark ? theme.lime : theme.limeDark}
-                      />
-                    </View>
-                    <Text style={[s.walletAmount, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>
-                      {finance.formatCurrency(wallet.current_balance)}
-                    </Text>
-                  </View>
-                  <View style={s.walletCardBottom}>
-                    <Text style={[s.walletName, { color: theme.secondary }]} numberOfLines={1}>
-                      {wallet.name}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
+            <AccountsSection
+              wallets={finance.wallets}
+              formatCurrency={finance.formatCurrency}
+              onPressSeeAll={() => router.push('/profile/manage-wallets')}
+            />
           </Animated.View>
         ) : null}
 
@@ -488,25 +448,6 @@ const s = StyleSheet.create({
   sectionLink: { fontSize: 12, fontWeight: '700' },
 
   walletSection: { marginBottom: 24 },
-  walletScrollWrap: { marginHorizontal: -24 }, 
-  walletScrollContent: { paddingHorizontal: 24, gap: 12 },
-  walletCard: {
-    width: 140,
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 16,
-    justifyContent: 'space-between',
-    minHeight: 100,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  walletCardTop: { gap: 10 },
-  walletIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  walletAmount: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
-  walletCardBottom: { marginTop: 6 },
-  walletName: { fontSize: 12, fontWeight: '600' },
 
   // Debt Section
   goalSection: { marginBottom: 24 },

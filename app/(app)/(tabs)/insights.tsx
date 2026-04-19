@@ -188,36 +188,115 @@ export default function InsightsScreen() {
   const spentDiff = prevSpent > 0 ? Math.round(((spentTotal - prevSpent) / prevSpent) * 100) : null;
   const incomeDiff = prevIncome > 0 ? Math.round(((incomeTotal - prevIncome) / prevIncome) * 100) : null;
 
-  // Bar chart — daily spending for the current week
-  const barData = useMemo(() => {
-    const day = new Date().getDay();
-    const diffToMon = day === 0 ? -6 : 1 - day;
-    const weekStart = new Date();
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(new Date().getDate() + diffToMon);
+  // Period-aware spending trend chart
+  const trendChart = useMemo(() => {
+    const now = new Date();
+    const expenses = finance.allTransactionsView.filter((tx) => tx.type === 'expense');
 
-    return DAY_LABELS.map((label, i) => {
-      const dayStart = new Date(weekStart);
-      dayStart.setDate(weekStart.getDate() + i);
+    if (period === 'day') {
+      const labels = ['12 AM', '4 AM', '8 AM', '12 PM', '4 PM', '8 PM'];
+      const totals = Array(labels.length).fill(0) as number[];
+      const dayStart = new Date(anchor);
+      dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayStart.getDate() + 1);
 
-      const total = finance.allTransactions
-        .filter((tx) => {
-          const d = new Date(tx.date);
-          return tx.type === 'expense' && d >= dayStart && d < dayEnd;
-        })
-        .reduce((s, tx) => s + tx.amount, 0);
+      for (const tx of expenses) {
+        const d = new Date(tx.date);
+        if (d < dayStart || d >= dayEnd) continue;
+        const bucket = Math.floor(d.getHours() / 4);
+        totals[Math.min(Math.max(bucket, 0), 5)] += tx.amount;
+      }
 
-      return { label, total };
-    });
-  }, [finance.allTransactions]);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const highlightIndex = dayStart.getTime() === today.getTime() ? Math.floor(now.getHours() / 4) : -1;
+      const points = labels.map((label, i) => ({ label, total: totals[i] }));
 
-  const maxBar = useMemo(() => Math.max(...barData.map((b) => b.total), 1), [barData]);
-  const todayDayIndex = useMemo(() => {
-    const d = new Date().getDay();
-    return d === 0 ? 6 : d - 1;
-  }, []);
+      return {
+        title: 'SPENDING TREND · DAY (4H)',
+        points,
+        maxValue: Math.max(...totals, 1),
+        highlightIndex,
+      };
+    }
+
+    if (period === 'week') {
+      const labels = DAY_LABELS;
+      const totals = Array(labels.length).fill(0) as number[];
+      const weekStart = new Date(anchor);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+
+      for (const tx of expenses) {
+        const d = new Date(tx.date);
+        if (d < weekStart || d >= weekEnd) continue;
+        const idx = Math.floor((d.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
+        if (idx >= 0 && idx < totals.length) totals[idx] += tx.amount;
+      }
+
+      const thisWeekStart = getDefaultAnchor('week');
+      const highlightIndex = weekStart.getTime() === thisWeekStart.getTime() ? (now.getDay() === 0 ? 6 : now.getDay() - 1) : -1;
+      const points = labels.map((label, i) => ({ label, total: totals[i] }));
+
+      return {
+        title: 'SPENDING TREND · WEEK',
+        points,
+        maxValue: Math.max(...totals, 1),
+        highlightIndex,
+      };
+    }
+
+    if (period === 'month') {
+      const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+      const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
+      const daysInMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+      const bucketCount = Math.ceil(daysInMonth / 7);
+      const totals = Array(bucketCount).fill(0) as number[];
+
+      for (const tx of expenses) {
+        const d = new Date(tx.date);
+        if (d < monthStart || d >= monthEnd) continue;
+        const bucket = Math.floor((d.getDate() - 1) / 7);
+        totals[bucket] += tx.amount;
+      }
+
+      const points = totals.map((total, i) => ({ label: `W${i + 1}`, total }));
+      const isCurrentMonth = anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth();
+      const highlightIndex = isCurrentMonth ? Math.floor((now.getDate() - 1) / 7) : -1;
+
+      return {
+        title: 'SPENDING TREND · MONTH',
+        points,
+        maxValue: Math.max(...totals, 1),
+        highlightIndex,
+      };
+    }
+
+    const totals = Array(12).fill(0) as number[];
+    const yearStart = new Date(anchor.getFullYear(), 0, 1);
+    const yearEnd = new Date(anchor.getFullYear() + 1, 0, 1);
+
+    for (const tx of expenses) {
+      const d = new Date(tx.date);
+      if (d < yearStart || d >= yearEnd) continue;
+      totals[d.getMonth()] += tx.amount;
+    }
+
+    const points = totals.map((total, i) => ({
+      label: new Date(anchor.getFullYear(), i, 1).toLocaleDateString(undefined, { month: 'short' }),
+      total,
+    }));
+    const highlightIndex = anchor.getFullYear() === now.getFullYear() ? now.getMonth() : -1;
+
+    return {
+      title: 'SPENDING TREND · YEAR',
+      points,
+      maxValue: Math.max(...totals, 1),
+      highlightIndex,
+    };
+  }, [anchor, finance.allTransactionsView, period]);
 
   // Category breakdown for current period
   const categoryBreakdown = useMemo(() => {
@@ -414,9 +493,10 @@ export default function InsightsScreen() {
         />
 
         <SpendingThisWeek
-          barData={barData}
-          maxBar={maxBar}
-          todayDayIndex={todayDayIndex}
+          title={trendChart.title}
+          points={trendChart.points}
+          maxValue={trendChart.maxValue}
+          highlightIndex={trendChart.highlightIndex}
         />
 
         <CategoryBreakdown data={categoryBreakdown} />

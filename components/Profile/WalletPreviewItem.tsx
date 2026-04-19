@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
+import { radius, spacing, typeScale } from '@/constants/designSystem';
 import { WALLET_TYPE_ICONS } from '@/constants/defaultWallets';
 import type { WalletRecord } from '@/types/finance';
 import { useTheme } from '@/hooks/useTheme';
@@ -14,13 +15,13 @@ export function WalletPreviewItem({ wallet, amountLabel }: WalletPreviewItemProp
   const { isDark } = theme;
   const icon = WALLET_TYPE_ICONS[wallet.type] as keyof typeof Ionicons.glyphMap;
 
-  const chipBg = isDark ? 'rgba(200,245,96,0.18)' : 'rgba(200,245,96,0.30)';
-  const chipText = isDark ? '#C8F560' : '#6E8F1A';
+  const chipBg = isDark ? 'rgba(123,228,149,0.18)' : 'rgba(123,228,149,0.24)';
+  const chipText = isDark ? theme.lime : theme.limeDark;
 
   return (
     <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={s.mainRow}>
-        <View style={[s.iconWrap, { backgroundColor: isDark ? theme.surfaceDeep : 'rgba(155,194,58,0.16)' }]}> 
+        <View style={[s.iconWrap, { backgroundColor: isDark ? theme.surfaceDeep : 'rgba(123,228,149,0.16)' }]}> 
           <Ionicons name={icon} size={18} color={isDark ? theme.lime : theme.limeDark} />
         </View>
 
@@ -47,19 +48,19 @@ export function WalletPreviewItem({ wallet, amountLabel }: WalletPreviewItemProp
 const s = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: radius.sm - 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -70,30 +71,30 @@ const s = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   title: {
-    fontSize: 15,
+    fontSize: typeScale.body + 1,
     fontWeight: '800',
     maxWidth: 150,
   },
   typeText: {
-    fontSize: 12,
+    fontSize: typeScale.bodySm,
     fontWeight: '500',
     marginTop: 2,
   },
   defaultChip: {
-    borderRadius: 999,
-    paddingHorizontal: 7,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm - 1,
     paddingVertical: 2,
   },
   defaultChipText: {
-    fontSize: 9,
+    fontSize: typeScale.caption - 2,
     fontWeight: '800',
     letterSpacing: 0.7,
   },
   amount: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     fontWeight: '800',
   },
 });

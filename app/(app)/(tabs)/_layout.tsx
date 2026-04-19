@@ -14,13 +14,17 @@ export default function AppLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: isDark ? '#C8F560' : '#1A1E14',
-        tabBarInactiveTintColor: isDark ? '#8A8F7C' : '#9DA28F',
+        tabBarActiveTintColor: isDark ? '#C8F560' : '#1A2B23',
+        tabBarInactiveTintColor: isDark ? '#99A99C' : '#8E9A90',
         tabBarStyle: {
-          backgroundColor: isDark ? '#1A1E14' : '#F4F5E9',
-          borderTopColor: isDark ? '#2C3122' : '#E4E6D6',
+          backgroundColor: isDark ? '#16221B' : '#FFFFFF',
+          borderTopColor: isDark ? '#2F4035' : '#DCE2D5',
           borderTopWidth: 1,
-          elevation: 0,
+          elevation: isDark ? 0 : 8,
+          shadowColor: '#000',
+          shadowOpacity: isDark ? 0 : 0.05,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: -2 },
           height: 64 + insets.bottom,
           paddingBottom: insets.bottom + 10,
           paddingTop: 10,
