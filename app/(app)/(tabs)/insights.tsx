@@ -204,7 +204,10 @@ export default function InsightsScreen() {
       for (const tx of expenses) {
         const d = new Date(tx.date);
         if (d < dayStart || d >= dayEnd) continue;
-        const bucket = Math.floor(d.getHours() / 4);
+        // date-only strings (e.g. "2026-04-24") are parsed as UTC midnight,
+        // which becomes 8 AM in UTC+8. Use created_at for the hour instead.
+        const timeSource = tx.date.includes('T') ? d : (tx.created_at ? new Date(tx.created_at) : d);
+        const bucket = Math.floor(timeSource.getHours() / 4);
         totals[Math.min(Math.max(bucket, 0), 5)] += tx.amount;
       }
 
