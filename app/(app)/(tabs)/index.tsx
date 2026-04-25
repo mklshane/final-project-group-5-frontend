@@ -518,8 +518,9 @@ export default function HomeScreen() {
 
         {/* ── Main Hero Card ─────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(150).duration(600)} style={[s.card, { backgroundColor: heroBg }]}>
-          <View style={s.cardDeco1} />
-          <View style={s.cardDeco2} />
+          <View style={s.ringOuter} />
+          <View style={s.ringMid} />
+          <View style={s.ringInner} />
 
           <View style={s.cardHeaderRow}>
             <Text style={[s.cardLabel, { color: heroSub }]}>TODAY&apos;S FLOW</Text>
@@ -797,8 +798,9 @@ const s = StyleSheet.create({
     shadowRadius: 24,
     elevation: 10,
   },
-  cardDeco1: { position: 'absolute', width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(200, 245, 96, 0.08)', top: -80, right: -60 },
-  cardDeco2: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(200, 245, 96, 0.05)', bottom: -40, left: -40 },
+  ringOuter: { position: 'absolute', width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderColor: '#C8F560', opacity: 0.10, top: -90, right: -90 },
+  ringMid:   { position: 'absolute', width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: '#C8F560', opacity: 0.08, top: -66, right: -66 },
+  ringInner: { position: 'absolute', width: 84,  height: 84,  borderRadius: 42, borderWidth: 1, borderColor: '#C8F560', opacity: 0.06, top: -42, right: -42 },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   cardLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
 
