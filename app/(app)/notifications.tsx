@@ -226,13 +226,7 @@ export default function NotificationsScreen() {
     <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-        {/* Page title */}
-        <View style={s.pageHeader}>
-          <Text style={[s.pageTitle, { color: theme.text }]}>Your Notifications</Text>
-          <Text style={[s.pageSubtitle, { color: theme.secondary }]}>
-            Alerts, milestones, and spending reminders.
-          </Text>
-        </View>
+        
 
         {/* Permission denied banner */}
         {permDenied && (
