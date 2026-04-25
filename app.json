@@ -16,7 +16,8 @@
       },
       "infoPlist": {
         "NSCameraUsageDescription": "Budgy uses your camera to scan receipts and extract expense details on-device.",
-        "NSPhotoLibraryUsageDescription": "Budgy uses your photo library so you can scan receipt images on-device."
+        "NSPhotoLibraryUsageDescription": "Budgy uses your photo library so you can scan receipt images on-device.",
+        "NSUserNotificationsUsageDescription": "Budgy sends budget alerts, goal milestones, and spending reminders."
       },
       "bundleIdentifier": "com.anonymous.final-project-group-5-frontend"
     },
@@ -24,7 +25,9 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -45,7 +48,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo2.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -55,6 +58,14 @@
         }
       ],
       "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo2.png",
+          "color": "#111410",
+          "sounds": []
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-build-properties",
