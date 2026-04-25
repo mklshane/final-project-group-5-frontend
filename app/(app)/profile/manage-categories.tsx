@@ -5,12 +5,14 @@ import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { CategoryEditorModal } from '@/components/Profile/CategoryEditorModal';
 import { CategoryListSection } from '@/components/Profile/CategoryListSection';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useTheme } from '@/hooks/useTheme';
 import type { CategoryRecord } from '@/types/finance';
 
 export default function ManageCategoriesScreen() {
   const theme = useTheme();
   const { state, loading, addCategory, updateCategory, deleteCategory } = useFinanceData();
+  const toast = useToast();
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [selectedCategory, setSelectedCategory] = useState<CategoryRecord | null>(null);
@@ -54,22 +56,28 @@ export default function ManageCategoriesScreen() {
     color: string;
     type: 'expense' | 'income' | 'both';
   }) => {
-    if (editorMode === 'create') {
-      await addCategory(input);
-      return;
+    try {
+      if (editorMode === 'create') {
+        await addCategory(input);
+        toast.show('Category created', 'success');
+        return;
+      }
+      if (!selectedCategory) return;
+      await updateCategory({ id: selectedCategory.id, ...input });
+      toast.show('Category updated', 'success');
+    } catch {
+      toast.show('Failed to save category', 'error');
     }
-
-    if (!selectedCategory) return;
-
-    await updateCategory({
-      id: selectedCategory.id,
-      ...input,
-    });
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await deleteCategory(deleteTarget.id);
+    try {
+      await deleteCategory(deleteTarget.id);
+      toast.show('Category deleted', 'success');
+    } catch {
+      toast.show('Failed to delete category', 'error');
+    }
     setDeleteTarget(null);
   };
 

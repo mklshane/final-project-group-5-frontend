@@ -18,7 +18,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import * as Haptics from 'expo-haptics';
@@ -225,7 +228,6 @@ export function TransactionEntryModal({
   const titleInputRef = useRef<TextInput>(null);
   const lastHandledScanRequestRef = useRef<number | null>(null);
 
-  const [title, setTitle] = useState('');
   const [expression, setExpression] = useState('0');
   const [historyExpression, setHistoryExpression] = useState('');
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
@@ -238,6 +240,7 @@ export function TransactionEntryModal({
   const [scannerVisible, setScannerVisible] = useState(false);
   const [awaitingFreshScanResult, setAwaitingFreshScanResult] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
 
   const {
     status: scanStatus,
@@ -266,6 +269,21 @@ export function TransactionEntryModal({
     [categories, mode]
   );
 
+  const formik = useFormik({
+    initialValues: { amount: 0, title: '' },
+    validationSchema: Yup.object({
+      amount: Yup.number()
+        .positive('Enter an amount greater than 0')
+        .required('Amount is required'),
+      title: Yup.string().trim().required('Add a title for this transaction'),
+    }),
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (_values) => {
+      await submitTransaction();
+    },
+  });
+
   useEffect(() => {
     if (!visible) {
       wasVisibleRef.current = false;
@@ -282,7 +300,6 @@ export function TransactionEntryModal({
     const defaultWalletId = pickDefaultWallet(wallets);
     const defaultCategoryId = null;
 
-    setTitle('');
     setExpression('0');
     setHistoryExpression('');
     setSelectedWalletId(defaultWalletId);
@@ -297,6 +314,7 @@ export function TransactionEntryModal({
     resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
+    formik.resetForm({ values: { amount: 0, title: '' } });
 
     // Slide the sheet up
     slideAnim.setValue(700);
@@ -315,6 +333,7 @@ export function TransactionEntryModal({
         useNativeDriver: true,
       }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, wallets, availableCategories, resetScanner, keypadAnim, slideAnim, backdropAnim]);
 
   useEffect(() => {
@@ -344,7 +363,7 @@ export function TransactionEntryModal({
     () => availableCategories.find((category) => category.id === selectedCategoryId) ?? null,
     [availableCategories, selectedCategoryId]
   );
-  
+
   const selectedWallet = useMemo(
     () => wallets.find((wallet) => wallet.id === selectedWalletId) ?? null,
     [wallets, selectedWalletId]
@@ -376,10 +395,11 @@ export function TransactionEntryModal({
     const matchedCategoryId = findCategoryIdByExactName(autoCategory, availableCategories);
     const parsedDate = parseIsoDate(scanResult.date ?? toIsoDate(new Date()));
 
-    setTitle(normalizedTitle);
+    void formik.setFieldValue('title', normalizedTitle);
     if (normalizedAmount !== null) {
       setExpression(String(normalizedAmount));
       setHistoryExpression('');
+      void formik.setFieldValue('amount', normalizedAmount);
     }
     if (matchedCategoryId !== null) {
       setSelectedCategoryId(matchedCategoryId);
@@ -393,15 +413,16 @@ export function TransactionEntryModal({
       });
     }
 
-    if (itemNote && title.trim().length === 0) {
-      setTitle(normalizedTitle);
+    if (itemNote && formik.values.title.trim().length === 0) {
+      void formik.setFieldValue('title', normalizedTitle);
     }
 
     setAwaitingFreshScanResult(false);
     setScannerVisible(false);
     setActiveField('title');
     setTimeout(() => titleInputRef.current?.focus(), 0);
-  }, [scanStatus, scanResult, availableCategories, scannerVisible, awaitingFreshScanResult, title]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanStatus, scanResult, availableCategories, scannerVisible, awaitingFreshScanResult]);
 
   useEffect(() => {
     if (!awaitingFreshScanResult) return;
@@ -413,11 +434,40 @@ export function TransactionEntryModal({
   const canSave =
     !submitting &&
     Boolean(selectedWalletId) &&
-    Number.isFinite(computedAmount) &&
-    computedAmount > 0 &&
-    title.trim().length > 0;
+    formik.values.amount > 0 &&
+    formik.values.title.trim().length > 0;
+
   const isExpense = mode === 'expense';
   const modeColor = isExpense ? theme.red : theme.green;
+
+  const submitTransaction = async () => {
+    if (!canSave) return;
+
+    const availableBalance = toNumber(selectedWallet?.current_balance);
+    const isOverBalance = mode === 'expense' && computedAmount > availableBalance;
+    if (isOverBalance) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setInsufficientFundsVisible(true);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        title: formik.values.title.trim(),
+        amount: computedAmount,
+        type: mode,
+        walletId: selectedWalletId,
+        categoryId: selectedCategoryId,
+        loggedAt: customLoggedAt ?? new Date(),
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      resetScanner();
+      handleClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const onKeyPress = (key: KeyLabel) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -425,13 +475,15 @@ export function TransactionEntryModal({
     if (key === 'CLR') {
       setExpression('0');
       setHistoryExpression('');
+      void formik.setFieldValue('amount', 0);
       return;
     }
 
     if (key === 'DEL') {
       setExpression((prev) => {
-        if (prev.length <= 1) return '0';
-        return prev.slice(0, -1);
+        const next = prev.length <= 1 ? '0' : prev.slice(0, -1);
+        void formik.setFieldValue('amount', evaluateExpression(next) ?? 0);
+        return next;
       });
       return;
     }
@@ -441,6 +493,7 @@ export function TransactionEntryModal({
       if (result === null) return;
       setHistoryExpression(expression);
       setExpression(String(result));
+      void formik.setFieldValue('amount', result);
       return;
     }
 
@@ -448,10 +501,14 @@ export function TransactionEntryModal({
       setHistoryExpression('');
       setExpression((prev) => {
         const current = prev === '' ? '0' : prev;
+        let next: string;
         if (current.endsWith('+') || current.endsWith('-')) {
-          return `${current.slice(0, -1)}${key}`;
+          next = `${current.slice(0, -1)}${key}`;
+        } else {
+          next = `${current}${key}`;
         }
-        return `${current}${key}`;
+        void formik.setFieldValue('amount', evaluateExpression(next) ?? 0);
+        return next;
       });
       return;
     }
@@ -461,10 +518,18 @@ export function TransactionEntryModal({
       setExpression((prev) => {
         const current = prev === '' ? '0' : prev;
         const activeTerm = current.split(/[+-]/).pop() ?? '';
-        if (activeTerm.includes('.')) return current;
-        if (current.endsWith('+') || current.endsWith('-')) return `${current}0.`;
-        if (current === '0') return '0.';
-        return `${current}.`;
+        let next: string;
+        if (activeTerm.includes('.')) {
+          next = current;
+        } else if (current.endsWith('+') || current.endsWith('-')) {
+          next = `${current}0.`;
+        } else if (current === '0') {
+          next = '0.';
+        } else {
+          next = `${current}.`;
+        }
+        void formik.setFieldValue('amount', evaluateExpression(next) ?? 0);
+        return next;
       });
       return;
     }
@@ -472,12 +537,19 @@ export function TransactionEntryModal({
     setHistoryExpression('');
     setExpression((prev) => {
       const current = prev === '' ? '0' : prev;
-      if (current === '0') return key;
-      const activeTerm = current.split(/[+-]/).pop() ?? '';
-      if (activeTerm === '0') {
-        return `${current.slice(0, -1)}${key}`;
+      let next: string;
+      if (current === '0') {
+        next = key;
+      } else {
+        const activeTerm = current.split(/[+-]/).pop() ?? '';
+        if (activeTerm === '0') {
+          next = `${current.slice(0, -1)}${key}`;
+        } else {
+          next = `${current}${key}`;
+        }
       }
-      return `${current}${key}`;
+      void formik.setFieldValue('amount', evaluateExpression(next) ?? 0);
+      return next;
     });
   };
 
@@ -516,32 +588,13 @@ export function TransactionEntryModal({
     await scanFromGallery();
   };
 
-  const submit = async () => {
-    if (!canSave) return;
-
-    const availableBalance = toNumber(selectedWallet?.current_balance);
-    const isOverBalance = mode === 'expense' && computedAmount > availableBalance;
-    if (isOverBalance) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      setInsufficientFundsVisible(true);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await onSubmit({
-        title: title.trim(),
-        amount: computedAmount,
-        type: mode,
-        walletId: selectedWalletId,
-        categoryId: selectedCategoryId,
-        loggedAt: customLoggedAt ?? new Date(),
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      resetScanner();
+  const requestClose = () => {
+    if (isClosing) return;
+    const isDirty = expression !== '0' || formik.values.title.trim() !== '';
+    if (isDirty) {
+      setDiscardVisible(true);
+    } else {
       handleClose();
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -567,11 +620,11 @@ export function TransactionEntryModal({
 
 
   return (
-    <Modal visible={visible || isClosing} transparent animationType="none" onRequestClose={handleClose}>
+    <Modal visible={visible || isClosing} transparent animationType="none" onRequestClose={requestClose}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {!scannerVisible ? (
           <Animated.View style={[s.backdrop, { backgroundColor: theme.backdrop, opacity: backdropAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
-            <Pressable style={s.flex} onPress={handleClose} />
+            <Pressable style={s.flex} onPress={requestClose} />
           </Animated.View>
         ) : null}
 
@@ -584,9 +637,9 @@ export function TransactionEntryModal({
           ]}
         >
           {/* Drag Indicator */}
-          <View style={s.dragHandleWrap}>
+          <Pressable style={s.dragHandleWrap} onPress={requestClose} hitSlop={20}>
             <View style={[s.dragHandle, { backgroundColor: theme.borderHighlight }]} />
-          </View>
+          </Pressable>
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -594,6 +647,7 @@ export function TransactionEntryModal({
             onScrollBeginDrag={dismissKeypad}
             contentContainerStyle={{ paddingBottom: activeField === 'amount' ? 320 + insets.bottom : insets.bottom + 24 }}
           >
+          <Pressable onPress={dismissKeypad}>
             {/* Header */}
             <View style={s.headerRow}>
               <View style={s.headerTitleWrap}>
@@ -602,7 +656,7 @@ export function TransactionEntryModal({
                   New {isExpense ? 'Expense' : 'Income'}
                 </Text>
               </View>
-              <Pressable onPress={handleClose} hitSlop={15} style={s.closeButton}>
+              <Pressable onPress={requestClose} hitSlop={15} style={s.closeButton}>
                 <Ionicons name="close" size={24} color={theme.secondary} />
               </Pressable>
             </View>
@@ -627,13 +681,18 @@ export function TransactionEntryModal({
                 </Text>
               ) : null}
             </Pressable>
+            {formik.touched.amount && formik.errors.amount ? (
+              <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 4, textAlign: 'center' }}>
+                {formik.errors.amount}
+              </Text>
+            ) : null}
 
               {isExpense ? (
                 <Pressable
                   onPress={openScanner}
                   style={[s.scanTrigger, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
                 >
-                  <View style={[s.scanTriggerIconWrap, { backgroundColor: isDark ? 'rgba(123,228,149,0.14)' : 'rgba(123,228,149,0.16)' }]}> 
+                  <View style={[s.scanTriggerIconWrap, { backgroundColor: isDark ? 'rgba(123,228,149,0.14)' : 'rgba(123,228,149,0.16)' }]}>
                     <Ionicons name="scan-outline" size={16} color={isDark ? theme.lime : theme.limeDark} />
                   </View>
                   <View style={s.scanTriggerTextWrap}>
@@ -648,8 +707,9 @@ export function TransactionEntryModal({
             <View style={[s.inputRow, { borderBottomColor: activeField === 'title' ? theme.text : theme.border }]}>
               <TextInput
                 ref={titleInputRef}
-                value={title}
-                onChangeText={setTitle}
+                value={formik.values.title}
+                onChangeText={formik.handleChange('title')}
+                onBlur={formik.handleBlur('title')}
                 onFocus={() => setActiveField('title')}
                 placeholder={isExpense ? 'e.g. Lunch, Grab' : 'e.g. April Salary, Freelance'}
                 placeholderTextColor={theme.secondary}
@@ -657,6 +717,11 @@ export function TransactionEntryModal({
                 selectionColor={theme.lime}
               />
             </View>
+            {formik.touched.title && formik.errors.title ? (
+              <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 4, textAlign: 'center' }}>
+                {formik.errors.title}
+              </Text>
+            ) : null}
 
             {/* Wallet Selection */}
             <View style={s.section}>
@@ -677,7 +742,7 @@ export function TransactionEntryModal({
                       ]}
                     >
                       <View style={s.walletCardInner}>
-                        <View style={[s.walletIconWrap, { backgroundColor: active ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}> 
+                        <View style={[s.walletIconWrap, { backgroundColor: active ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}>
                           <Ionicons name="wallet" size={15} color={active ? theme.limeDark : theme.secondary} />
                         </View>
                         <View style={s.walletCardText}>
@@ -744,13 +809,13 @@ export function TransactionEntryModal({
                     <View style={[s.categoryDot, { backgroundColor: theme.secondary }]} />
                     <Text style={[s.dropdownOptionText, { color: theme.text }]}>Uncategorized</Text>
                   </Pressable>
-                  
+
                   {availableCategories.map((category, index) => {
                     const isLast = index === availableCategories.length - 1;
                     const iconName = toIoniconName(category.icon) ?? 'pricetag';
                     const isActive = selectedCategoryId === category.id;
                     const catColor = category.color ?? theme.text;
-                    
+
                     return (
                       <Pressable
                         key={category.id}
@@ -827,7 +892,7 @@ export function TransactionEntryModal({
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                  void submit();
+                  void formik.handleSubmit();
                 }}
                 disabled={!canSave}
                 style={[
@@ -845,6 +910,7 @@ export function TransactionEntryModal({
                 )}
               </Pressable>
             </View>
+          </Pressable>
           </ScrollView>
         </Animated.View>
         ) : null}
@@ -986,6 +1052,16 @@ export function TransactionEntryModal({
         </View>
       </View>
       ) : null}
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); handleClose(); }}
+      />
 
       {/* Warning Modal */}
       <Modal
@@ -1143,7 +1219,7 @@ const s = StyleSheet.create({
   inputRow: {
     borderBottomWidth: 1.5,
     paddingBottom: 12,
-    marginBottom: 32,
+    marginBottom: 8,
   },
   titleInput: {
     fontSize: 18,
@@ -1162,7 +1238,7 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 16,
   },
-  
+
   // Wallet Grid
   walletGrid: {
     flexDirection: 'row',
@@ -1431,7 +1507,7 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  
+
   // Actions
   footerActions: {
     marginTop: 8,

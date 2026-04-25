@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppearanceModeSelector } from '@/components/Base/AppearanceModeSelector';
@@ -8,6 +8,7 @@ import { ProfileMenuCard } from '@/components/Profile/ProfileMenuCard';
 import { WalletPreviewSection } from '@/components/Profile/WalletPreviewSection';
 import { radius, spacing, typeScale } from '@/constants/designSystem';
 import { useAuth } from '@/context/AuthContext';
+import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 
 type ManageCard = {
@@ -30,6 +31,7 @@ export default function ProfileScreen() {
   const { isDark } = theme;
   const router = useRouter();
   const finance = useFinanceSelectors();
+  const { notifications, setNotificationPreference } = useAppPreferences();
   const softLimeIconBg = isDark ? theme.surfaceDeep : 'rgba(200,245,96,0.20)';
 
   const manageCards: ManageCard[] = [
@@ -122,6 +124,44 @@ export default function ProfileScreen() {
           />
         ))}
 
+        <Text style={[s.sectionLabel, s.manageLabel, { color: theme.secondary }]}>NOTIFICATIONS</Text>
+
+        <View style={[s.notifCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {([
+            { key: 'budgetAlerts', label: 'Budget Alerts', desc: 'Warn when budgets reach 80% or are exceeded' },
+            { key: 'largeExpenseWarnings', label: 'Large Expense Warnings', desc: 'Flag single expenses over 15% of total balance' },
+            { key: 'goalMilestones', label: 'Goal Milestones', desc: 'Notify at 25%, 50%, 75% and deadline proximity' },
+            { key: 'weeklyReport', label: 'Weekly Activity Nudge', desc: 'Alert if no transactions have been logged this week' },
+            { key: 'dailySummary', label: 'Daily Summary', desc: 'Daily spending recap (coming soon)' },
+          ] as const).map((item, index, arr) => (
+            <View
+              key={item.key}
+              style={[
+                s.notifRow,
+                index < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
+              ]}
+            >
+              <View style={s.notifText}>
+                <Text style={[s.notifLabel, { color: theme.text }]}>{item.label}</Text>
+                <Text style={[s.notifDesc, { color: theme.secondary }]}>{item.desc}</Text>
+              </View>
+              <Switch
+                value={notifications[item.key]}
+                onValueChange={(v) => setNotificationPreference(item.key, v)}
+                trackColor={{
+                  false: theme.border,
+                  true: theme.isDark ? theme.lime : '#3F7D36',
+                }}
+                thumbColor={
+                  notifications[item.key]
+                    ? theme.isDark ? '#1A1E14' : '#FFFFFF'
+                    : theme.secondary
+                }
+              />
+            </View>
+          ))}
+        </View>
+
         <View style={s.appearanceBlock}>
           <AppearanceModeSelector />
         </View>
@@ -173,6 +213,31 @@ const s = StyleSheet.create({
     height: 56,
     marginTop: spacing.lg + 4,
     borderWidth: 1,
+  },
+  notifCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  notifRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
+    gap: spacing.md,
+  },
+  notifText: {
+    flex: 1,
+  },
+  notifLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  notifDesc: {
+    fontSize: typeScale.bodySm,
+    fontWeight: '500',
+    lineHeight: 17,
   },
   signOutIcon: {
     marginRight: spacing.sm,

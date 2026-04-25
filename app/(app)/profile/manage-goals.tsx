@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GoalEditorModal } from '@/components/Profile/GoalEditorModal';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ const progressPercent = (goal: GoalRecord) => {
 export default function ManageGoalsScreen() {
   const theme = useTheme();
   const { loading, addGoal, updateGoal } = useFinanceData();
+  const toast = useToast();
   const finance = useFinanceSelectors();
   const router = useRouter();
 
@@ -60,18 +62,23 @@ export default function ManageGoalsScreen() {
     savedAmount: number;
     deadline?: string | null;
   }) => {
-    if (!selectedGoal) {
-      await addGoal(input);
-      return;
+    try {
+      if (!selectedGoal) {
+        await addGoal(input);
+        toast.show('Goal created', 'success');
+        return;
+      }
+      await updateGoal({
+        id: selectedGoal.id,
+        title: input.title,
+        targetAmount: input.targetAmount,
+        savedAmount: input.savedAmount,
+        deadline: input.deadline,
+      });
+      toast.show('Goal updated', 'success');
+    } catch {
+      toast.show('Failed to save goal', 'error');
     }
-
-    await updateGoal({
-      id: selectedGoal.id,
-      title: input.title,
-      targetAmount: input.targetAmount,
-      savedAmount: input.savedAmount,
-      deadline: input.deadline,
-    });
   };
 
   return (

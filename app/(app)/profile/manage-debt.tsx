@@ -5,6 +5,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { DebtEditorModal } from '@/components/Profile/DebtEditorModal';
 import { DebtEntryCard } from '@/components/Profile/ManageDebt/DebtEntryCard';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import type { DebtRecord } from '@/types/finance';
@@ -20,6 +21,7 @@ export default function ManageDebtScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { state, loading, addDebt, updateDebt } = useFinanceData();
+  const toast = useToast();
   const finance = useFinanceSelectors();
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtRecord | null>(null);
@@ -51,9 +53,22 @@ export default function ManageDebtScreen() {
     dueDate: string;
     notes?: string;
   }) => {
-    if (!selectedDebt) {
-      await addDebt({
-        type: 'owe',
+    try {
+      if (!selectedDebt) {
+        await addDebt({
+          type: 'owe',
+          counterpartyKind: input.counterpartyKind,
+          counterpartyName: input.counterpartyName,
+          totalAmount: input.totalAmount,
+          amountPaid: input.amountPaid,
+          dueDate: input.dueDate,
+          notes: input.notes,
+        });
+        toast.show('Debt entry created', 'success');
+        return;
+      }
+      await updateDebt({
+        id: selectedDebt.id,
         counterpartyKind: input.counterpartyKind,
         counterpartyName: input.counterpartyName,
         totalAmount: input.totalAmount,
@@ -61,18 +76,10 @@ export default function ManageDebtScreen() {
         dueDate: input.dueDate,
         notes: input.notes,
       });
-      return;
+      toast.show('Debt entry updated', 'success');
+    } catch {
+      toast.show('Failed to save debt entry', 'error');
     }
-
-    await updateDebt({
-      id: selectedDebt.id,
-      counterpartyKind: input.counterpartyKind,
-      counterpartyName: input.counterpartyName,
-      totalAmount: input.totalAmount,
-      amountPaid: input.amountPaid,
-      dueDate: input.dueDate,
-      notes: input.notes,
-    });
   };
 
   return (

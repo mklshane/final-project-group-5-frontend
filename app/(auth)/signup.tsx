@@ -13,14 +13,30 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 
 configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
 
+const SignupSchema = Yup.object().shape({
+  fullName: Yup.string()
+    .trim()
+    .required('Full name is required')
+    .matches(/^[a-zA-Z\s\-'.]+$/, 'Full name must only contain letters, spaces, hyphens, apostrophes, or periods'),
+  email: Yup.string()
+    .email('Enter a valid email address')
+    .required('Email is required'),
+  password: Yup.string()
+    .min(8, 'Password must be at least 8 characters')
+    .required('Password is required'),
+});
+
 function UnderlineInput({
-  label, value, onChangeText, error, secureTextEntry,
+  label, value, onChangeText, onBlur, error, secureTextEntry,
   rightElement, keyboardType, autoCapitalize, autoComplete, placeholder,
 }: {
   label: string; value: string; onChangeText: (t: string) => void;
+  onBlur?: () => void;
   error?: string; secureTextEntry?: boolean; rightElement?: React.ReactNode;
   keyboardType?: any; autoCapitalize?: any; autoComplete?: any; placeholder?: string;
 }) {
@@ -35,7 +51,7 @@ function UnderlineInput({
           value={value}
           onChangeText={onChangeText}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => { setFocused(false); onBlur?.(); }}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize ?? 'none'}
@@ -56,55 +72,42 @@ export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const { signUpWithEmail, signInWithGoogle } = useAuth();
 
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!fullName.trim()) e.fullName = 'Full name is required';
-    if (!email.trim()) e.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Enter a valid email';
-    if (!password) e.password = 'Password is required';
-    else if (password.length < 8) e.password = 'At least 8 characters';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSignup = async () => {
-    if (!validate()) return;
-    setApiError('');
-    setSuccessMsg('');
-    setLoading(true);
-    const { error } = await signUpWithEmail(email.trim(), password, fullName.trim());
-    setLoading(false);
-    if (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setApiError(error);
-      return;
-    }
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setSuccessMsg('Account created! Check your email to confirm before signing in.');
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-  };
+  const formik = useFormik({
+    initialValues: { fullName: '', email: '', password: '' },
+    validationSchema: SignupSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      setApiError('');
+      setSuccessMsg('');
+      setLoading(true);
+      const { error } = await signUpWithEmail(values.email.trim(), values.password, values.fullName.trim());
+      setLoading(false);
+      if (error) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setApiError(error);
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setSuccessMsg('Account created! Check your email to confirm before signing in.');
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    },
+  });
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
     await signInWithGoogle();
     setGoogleLoading(false);
   };
-
-  const clearError = (field: string) =>
-    setErrors(e => { const n = { ...e }; delete n[field]; return n; });
 
   return (
     <KeyboardAvoidingView
@@ -153,9 +156,10 @@ export default function SignupScreen() {
 
         <UnderlineInput
           label="Full name"
-          value={fullName}
-          onChangeText={t => { setFullName(t); clearError('fullName'); }}
-          error={errors.fullName}
+          value={formik.values.fullName}
+          onChangeText={formik.handleChange('fullName')}
+          onBlur={() => formik.setFieldTouched('fullName', true)}
+          error={formik.touched.fullName && formik.errors.fullName ? formik.errors.fullName : undefined}
           autoCapitalize="words"
           autoComplete="name"
           placeholder="Jane Dela Cruz"
@@ -163,9 +167,10 @@ export default function SignupScreen() {
 
         <UnderlineInput
           label="Email address"
-          value={email}
-          onChangeText={t => { setEmail(t); clearError('email'); }}
-          error={errors.email}
+          value={formik.values.email}
+          onChangeText={formik.handleChange('email')}
+          onBlur={() => formik.setFieldTouched('email', true)}
+          error={formik.touched.email && formik.errors.email ? formik.errors.email : undefined}
           keyboardType="email-address"
           autoComplete="email"
           placeholder="you@example.com"
@@ -173,16 +178,17 @@ export default function SignupScreen() {
 
         <UnderlineInput
           label="Password"
-          value={password}
-          onChangeText={t => { setPassword(t); clearError('password'); }}
-          error={errors.password}
+          value={formik.values.password}
+          onChangeText={formik.handleChange('password')}
+          onBlur={() => formik.setFieldTouched('password', true)}
+          error={formik.touched.password && formik.errors.password ? formik.errors.password : undefined}
           secureTextEntry={!showPassword}
           autoComplete="new-password"
           placeholder="At least 8 characters"
           rightElement={
             <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={10}>
               <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                 size={18} color="#9DA28F"
               />
             </Pressable>
@@ -191,7 +197,7 @@ export default function SignupScreen() {
 
         {/* Create account button */}
         <Pressable
-          onPress={handleSignup}
+          onPress={() => formik.handleSubmit()}
           disabled={loading || googleLoading}
           style={[s.primaryBtn, (loading || googleLoading) && { opacity: 0.7 }]}
         >

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import {
   ActivityIndicator,
   Keyboard,
@@ -14,6 +15,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { WALLET_TYPE_LABELS } from '@/constants/defaultWallets';
 import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
@@ -41,6 +44,18 @@ const toAmountString = (value: number) => {
   return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
 };
 
+const validationSchema = Yup.object({
+  name: Yup.string().trim().required('Wallet name is required'),
+  currentBalance: Yup.string().test(
+    'is-valid-balance',
+    'Enter a valid balance (0 or more)',
+    (value) => {
+      const num = Number(value || '0');
+      return Number.isFinite(num) && num >= 0;
+    }
+  ),
+});
+
 export function WalletEditorModal({
   visible,
   mode,
@@ -52,53 +67,65 @@ export function WalletEditorModal({
   const { isDark } = theme;
   const { currencyCode } = useAppPreferences();
 
-  const [name, setName] = useState('');
   const [type, setType] = useState<WalletType>('general');
-  const [institutionName, setInstitutionName] = useState('');
-  const [currentBalance, setCurrentBalance] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
+
+  const handleRequestClose = () => {
+    if (mode === 'create' && formik.dirty) {
+      setDiscardVisible(true);
+    } else {
+      onClose();
+    }
+  };
 
   const currencySymbol = useMemo(
     () => CURRENCIES.find((c) => c.code === currencyCode)?.symbol ?? '₱',
     [currencyCode]
   );
 
+  const formik = useFormik({
+    initialValues: { name: '', institutionName: '', currentBalance: '' },
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      setSaving(true);
+      try {
+        const balanceValue = Number(values.currentBalance || '0');
+        await onSave({
+          name: values.name.trim(),
+          type,
+          institutionName: values.institutionName.trim() || null,
+          openingBalance: balanceValue,
+          currentBalance: balanceValue,
+          isDefault,
+        });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
+
   useEffect(() => {
     if (!visible) return;
-
-    setName(initialWallet?.name ?? '');
+    formik.resetForm({
+      values: {
+        name: initialWallet?.name ?? '',
+        institutionName: initialWallet?.institution_name ?? '',
+        currentBalance: initialWallet ? toAmountString(initialWallet.current_balance ?? 0) : '',
+      },
+    });
     setType(initialWallet?.type ?? 'general');
-    setInstitutionName(initialWallet?.institution_name ?? '');
-    setCurrentBalance(initialWallet ? toAmountString(initialWallet.current_balance ?? 0) : '');
     setIsDefault(Boolean(initialWallet?.is_default));
   }, [visible, initialWallet]);
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
-  const balanceValue = Number(currentBalance || '0');
-  const isValid = name.trim().length > 0 && Number.isFinite(balanceValue) && balanceValue >= 0;
-
-  const handleSave = async () => {
-    if (!isValid || saving) return;
-
-    setSaving(true);
-    try {
-      await onSave({
-        name: name.trim(),
-        type,
-        institutionName: institutionName.trim() ? institutionName.trim() : null,
-        openingBalance: balanceValue,
-        currentBalance: balanceValue,
-        isDefault,
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -106,7 +133,7 @@ export function WalletEditorModal({
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View>
             <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              
+
               <View style={s.headerRow}>
                 <View style={s.headerTextWrap}>
                   <Text style={[s.title, { color: theme.text }]}>
@@ -116,7 +143,7 @@ export function WalletEditorModal({
                     Manage where your funds are stored.
                   </Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -126,14 +153,20 @@ export function WalletEditorModal({
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>WALLET NAME</Text>
                   <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                     <TextInput
-                      value={name}
-                      onChangeText={setName}
+                      value={formik.values.name}
+                      onChangeText={formik.handleChange('name')}
+                      onBlur={formik.handleBlur('name')}
                       placeholder="e.g. BPI Savings, GCash"
                       placeholderTextColor={theme.tertiary}
                       style={[s.input, { color: theme.text }]}
                       selectionColor={theme.lime}
                     />
                   </View>
+                  {formik.touched.name && formik.errors.name ? (
+                    <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                      {formik.errors.name}
+                    </Text>
+                  ) : null}
                 </View>
 
                 <View style={s.fieldGroup}>
@@ -167,8 +200,9 @@ export function WalletEditorModal({
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>INSTITUTION (OPTIONAL)</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                       <TextInput
-                        value={institutionName}
-                        onChangeText={setInstitutionName}
+                        value={formik.values.institutionName}
+                        onChangeText={formik.handleChange('institutionName')}
+                        onBlur={formik.handleBlur('institutionName')}
                         placeholder={type === 'bank' ? 'e.g. BDO, BPI' : 'e.g. GCash, Maya'}
                         placeholderTextColor={theme.tertiary}
                         style={[s.input, { color: theme.text }]}
@@ -181,12 +215,18 @@ export function WalletEditorModal({
                 <View style={s.fieldGroup}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>CURRENT BALANCE</Text>
                   <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                    <Text style={[s.currencyPrefix, { color: currentBalance ? theme.text : theme.tertiary }]}>
+                    <Text style={[s.currencyPrefix, { color: formik.values.currentBalance ? theme.text : theme.tertiary }]}>
                       {currencySymbol}
                     </Text>
                     <TextInput
-                      value={currentBalance}
-                      onChangeText={(value) => setCurrentBalance(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                      value={formik.values.currentBalance}
+                      onChangeText={(value) =>
+                        formik.setFieldValue(
+                          'currentBalance',
+                          value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                        )
+                      }
+                      onBlur={formik.handleBlur('currentBalance')}
                       keyboardType="decimal-pad"
                       placeholder="0.00"
                       placeholderTextColor={theme.tertiary}
@@ -194,6 +234,11 @@ export function WalletEditorModal({
                       selectionColor={theme.lime}
                     />
                   </View>
+                  {formik.touched.currentBalance && formik.errors.currentBalance ? (
+                    <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                      {formik.errors.currentBalance}
+                    </Text>
+                  ) : null}
                 </View>
 
                 <Pressable
@@ -217,19 +262,19 @@ export function WalletEditorModal({
 
               <View style={s.actions}>
                 <Pressable
-                  onPress={() => void handleSave()}
-                  disabled={!isValid || saving}
+                  onPress={() => void formik.handleSubmit()}
+                  disabled={saving}
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime,
+                      backgroundColor: saving ? submitDisabledColor : theme.lime,
                     },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color="#1A1E14" />
                   ) : (
-                    <Text style={[s.actionText, { color: !isValid || saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
                       {mode === 'create' ? 'Create Wallet' : 'Save Changes'}
                     </Text>
                   )}
@@ -239,6 +284,16 @@ export function WalletEditorModal({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }

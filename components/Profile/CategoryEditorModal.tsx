@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import {
   ActivityIndicator,
   Keyboard,
@@ -15,6 +16,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { DEFAULT_SYSTEM_CATEGORIES } from '@/constants/defaultCategories';
 import type { CategoryRecord } from '@/types/finance';
 
@@ -36,6 +39,10 @@ interface CategoryEditorModalProps {
   }) => Promise<void>;
 }
 
+const validationSchema = Yup.object({
+  name: Yup.string().trim().required('Category name is required'),
+});
+
 export function CategoryEditorModal({
   visible,
   mode,
@@ -46,22 +53,45 @@ export function CategoryEditorModal({
   const theme = useTheme();
   const { isDark } = theme;
 
-  const [name, setName] = useState('');
   const [type, setType] = useState<'expense' | 'income' | 'both'>('expense');
   const [icon, setIcon] = useState('apps-outline');
   const [color, setColor] = useState('#6C757D');
   const [saving, setSaving] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
+
+  const handleRequestClose = () => {
+    if (mode === 'create' && formik.dirty) {
+      setDiscardVisible(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const formik = useFormik({
+    initialValues: { name: '' },
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      setSaving(true);
+      try {
+        await onSave({ name: values.name.trim(), icon, color, type });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!visible) return;
-
-    setName(initialCategory?.name ?? '');
+    formik.resetForm({
+      values: { name: initialCategory?.name ?? '' },
+    });
     setType(initialCategory?.type ?? 'expense');
     setIcon(initialCategory?.icon ?? 'apps-outline');
     setColor(initialCategory?.color ?? '#6C757D');
   }, [visible, initialCategory]);
-
-  const isValid = name.trim().length > 0;
 
   // Custom Light Mode Theming requested
   const primaryBg = isDark ? theme.lime : '#3F7D36';
@@ -76,26 +106,8 @@ export function CategoryEditorModal({
   const title = mode === 'create' ? 'Add Category' : 'Edit Category';
   const submitLabel = mode === 'create' ? 'Create Category' : 'Save Changes';
 
-  const handleSave = async () => {
-    const trimmedName = name.trim();
-    if (!isValid || saving) return;
-
-    setSaving(true);
-    try {
-      await onSave({
-        name: trimmedName,
-        icon,
-        color,
-        type,
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -103,7 +115,7 @@ export function CategoryEditorModal({
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View>
             <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              
+
               <View style={s.headerRow}>
                 <View style={s.headerTextWrap}>
                   <Text style={[s.title, { color: theme.text }]}>{title}</Text>
@@ -111,7 +123,7 @@ export function CategoryEditorModal({
                     Customize category details, icon, and colors.
                   </Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -123,13 +135,19 @@ export function CategoryEditorModal({
                     <TextInput
                       placeholder="e.g. Coffee, Side Hustle"
                       placeholderTextColor={theme.tertiary}
-                      value={name}
-                      onChangeText={setName}
+                      value={formik.values.name}
+                      onChangeText={formik.handleChange('name')}
+                      onBlur={formik.handleBlur('name')}
                       autoCapitalize="words"
                       style={[s.input, { color: theme.text }]}
                       selectionColor={primaryBg}
                     />
                   </View>
+                  {formik.touched.name && formik.errors.name ? (
+                    <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                      {formik.errors.name}
+                    </Text>
+                  ) : null}
                 </View>
 
                 <View style={s.fieldGroup}>
@@ -217,19 +235,19 @@ export function CategoryEditorModal({
 
               <View style={s.actions}>
                 <Pressable
-                  onPress={() => void handleSave()}
-                  disabled={!isValid || saving}
+                  onPress={() => void formik.handleSubmit()}
+                  disabled={saving}
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: !isValid || saving ? submitDisabledColor : primaryBg,
+                      backgroundColor: saving ? submitDisabledColor : primaryBg,
                     },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color={primaryText} />
                   ) : (
-                    <Text style={[s.actionText, { color: !isValid || saving ? theme.tertiary : primaryText }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : primaryText }]}>
                       {submitLabel}
                     </Text>
                   )}
@@ -239,6 +257,16 @@ export function CategoryEditorModal({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }
