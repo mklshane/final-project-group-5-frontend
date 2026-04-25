@@ -1052,25 +1052,43 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       const existing = state.categories.find((category) => category.id === id && !category.deleted_at);
       if (!existing) return;
 
+      const now = nowIso();
       const nextVersion = Math.max(1, existing.version + 1);
       const deletedRecord: CategoryRecord = {
         ...existing,
         version: nextVersion,
-        deleted_at: nowIso(),
-        updated_at: nowIso(),
+        deleted_at: now,
+        updated_at: now,
       };
 
-      const change: SyncChange = {
+      const categoryDeleteChange: SyncChange = {
         table: 'categories',
         action: 'delete',
         record_id: id,
         version: nextVersion,
       };
 
+      // Cascade: soft-delete any active budgets that reference this category
+      const relatedBudgets = state.budgets.filter((b) => !b.deleted_at && b.category_id === id);
+      const deletedBudgets: BudgetRecord[] = relatedBudgets.map((b) => ({
+        ...b,
+        version: Math.max(1, b.version + 1),
+        deleted_at: now,
+        updated_at: now,
+      }));
+      const budgetSyncChanges: SyncChange[] = deletedBudgets.map((b) => ({
+        table: 'budgets',
+        action: 'update',
+        record_id: b.id,
+        record: b as unknown as Record<string, unknown>,
+        version: b.version,
+      }));
+
       setState((prev) => ({
         ...prev,
         categories: prev.categories.filter((category) => category.id !== id),
-        pendingChanges: [...prev.pendingChanges, change],
+        budgets: prev.budgets.map((b) => deletedBudgets.find((db) => db.id === b.id) ?? b),
+        pendingChanges: [...prev.pendingChanges, categoryDeleteChange, ...budgetSyncChanges],
       }));
 
       void runSync(
@@ -1082,12 +1100,13 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
             record: deletedRecord as unknown as Record<string, unknown>,
             version: nextVersion,
           },
-          change,
+          categoryDeleteChange,
+          ...budgetSyncChanges,
         ],
         state.lastSyncedAt
       );
     },
-    [runSync, state.categories, state.lastSyncedAt]
+    [runSync, state.budgets, state.categories, state.lastSyncedAt]
   );
 
   const addBudget = useCallback(

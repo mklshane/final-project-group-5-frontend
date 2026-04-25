@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: 'Unable to start your session. Please try again.' };
       }
 
-      const signedInProfile = await fetchProfile(accessToken);
+      const signedInProfile = await fetchProfileWithRetry(accessToken);
       if (!signedInProfile) {
         await supabase.auth.signOut();
         return { error: 'Your account is missing a profile record. Please contact support or sign up again.' };

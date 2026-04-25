@@ -180,6 +180,7 @@ export default function HomeScreen() {
     };
 
     return finance.insights.budgetUtilization
+      .filter((entry) => categoryById.has(entry.budget.category_id))
       .map((entry) => {
         const category = categoryById.get(entry.budget.category_id);
         const fallback = entry.budget.category_id ? 'Category' : 'Uncategorized';
