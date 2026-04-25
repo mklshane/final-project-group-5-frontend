@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, PanResponder, Animated as RNAnimated, type PanResponderGestureState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -55,6 +56,7 @@ export default function HomeScreen() {
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
   const [layoutEditorVisible, setLayoutEditorVisible] = useState(false);
   const [sectionOrder, setSectionOrder] = useState<HomeSectionKey[]>(DEFAULT_HOME_SECTION_ORDER);
+  const sectionOrderHydrated = useRef(false);
   const [draggedSectionKey, setDraggedSectionKey] = useState<HomeSectionKey | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -70,6 +72,26 @@ export default function HomeScreen() {
 
   useEffect(() => {
     sectionOrderRef.current = sectionOrder;
+  }, [sectionOrder]);
+
+  // Load persisted section order on mount
+  useEffect(() => {
+    AsyncStorage.getItem('budgy_home_section_order_v1')
+      .then((raw) => {
+        if (raw) {
+          const parsed: HomeSectionKey[] = JSON.parse(raw);
+          const valid = DEFAULT_HOME_SECTION_ORDER.every((k) => parsed.includes(k)) && parsed.length === DEFAULT_HOME_SECTION_ORDER.length;
+          if (valid) setSectionOrder(parsed);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => { sectionOrderHydrated.current = true; });
+  }, []);
+
+  // Persist section order whenever it changes (skip initial default)
+  useEffect(() => {
+    if (!sectionOrderHydrated.current) return;
+    AsyncStorage.setItem('budgy_home_section_order_v1', JSON.stringify(sectionOrder)).catch(() => undefined);
   }, [sectionOrder]);
 
   // Sheet open animation
@@ -721,11 +743,11 @@ export default function HomeScreen() {
                   )}
                 </Pressable>
               </View>
-              <View style={[s.layoutEditorDone, { backgroundColor: theme.lime }]}>
+              <View style={[s.layoutEditorDone, { backgroundColor: isDark ? theme.lime : '#3F7D36' }]}>
                 <Pressable onPress={handleCloseEditor} hitSlop={16}>
                   {({ pressed }) => (
                     <View style={[s.layoutEditorDoneContent, { opacity: pressed ? 0.8 : 1 }]}>
-                      <Text style={[s.layoutEditorDoneText, { color: '#0F1713' }]}>Done</Text>
+                      <Text style={[s.layoutEditorDoneText, { color: isDark ? '#0F1713' : '#ECFCCB' }]}>Done</Text>
                     </View>
                   )}
                 </Pressable>

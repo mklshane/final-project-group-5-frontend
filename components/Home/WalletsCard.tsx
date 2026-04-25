@@ -27,12 +27,12 @@ type Palette = {
 
 function getPalette(index: number, isDark: boolean): Palette {
   const limePalette: Palette = {
-    cardBg: '#F7FEE7',
-    border: '#BEF264',
-    iconBg: 'rgba(101, 163, 13, 0.12)',
-    amount: '#1A2E05',
-    label: '#3F6212',
-    accent: '#65A30D',
+    cardBg: '#e0edd8',
+    border: '#80bd5b',
+    iconBg: 'rgba(34, 113, 58, 0.13)',
+    amount: '#0F2318',
+    label: '#22713A',
+    accent: '#22713A',
   };
 
   const limePaletteDark: Palette = {
