@@ -785,6 +785,20 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           }
         : null;
 
+      // If this transaction was a goal contribution, roll back saved_amount
+      const goalMarkerMatch = existing.note?.match(/\[#goal:([^\]]+)\]/);
+      const linkedGoal = goalMarkerMatch
+        ? state.goals.find((g) => g.id === goalMarkerMatch[1] && !g.deleted_at)
+        : null;
+      const updatedGoal = linkedGoal
+        ? {
+            ...linkedGoal,
+            saved_amount: Math.max(0, toNumber(linkedGoal.saved_amount) - existing.amount),
+            version: Math.max(1, linkedGoal.version + 1),
+            updated_at: nowIso(),
+          }
+        : null;
+
       const change: SyncChange = {
         table: 'transactions',
         action: 'delete',
@@ -802,18 +816,29 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
           }
         : null;
 
-      const syncChanges = walletChange ? [change, walletChange] : [change];
+      const goalChange: SyncChange | null = updatedGoal
+        ? {
+            table: 'goals',
+            action: 'update',
+            record_id: updatedGoal.id,
+            record: updatedGoal as unknown as Record<string, unknown>,
+            version: updatedGoal.version,
+          }
+        : null;
+
+      const syncChanges = [change, walletChange, goalChange].filter(Boolean) as SyncChange[];
 
       setState((prev) => ({
         ...prev,
         transactions: prev.transactions.filter((tx) => tx.id !== id),
         wallets: updatedWallet ? upsertById(prev.wallets, updatedWallet) : prev.wallets,
+        goals: updatedGoal ? upsertById(prev.goals, updatedGoal) : prev.goals,
         pendingChanges: [...prev.pendingChanges, ...syncChanges],
       }));
 
       void runSync(syncChanges, state.lastSyncedAt);
     },
-    [runSync, state.lastSyncedAt, state.transactions, state.wallets]
+    [runSync, state.lastSyncedAt, state.transactions, state.wallets, state.goals]
   );
 
   const addCategory = useCallback(
