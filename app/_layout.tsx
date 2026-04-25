@@ -9,6 +9,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FinanceDataProvider } from '@/context/FinanceDataContext';
 import { AppPreferencesProvider, useAppPreferences } from '@/context/AppPreferencesContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { SplashScreenView } from '@/components/SplashScreenView';
 import { DevPanel } from '@/components/DevPanel';
 import { devStore } from '@/lib/devStore';
@@ -68,7 +69,9 @@ export default function RootLayout() {
         <FinanceDataProvider>
           <AppPreferencesProvider>
             <ThemePreferenceBridge>
-              <RootLayoutNav />
+              <ToastProvider>
+                <RootLayoutNav />
+              </ToastProvider>
             </ThemePreferenceBridge>
           </AppPreferencesProvider>
         </FinanceDataProvider>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator
@@ -11,8 +11,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useOnboardingStore } from '@/hooks/useOnboardingStore';
 import { CURRENCIES } from '@/constants/currencies';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+const BalanceSchema = Yup.object().shape({
+  balance: Yup.string()
+    .test('is-valid-balance', 'Please enter a valid balance (0 or more)', value => {
+      const amount = parseFloat((value ?? '').replace(/,/g, ''));
+      return !isNaN(amount) && amount >= 0;
+    })
+    .required('Please enter a balance'),
+});
 
 export default function Step2Balance() {
   const router = useRouter();
@@ -24,9 +35,6 @@ export default function Step2Balance() {
   const currencyInfo = CURRENCIES.find((c) => c.code === currency);
   const symbol = currencyInfo?.symbol ?? currency;
 
-  const [balance, setBalance] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   // Auto-focus for a seamless transition
@@ -34,49 +42,51 @@ export default function Step2Balance() {
     setTimeout(() => inputRef.current?.focus(), 400);
   }, []);
 
-  const handleComplete = async () => {
-    const amount = parseFloat(balance.replace(/,/g, ''));
-    if (isNaN(amount) || amount < 0) {
-      setError('Please enter a valid balance.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
-    setError('');
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/profile/complete-onboarding`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session!.access_token}`,
-        },
-        body: JSON.stringify({
-          currency,
-          balance: amount,
-        }),
-      });
-
-      if (res.ok) {
-        store.reset();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        await refreshProfile();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.error ?? 'Something went wrong. Please try again.');
+  const formik = useFormik({
+    initialValues: { balance: '' },
+    validationSchema: BalanceSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      const amount = parseFloat(values.balance.replace(/,/g, ''));
+      if (isNaN(amount) || amount < 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
       }
-    } catch {
-      setError('Network error. Check your connection.');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/profile/complete-onboarding`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session!.access_token}`,
+          },
+          body: JSON.stringify({
+            currency,
+            balance: amount,
+          }),
+        });
+
+        if (res.ok) {
+          store.reset();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          await refreshProfile();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          formik.setFieldError('balance', data?.error ?? 'Something went wrong. Please try again.');
+          formik.setFieldTouched('balance', true, false);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+      } catch {
+        formik.setFieldError('balance', 'Network error. Check your connection.');
+        formik.setFieldTouched('balance', true, false);
+      }
+    },
+  });
 
   const handleBalanceChange = (text: string) => {
     const cleaned = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-    setBalance(cleaned);
-    setError('');
+    formik.setFieldValue('balance', cleaned);
   };
 
   return (
@@ -112,18 +122,11 @@ export default function Step2Balance() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {error ? (
-          <Animated.View entering={FadeInDown.duration(300)} style={s.errorBanner}>
-            <Ionicons name="alert-circle-outline" size={16} color="#FF6B6B" />
-            <Text style={s.errorText}>{error}</Text>
-          </Animated.View>
-        ) : null}
-
         <View style={s.inputWrap}>
-          <Text style={[s.inputSymbol, !balance && { color: '#C8CCB8' }]}>{symbol}</Text>
+          <Text style={[s.inputSymbol, !formik.values.balance && { color: '#C8CCB8' }]}>{symbol}</Text>
           <TextInput
             ref={inputRef}
-            value={balance}
+            value={formik.values.balance}
             onChangeText={handleBalanceChange}
             keyboardType="decimal-pad"
             placeholder="0.00"
@@ -133,32 +136,36 @@ export default function Step2Balance() {
           />
         </View>
 
+        {formik.touched.balance && formik.errors.balance ? (
+          <Text style={s.inlineError}>{formik.errors.balance}</Text>
+        ) : null}
+
         <View style={s.chipRow}>
           {['1000', '5000', '10000', '50000'].map(amt => (
-             <Pressable 
-               key={amt} 
-               onPress={() => { 
-                 Haptics.selectionAsync(); 
-                 setBalance(amt); 
-                 setError('');
-               }} 
-               style={s.chip}
-             >
-               <Text style={s.chipText}>+{symbol}{parseInt(amt).toLocaleString()}</Text>
-             </Pressable>
+            <Pressable
+              key={amt}
+              onPress={() => {
+                Haptics.selectionAsync();
+                formik.setFieldValue('balance', amt);
+                formik.setFieldTouched('balance', true);
+              }}
+              style={s.chip}
+            >
+              <Text style={s.chipText}>+{symbol}{parseInt(amt).toLocaleString()}</Text>
+            </Pressable>
           ))}
         </View>
       </ScrollView>
 
       {/* ── Pinned Footer ────────────────────────────── */}
       <View style={[s.footerFloat, { paddingBottom: insets.bottom || 24 }]}>
-        <Pressable 
-          onPress={handleComplete} 
-          disabled={loading}
-          style={[s.primaryBtn, loading && { opacity: 0.7 }]}
+        <Pressable
+          onPress={() => formik.handleSubmit()}
+          disabled={formik.isSubmitting}
+          style={[s.primaryBtn, formik.isSubmitting && { opacity: 0.7 }]}
         >
-          {loading 
-            ? <ActivityIndicator color="#1A1E14" /> 
+          {formik.isSubmitting
+            ? <ActivityIndicator color="#1A1E14" />
             : <Text style={s.primaryBtnText}>Complete Setup</Text>
           }
         </Pressable>
@@ -202,19 +209,14 @@ const s = StyleSheet.create({
 
   form: { paddingHorizontal: 28, paddingTop: 36 },
 
-  errorBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,107,107,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,107,107,0.2)',
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    marginBottom: 24,
+  inlineError: {
+    color: '#FF6B6B', fontSize: 13, fontWeight: '500', marginTop: 8,
   },
-  errorText: { color: '#FF6B6B', fontSize: 13, fontWeight: '500', flex: 1 },
 
   inputWrap: {
     flexDirection: 'row', alignItems: 'center',
     borderBottomWidth: 2, borderBottomColor: '#E4E6D6',
-    paddingBottom: 8, marginBottom: 32, marginTop: 12,
+    paddingBottom: 8, marginBottom: 0, marginTop: 12,
   },
   inputSymbol: {
     fontSize: 48, fontWeight: '800', color: '#1A1E14', marginRight: 12,
@@ -225,7 +227,7 @@ const s = StyleSheet.create({
   },
 
   chipRow: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 32,
   },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10,
@@ -244,7 +246,7 @@ const s = StyleSheet.create({
     backgroundColor: '#C8F560', borderRadius: 16, height: 56,
     alignItems: 'center', justifyContent: 'center',
   },
-  primaryBtnText: { 
-    color: '#1A1E14', fontSize: 16, fontWeight: '800', letterSpacing: 0.1 
+  primaryBtnText: {
+    color: '#1A1E14', fontSize: 16, fontWeight: '800', letterSpacing: 0.1
   },
 });

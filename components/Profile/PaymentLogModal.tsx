@@ -16,7 +16,10 @@ import {
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { CURRENCIES } from '@/constants/currencies';
 import type { CategoryRecord, WalletRecord } from '@/types/finance';
@@ -83,29 +86,61 @@ export function PaymentLogModal({
     [currencyCode]
   );
 
-  const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [discardVisible, setDiscardVisible] = useState(false);
+
+  const handleRequestClose = () => {
+    if (formik.values.amount !== '' || note !== '') {
+      setDiscardVisible(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const validationSchema = useMemo(() => Yup.object({
+    amount: Yup.number()
+      .typeError('Enter a valid amount')
+      .positive('Amount must be greater than 0')
+      .required('Amount is required')
+      .max(maxAmount, 'Amount exceeds the remaining balance'),
+  }), [maxAmount]);
+
+  const formik = useFormik({
+    initialValues: { amount: '' },
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      if (!fixedCategory) return;
+      setSaving(true);
+      try {
+        await onSave({
+          amount: Number(values.amount),
+          date: toIsoDate(date),
+          walletId: selectedWalletId,
+          categoryId: fixedCategory.id,
+          note: note.trim(),
+        });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!visible) return;
-    setAmount('');
     setDate(new Date());
     setShowAndroidDatePicker(false);
     setSelectedWalletId(pickDefaultWallet(wallets));
     setNote('');
+    formik.resetForm({ values: { amount: '' } });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, wallets]);
-
-  const amountValue = useMemo(() => Number(amount || '0'), [amount]);
-  const isValid =
-    Number.isFinite(amountValue) &&
-    amountValue > 0 &&
-    amountValue <= Math.max(0, maxAmount) &&
-    selectedWalletId !== null &&
-    fixedCategory !== null;
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
   const title = mode === 'owe' ? 'Log payment' : 'Log collection';
@@ -118,20 +153,6 @@ export function PaymentLogModal({
     mode === 'owe'
       ? 'Debt Payment category is unavailable. Restore it to continue.'
       : 'Debt Collection category is unavailable. Restore it to continue.';
-  const validationMessage = useMemo(() => {
-    if (!fixedCategory) return fixedCategoryMissingMessage;
-    if (amount === '') return null;
-    if (!Number.isFinite(amountValue) || amountValue <= 0) {
-      return 'Enter an amount greater than 0.';
-    }
-    if (amountValue > maxAmount) {
-      return 'Amount exceeds the remaining balance.';
-    }
-    if (!selectedWalletId) {
-      return 'Select a wallet to continue.';
-    }
-    return null;
-  }, [amount, amountValue, fixedCategory, fixedCategoryMissingMessage, maxAmount, selectedWalletId]);
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -142,25 +163,8 @@ export function PaymentLogModal({
     }
   };
 
-  const handleSave = async () => {
-    if (!isValid || saving || !fixedCategory) return;
-    setSaving(true);
-    try {
-      await onSave({
-        amount: amountValue,
-        date: toIsoDate(date),
-        walletId: selectedWalletId,
-        categoryId: fixedCategory.id,
-        note: note.trim(),
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -178,7 +182,7 @@ export function PaymentLogModal({
                   <Text style={[s.modalTitle, { color: theme.text }]}>{title}</Text>
                   <Text style={[s.subtitle, { color: theme.secondary }]}>{subtitle}</Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -192,14 +196,16 @@ export function PaymentLogModal({
                   </Text>
                 </View>
                 <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                  <Text style={[s.currencyPrefix, { color: amount ? theme.text : theme.tertiary }]}>
+                  <Text style={[s.currencyPrefix, { color: formik.values.amount ? theme.text : theme.tertiary }]}>
                     {currencySymbol}
                   </Text>
                   <TextInput
-                    value={amount}
-                    onChangeText={(value) =>
-                      setAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))
-                    }
+                    value={formik.values.amount}
+                    onChangeText={(value) => {
+                      const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                      void formik.setFieldValue('amount', cleaned);
+                    }}
+                    onBlur={() => void formik.setFieldTouched('amount', true)}
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
@@ -207,6 +213,11 @@ export function PaymentLogModal({
                     selectionColor={theme.lime}
                   />
                 </View>
+                {formik.touched.amount && formik.errors.amount ? (
+                  <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                    {formik.errors.amount}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Date */}
@@ -339,6 +350,11 @@ export function PaymentLogModal({
                     )}
                   </View>
                 </View>
+                {!fixedCategory ? (
+                  <Text style={[s.validationText, { color: theme.red }]}>
+                    {fixedCategoryMissingMessage}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Note */}
@@ -358,27 +374,20 @@ export function PaymentLogModal({
                 </View>
               </View>
 
-              {/* Validation */}
-              {validationMessage ? (
-                <Text style={[s.validationText, { color: theme.red }]}>
-                  {validationMessage}
-                </Text>
-              ) : null}
-
               {/* Save button */}
               <View style={s.actions}>
                 <Pressable
-                  onPress={() => void handleSave()}
-                  disabled={!isValid || saving}
+                  onPress={() => void formik.handleSubmit()}
+                  disabled={saving}
                   style={[
                     s.actionButton,
-                    { backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime },
+                    { backgroundColor: saving ? submitDisabledColor : theme.lime },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color="#1A1E14" />
                   ) : (
-                    <Text style={[s.actionText, { color: !isValid || saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
                       Save
                     </Text>
                   )}
@@ -388,6 +397,16 @@ export function PaymentLogModal({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }
@@ -611,7 +630,7 @@ const s = StyleSheet.create({
   validationText: {
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: 8,
+    marginTop: 6,
     lineHeight: 18,
   },
 

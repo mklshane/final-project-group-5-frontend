@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { useToast } from '@/context/ToastContext';
 import { WalletEditorModal } from '@/components/Profile/WalletEditorModal';
 import { WalletListSection } from '@/components/Profile/WalletListSection';
 import { useFinanceData } from '@/context/FinanceDataContext';
@@ -12,6 +13,7 @@ import type { WalletRecord, WalletType } from '@/types/finance';
 export default function ManageWalletsScreen() {
   const theme = useTheme();
   const { loading, addWallet, updateWallet, archiveWallet } = useFinanceData();
+  const toast = useToast();
   const finance = useFinanceSelectors();
 
   const [editorVisible, setEditorVisible] = useState(false);
@@ -48,22 +50,28 @@ export default function ManageWalletsScreen() {
     currentBalance: number;
     isDefault: boolean;
   }) => {
-    if (editorMode === 'create') {
-      await addWallet(input);
-      return;
+    try {
+      if (editorMode === 'create') {
+        await addWallet(input);
+        toast.show('Wallet created', 'success');
+        return;
+      }
+      if (!selectedWallet) return;
+      await updateWallet({ id: selectedWallet.id, ...input });
+      toast.show('Wallet updated', 'success');
+    } catch {
+      toast.show('Failed to save wallet', 'error');
     }
-
-    if (!selectedWallet) return;
-
-    await updateWallet({
-      id: selectedWallet.id,
-      ...input,
-    });
   };
 
   const handleArchive = async () => {
     if (!archiveTarget) return;
-    await archiveWallet(archiveTarget.id);
+    try {
+      await archiveWallet(archiveTarget.id);
+      toast.show('Wallet archived', 'success');
+    } catch {
+      toast.show('Failed to archive wallet', 'error');
+    }
     setArchiveTarget(null);
   };
 

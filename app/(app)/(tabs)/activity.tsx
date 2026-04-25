@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
@@ -60,6 +61,7 @@ export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { state, addTransaction, deleteTransaction } = useFinanceData();
+  const toast = useToast();
   const finance = useFinanceSelectors();
 
   const [search, setSearch] = useState('');
@@ -219,7 +221,12 @@ export default function ActivityScreen() {
     if (!deleteTargetId) return;
     const targetId = deleteTargetId;
     setDeleteTargetId(null);
-    await deleteTransaction(targetId);
+    try {
+      await deleteTransaction(targetId);
+      toast.show('Transaction deleted', 'success');
+    } catch {
+      toast.show('Failed to delete transaction', 'error');
+    }
   };
 
   return (

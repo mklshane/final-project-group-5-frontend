@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import type { DebtCounterpartyKind, DebtRecord } from '@/types/finance';
 
 type DebtEditorMode = 'owe' | 'owed';
@@ -61,18 +64,57 @@ const toAmountString = (value: number) => {
   return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
 };
 
+const DebtSchema = Yup.object({
+  counterpartyName: Yup.string().trim().required('Name is required'),
+  totalAmount: Yup.number()
+    .typeError('Enter a valid amount')
+    .positive('Total must be greater than 0')
+    .required('Total amount is required'),
+  amountPaid: Yup.number()
+    .typeError('Enter a valid amount')
+    .min(0, 'Cannot be negative')
+    .required('This field is required')
+    .test('paid-lte-total', 'Cannot exceed total amount', function (value) {
+      const { totalAmount } = this.parent;
+      if (value === undefined || value === null) return true;
+      if (!totalAmount) return true;
+      return value <= totalAmount;
+    }),
+  notes: Yup.string(),
+});
+
 export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }: DebtEditorModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
 
   const [counterpartyKind, setCounterpartyKind] = useState<DebtCounterpartyKind>('person');
-  const [counterpartyName, setCounterpartyName] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
-  const [amountPaid, setAmountPaid] = useState('');
   const [dueDate, setDueDate] = useState(new Date());
-  const [notes, setNotes] = useState('');
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
+
+  const formik = useFormik({
+    initialValues: { counterpartyName: '', totalAmount: '', amountPaid: '', notes: '' },
+    validationSchema: DebtSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      setSaving(true);
+      try {
+        await onSave({
+          counterpartyKind: mode === 'owe' ? counterpartyKind : undefined,
+          counterpartyName: values.counterpartyName.trim(),
+          totalAmount: Number(values.totalAmount),
+          amountPaid: Number(values.amountPaid),
+          dueDate: toIsoDate(dueDate),
+          notes: values.notes.trim() || undefined,
+        });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!visible) return;
@@ -83,29 +125,30 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
     const debtPaid = Number.isFinite(initialDebt?.amount_paid) ? Number(initialDebt?.amount_paid) : 0;
 
     setCounterpartyKind(initialDebt?.counterparty_kind ?? 'person');
-    setCounterpartyName(initialDebt?.counterparty_name ?? initialDebt?.person_name ?? '');
-    setTotalAmount(initialDebt ? toAmountString(debtTotal) : '');
-    setAmountPaid(initialDebt ? toAmountString(debtPaid) : '');
     setDueDate(parseDate(initialDebt?.due_date));
-    setNotes(initialDebt?.notes ?? initialDebt?.description ?? '');
     setShowAndroidDatePicker(false);
+    formik.resetForm({
+      values: {
+        counterpartyName: initialDebt?.counterparty_name ?? initialDebt?.person_name ?? '',
+        totalAmount: initialDebt ? toAmountString(debtTotal) : '',
+        amountPaid: initialDebt ? toAmountString(debtPaid) : '',
+        notes: initialDebt?.notes ?? initialDebt?.description ?? '',
+      },
+    });
   }, [visible, initialDebt]);
-
-  const totalValue = useMemo(() => Number(totalAmount || '0'), [totalAmount]);
-  const paidValue = useMemo(() => Number(amountPaid || '0'), [amountPaid]);
-
-  const isValid =
-    counterpartyName.trim().length > 0 &&
-    Number.isFinite(totalValue) &&
-    totalValue > 0 &&
-    Number.isFinite(paidValue) &&
-    paidValue >= 0 &&
-    paidValue <= totalValue;
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
   const dueDateLabel = mode === 'owe' ? 'DUE DATE' : 'EXPECTED BY';
   const paidLabel = mode === 'owe' ? 'ALREADY PAID' : 'ALREADY COLLECTED';
   const counterpartyLabel = mode === 'owe' ? 'WHO IS THIS OWED TO?' : 'WHO OWES TO YOU?';
+
+  const handleRequestClose = () => {
+    if (!initialDebt && formik.dirty) {
+      setDiscardVisible(true);
+    } else {
+      onClose();
+    }
+  };
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -116,27 +159,8 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
     }
   };
 
-  const handleSave = async () => {
-    if (!isValid) return;
-
-    setSaving(true);
-    try {
-      await onSave({
-        counterpartyKind: mode === 'owe' ? counterpartyKind : undefined,
-        counterpartyName: counterpartyName.trim(),
-        totalAmount: totalValue,
-        amountPaid: paidValue,
-        dueDate: toIsoDate(dueDate),
-        notes: notes.trim() || undefined,
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -153,7 +177,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                     Track remaining balances and due dates.
                   </Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -191,24 +215,34 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>{counterpartyLabel}</Text>
                   <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                     <TextInput
-                      value={counterpartyName}
-                      onChangeText={setCounterpartyName}
+                      value={formik.values.counterpartyName}
+                      onChangeText={formik.handleChange('counterpartyName')}
+                      onBlur={formik.handleBlur('counterpartyName')}
                       placeholder={mode === 'owe' ? 'e.g. John, BDO, Landlord' : 'e.g. Alex, Client Co.'}
                       placeholderTextColor={theme.tertiary}
                       style={[s.input, { color: theme.text }]}
                       selectionColor={theme.lime}
                     />
                   </View>
+                  {formik.touched.counterpartyName && formik.errors.counterpartyName ? (
+                    <Text style={s.fieldError}>{formik.errors.counterpartyName}</Text>
+                  ) : null}
                 </View>
 
                 <View style={s.splitRow}>
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>{mode === 'owe' ? 'TOTAL DEBT' : 'TOTAL OWED'}</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: totalAmount ? theme.text : theme.tertiary }]}>₱</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.totalAmount ? theme.text : theme.tertiary }]}>₱</Text>
                       <TextInput
-                        value={totalAmount}
-                        onChangeText={(value) => setTotalAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                        value={formik.values.totalAmount}
+                        onChangeText={(value) =>
+                          formik.setFieldValue(
+                            'totalAmount',
+                            value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'),
+                          )
+                        }
+                        onBlur={() => formik.setFieldTouched('totalAmount', true)}
                         keyboardType="decimal-pad"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
@@ -216,15 +250,24 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                         selectionColor={theme.lime}
                       />
                     </View>
+                    {formik.touched.totalAmount && formik.errors.totalAmount ? (
+                      <Text style={s.fieldError}>{formik.errors.totalAmount}</Text>
+                    ) : null}
                   </View>
 
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>{paidLabel}</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: amountPaid ? theme.text : theme.tertiary }]}>₱</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.amountPaid ? theme.text : theme.tertiary }]}>₱</Text>
                       <TextInput
-                        value={amountPaid}
-                        onChangeText={(value) => setAmountPaid(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                        value={formik.values.amountPaid}
+                        onChangeText={(value) =>
+                          formik.setFieldValue(
+                            'amountPaid',
+                            value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'),
+                          )
+                        }
+                        onBlur={() => formik.setFieldTouched('amountPaid', true)}
                         keyboardType="decimal-pad"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
@@ -232,6 +275,9 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                         selectionColor={theme.lime}
                       />
                     </View>
+                    {formik.touched.amountPaid && formik.errors.amountPaid ? (
+                      <Text style={s.fieldError}>{formik.errors.amountPaid}</Text>
+                    ) : null}
                   </View>
                 </View>
 
@@ -263,8 +309,9 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>NOTES (OPTIONAL)</Text>
                   <View style={[s.notesWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                     <TextInput
-                      value={notes}
-                      onChangeText={setNotes}
+                      value={formik.values.notes}
+                      onChangeText={formik.handleChange('notes')}
+                      onBlur={formik.handleBlur('notes')}
                       placeholder="Add context..."
                       placeholderTextColor={theme.tertiary}
                       style={[s.notesInput, { color: theme.text }]}
@@ -274,29 +321,23 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                     />
                   </View>
                 </View>
-
-                {!isValid && (totalAmount !== '' || amountPaid !== '' || counterpartyName !== '') ? (
-                  <Text style={[s.validationText, { color: theme.red }]}>
-                    Ensure all required fields are filled and paid/collected does not exceed the total.
-                  </Text>
-                ) : null}
               </View>
 
               <View style={s.actions}>
                 <Pressable
-                  onPress={() => void handleSave()}
-                  disabled={!isValid || saving}
+                  onPress={() => void formik.handleSubmit()}
+                  disabled={saving}
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime,
+                      backgroundColor: saving ? submitDisabledColor : theme.lime,
                     },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color="#1A1E14" />
                   ) : (
-                    <Text style={[s.actionText, { color: !isValid || saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
                       {initialDebt ? 'Save Changes' : 'Create Entry'}
                     </Text>
                   )}
@@ -306,6 +347,16 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }
@@ -436,11 +487,11 @@ const s = StyleSheet.create({
     fontWeight: '500',
     minHeight: 52,
   },
-  validationText: {
+  fieldError: {
+    color: '#FF6B6B',
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: 8,
-    lineHeight: 18,
+    marginTop: 6,
   },
   actions: {
     marginTop: 10,

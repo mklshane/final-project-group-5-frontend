@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   const { isDark } = theme;
   const { profile } = useAuth();
   const { state, addTransaction, deleteTransaction, error: financeError } = useFinanceData();
+  const toast = useToast();
   const finance = useFinanceSelectors();
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -118,14 +120,19 @@ export default function HomeScreen() {
   };
 
   const handleSubmitEntry = async (input: any) => {
-    await addTransaction({
-      title: input.title,
-      amount: input.amount,
-      type: input.type,
-      walletId: input.walletId,
-      categoryId: input.categoryId,
-      date: input.loggedAt.toISOString(),
-    });
+    try {
+      await addTransaction({
+        title: input.title,
+        amount: input.amount,
+        type: input.type,
+        walletId: input.walletId,
+        categoryId: input.categoryId,
+        date: input.loggedAt.toISOString(),
+      });
+      toast.show('Transaction saved', 'success');
+    } catch {
+      toast.show('Failed to save transaction', 'error');
+    }
   };
 
   const firstName = (profile?.full_name ?? 'there').split(' ')[0];
@@ -488,7 +495,7 @@ export default function HomeScreen() {
                   </View>
                 )}
               </Pressable>
-              <Pressable onPress={() => router.push('/activity')} hitSlop={10}>
+              <Pressable onPress={() => router.push('/notifications')} hitSlop={10}>
                 {({ pressed }) => (
                   <View
                     style={[
@@ -725,8 +732,16 @@ export default function HomeScreen() {
         message={deleteTarget ? `Delete "${deleteTarget.title}"?` : 'Delete this transaction?'}
         onCancel={() => setDeleteTargetId(null)}
         onConfirm={async () => {
-          if (deleteTargetId) await deleteTransaction(deleteTargetId);
+          const id = deleteTargetId;
           setDeleteTargetId(null);
+          if (id) {
+            try {
+              await deleteTransaction(id);
+              toast.show('Transaction deleted', 'success');
+            } catch {
+              toast.show('Failed to delete transaction', 'error');
+            }
+          }
         }}
       />
 

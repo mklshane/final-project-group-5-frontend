@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -13,7 +13,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import type { BudgetPeriod, BudgetRecord, CategoryRecord } from '@/types/finance';
 
 interface BudgetEditorModalProps {
@@ -37,6 +40,13 @@ const toAmountString = (value: number) => {
   return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
 };
 
+const validationSchema = Yup.object({
+  amount: Yup.number()
+    .typeError('Enter a valid amount')
+    .positive('Amount must be greater than 0')
+    .required('Amount is required'),
+});
+
 export function BudgetEditorModal({
   visible,
   category,
@@ -48,68 +58,84 @@ export function BudgetEditorModal({
   const theme = useTheme();
   const { isDark } = theme;
 
-  const [amount, setAmount] = useState('');
   const [period, setPeriod] = useState<BudgetPeriod>('monthly');
   const [saving, setSaving] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
 
-  useEffect(() => {
-    if (!visible) return;
-    setAmount(initialBudget ? toAmountString(initialBudget.amount_limit) : '');
-    setPeriod(initialBudget?.period ?? defaultPeriod);
-  }, [visible, initialBudget, defaultPeriod]);
-
-  const amountValue = useMemo(() => Number(amount || '0'), [amount]);
-  const isValid = Number.isFinite(amountValue) && amountValue > 0;
-
-  const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
-
-  const handleSave = async () => {
-    if (!isValid || saving) return;
-
-    setSaving(true);
-    try {
-      await onSave({
-        amountLimit: amountValue,
-        period,
-      });
+  const handleRequestClose = () => {
+    if (!initialBudget && formik.dirty) {
+      setDiscardVisible(true);
+    } else {
       onClose();
-    } finally {
-      setSaving(false);
     }
   };
 
+  const formik = useFormik({
+    initialValues: { amount: '' },
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      setSaving(true);
+      try {
+        await onSave({
+          amountLimit: Number(values.amount),
+          period,
+        });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (!visible) return;
+    formik.resetForm({
+      values: { amount: initialBudget ? toAmountString(initialBudget.amount_limit) : '' },
+    });
+    setPeriod(initialBudget?.period ?? defaultPeriod);
+  }, [visible, initialBudget, defaultPeriod]);
+
+  const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
   const isEdit = Boolean(initialBudget);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View>
-            <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <View style={s.headerRow}>
                 <View style={s.headerTextWrap}>
-                  <Text style={[s.title, { color: theme.text }]}> 
+                  <Text style={[s.title, { color: theme.text }]}>
                     {isEdit ? 'Edit Category Budget' : 'Set Category Budget'}
                   </Text>
-                  <Text style={[s.subtitle, { color: theme.secondary }]}> 
+                  <Text style={[s.subtitle, { color: theme.secondary }]}>
                     {category?.name ?? 'Category'}
                   </Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
 
               <View style={s.fieldGroup}>
                 <Text style={[s.sectionLabel, { color: theme.secondary }]}>AMOUNT</Text>
-                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
-                  <Text style={[s.currencyPrefix, { color: amount ? theme.text : theme.tertiary }]}>PHP</Text>
+                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <Text style={[s.currencyPrefix, { color: formik.values.amount ? theme.text : theme.tertiary }]}>PHP</Text>
                   <TextInput
-                    value={amount}
-                    onChangeText={(value) => setAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                    value={formik.values.amount}
+                    onChangeText={(value) =>
+                      formik.setFieldValue(
+                        'amount',
+                        value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                      )
+                    }
+                    onBlur={formik.handleBlur('amount')}
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
@@ -117,6 +143,11 @@ export function BudgetEditorModal({
                     selectionColor={theme.lime}
                   />
                 </View>
+                {formik.touched.amount && formik.errors.amount ? (
+                  <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                    {formik.errors.amount}
+                  </Text>
+                ) : null}
               </View>
 
               <View style={s.fieldGroup}>
@@ -150,25 +181,21 @@ export function BudgetEditorModal({
                 </View>
               </View>
 
-              {!isValid && amount.length > 0 ? (
-                <Text style={[s.validationText, { color: theme.red }]}>Amount must be greater than zero.</Text>
-              ) : null}
-
               <View style={s.actions}>
                 <Pressable
-                  onPress={() => void handleSave()}
-                  disabled={!isValid || saving}
+                  onPress={() => void formik.handleSubmit()}
+                  disabled={saving}
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: !isValid || saving ? submitDisabledColor : (isDark ? theme.lime : '#3F7D36'),
+                      backgroundColor: saving ? submitDisabledColor : (isDark ? theme.lime : '#3F7D36'),
                     },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color={isDark ? '#1A1E14' : '#FFFFFF'} />
                   ) : (
-                    <Text style={[s.actionText, { color: isDark ? '#1A1E14' : '#FFFFFF' }]}> 
+                    <Text style={[s.actionText, { color: isDark ? '#1A1E14' : '#FFFFFF' }]}>
                       {isEdit ? 'Save Budget' : 'Create Budget'}
                     </Text>
                   )}
@@ -178,6 +205,16 @@ export function BudgetEditorModal({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }
@@ -271,12 +308,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
-  },
-  validationText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: -4,
-    marginBottom: 8,
   },
   actions: {
     marginTop: 10,

@@ -5,6 +5,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { DebtEditorModal } from '@/components/Profile/DebtEditorModal';
 import { OwedEntryCard } from '@/components/Profile/ManageMoneyOwed/OwedEntryCard';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import type { DebtRecord } from '@/types/finance';
@@ -20,6 +21,7 @@ export default function ManageMoneyOwedToYouScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { state, loading, addDebt, updateDebt } = useFinanceData();
+  const toast = useToast();
   const finance = useFinanceSelectors();
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtRecord | null>(null);
@@ -50,26 +52,31 @@ export default function ManageMoneyOwedToYouScreen() {
     dueDate: string;
     notes?: string;
   }) => {
-    if (!selectedDebt) {
-      await addDebt({
-        type: 'owed',
+    try {
+      if (!selectedDebt) {
+        await addDebt({
+          type: 'owed',
+          counterpartyName: input.counterpartyName,
+          totalAmount: input.totalAmount,
+          amountPaid: input.amountPaid,
+          dueDate: input.dueDate,
+          notes: input.notes,
+        });
+        toast.show('Entry created', 'success');
+        return;
+      }
+      await updateDebt({
+        id: selectedDebt.id,
         counterpartyName: input.counterpartyName,
         totalAmount: input.totalAmount,
         amountPaid: input.amountPaid,
         dueDate: input.dueDate,
         notes: input.notes,
       });
-      return;
+      toast.show('Entry updated', 'success');
+    } catch {
+      toast.show('Failed to save entry', 'error');
     }
-
-    await updateDebt({
-      id: selectedDebt.id,
-      counterpartyName: input.counterpartyName,
-      totalAmount: input.totalAmount,
-      amountPaid: input.amountPaid,
-      dueDate: input.dueDate,
-      notes: input.notes,
-    });
   };
 
   return (

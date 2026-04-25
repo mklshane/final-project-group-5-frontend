@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import type { GoalRecord } from '@/types/finance';
 
 interface GoalEditorModalProps {
@@ -53,36 +56,74 @@ const toAmountString = (value: number) => {
   return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
 };
 
+const GoalSchema = Yup.object({
+  title: Yup.string().trim().required('Goal name is required'),
+  targetAmount: Yup.number()
+    .typeError('Enter a valid amount')
+    .positive('Target must be greater than 0')
+    .required('Target amount is required'),
+  savedAmount: Yup.number()
+    .typeError('Enter a valid amount')
+    .min(0, 'Cannot be negative')
+    .required('Already saved is required')
+    .test('saved-lte-target', 'Cannot exceed target amount', function (value) {
+      const { targetAmount } = this.parent;
+      if (value === undefined || value === null) return true;
+      if (!targetAmount) return true;
+      return value <= targetAmount;
+    }),
+});
+
 export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalEditorModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
 
-  const [title, setTitle] = useState('');
-  const [targetAmount, setTargetAmount] = useState('');
-  const [savedAmount, setSavedAmount] = useState('');
   const [deadline, setDeadline] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
+
+  const formik = useFormik({
+    initialValues: { title: '', targetAmount: '', savedAmount: '' },
+    validationSchema: GoalSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      setSaving(true);
+      try {
+        await onSave({
+          title: values.title.trim(),
+          targetAmount: Number(values.targetAmount),
+          savedAmount: Number(values.savedAmount),
+          deadline: toIsoDate(deadline),
+        });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!visible) return;
-    setTitle(initialGoal?.title ?? '');
-    setTargetAmount(initialGoal ? toAmountString(initialGoal.target_amount) : '');
-    setSavedAmount(initialGoal ? toAmountString(initialGoal.saved_amount) : '');
     setDeadline(parseDate(initialGoal?.deadline));
     setShowAndroidDatePicker(false);
+    formik.resetForm({
+      values: {
+        title: initialGoal?.title ?? '',
+        targetAmount: initialGoal ? toAmountString(initialGoal.target_amount) : '',
+        savedAmount: initialGoal ? toAmountString(initialGoal.saved_amount) : '',
+      },
+    });
   }, [visible, initialGoal]);
 
-  const targetValue = useMemo(() => Number(targetAmount || '0'), [targetAmount]);
-  const savedValue = useMemo(() => Number(savedAmount || '0'), [savedAmount]);
-
-  const isValid =
-    title.trim().length > 0 &&
-    Number.isFinite(targetValue) &&
-    targetValue > 0 &&
-    Number.isFinite(savedValue) &&
-    savedValue >= 0 &&
-    savedValue <= targetValue;
+  const handleRequestClose = () => {
+    if (!initialGoal && formik.dirty) {
+      setDiscardVisible(true);
+    } else {
+      onClose();
+    }
+  };
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -93,27 +134,10 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
     }
   };
 
-  const handleSave = async () => {
-    if (!isValid) return;
-
-    setSaving(true);
-    try {
-      await onSave({
-        title: title.trim(),
-        targetAmount: targetValue,
-        savedAmount: savedValue,
-        deadline: toIsoDate(deadline),
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -130,7 +154,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                     Track your progress toward personal savings milestones.
                   </Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -140,24 +164,34 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>GOAL NAME</Text>
                   <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                     <TextInput
-                      value={title}
-                      onChangeText={setTitle}
+                      value={formik.values.title}
+                      onChangeText={formik.handleChange('title')}
+                      onBlur={formik.handleBlur('title')}
                       placeholder="e.g. Emergency Fund"
                       placeholderTextColor={theme.tertiary}
                       style={[s.input, { color: theme.text }]}
                       selectionColor={theme.lime}
                     />
                   </View>
+                  {formik.touched.title && formik.errors.title ? (
+                    <Text style={s.fieldError}>{formik.errors.title}</Text>
+                  ) : null}
                 </View>
 
                 <View style={s.splitRow}>
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>TARGET AMOUNT</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: targetAmount ? theme.text : theme.tertiary }]}>PHP</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.targetAmount ? theme.text : theme.tertiary }]}>PHP</Text>
                       <TextInput
-                        value={targetAmount}
-                        onChangeText={(value) => setTargetAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                        value={formik.values.targetAmount}
+                        onChangeText={(value) =>
+                          formik.setFieldValue(
+                            'targetAmount',
+                            value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'),
+                          )
+                        }
+                        onBlur={() => formik.setFieldTouched('targetAmount', true)}
                         keyboardType="decimal-pad"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
@@ -165,15 +199,24 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                         selectionColor={theme.lime}
                       />
                     </View>
+                    {formik.touched.targetAmount && formik.errors.targetAmount ? (
+                      <Text style={s.fieldError}>{formik.errors.targetAmount}</Text>
+                    ) : null}
                   </View>
 
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>ALREADY SAVED</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: savedAmount ? theme.text : theme.tertiary }]}>PHP</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.savedAmount ? theme.text : theme.tertiary }]}>PHP</Text>
                       <TextInput
-                        value={savedAmount}
-                        onChangeText={(value) => setSavedAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                        value={formik.values.savedAmount}
+                        onChangeText={(value) =>
+                          formik.setFieldValue(
+                            'savedAmount',
+                            value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'),
+                          )
+                        }
+                        onBlur={() => formik.setFieldTouched('savedAmount', true)}
                         keyboardType="decimal-pad"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
@@ -181,6 +224,9 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                         selectionColor={theme.lime}
                       />
                     </View>
+                    {formik.touched.savedAmount && formik.errors.savedAmount ? (
+                      <Text style={s.fieldError}>{formik.errors.savedAmount}</Text>
+                    ) : null}
                   </View>
                 </View>
 
@@ -207,29 +253,23 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                 {Platform.OS === 'android' && showAndroidDatePicker ? (
                   <DateTimePicker value={deadline} mode="date" display="default" onChange={handleDateChange} />
                 ) : null}
-
-                {!isValid && (title !== '' || targetAmount !== '' || savedAmount !== '') ? (
-                  <Text style={[s.validationText, { color: theme.red }]}>
-                    Make sure the goal has a name, a target amount, and that saved amount does not exceed the target.
-                  </Text>
-                ) : null}
               </View>
 
               <View style={s.actions}>
                 <Pressable
-                  onPress={() => void handleSave()}
-                  disabled={!isValid || saving}
+                  onPress={() => void formik.handleSubmit()}
+                  disabled={saving}
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: !isValid || saving ? submitDisabledColor : theme.lime,
+                      backgroundColor: saving ? submitDisabledColor : theme.lime,
                     },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color="#1A1E14" />
                   ) : (
-                    <Text style={[s.actionText, { color: !isValid || saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
                       {initialGoal ? 'Save Changes' : 'Create Goal'}
                     </Text>
                   )}
@@ -239,6 +279,16 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }
@@ -342,11 +392,11 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  validationText: {
+  fieldError: {
+    color: '#FF6B6B',
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: 8,
-    lineHeight: 18,
+    marginTop: 6,
   },
   actions: {
     marginTop: 10,

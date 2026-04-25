@@ -16,7 +16,10 @@ import {
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { CURRENCIES } from '@/constants/currencies';
 import type { WalletRecord } from '@/types/finance';
@@ -63,42 +66,60 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
     [currencyCode]
   );
 
-  const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [discardVisible, setDiscardVisible] = useState(false);
+
+  const handleRequestClose = () => {
+    if (formik.values.amount !== '' || note !== '') {
+      setDiscardVisible(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const validationSchema = useMemo(() => Yup.object({
+    amount: Yup.number()
+      .typeError('Enter a valid amount')
+      .positive('Amount must be greater than 0')
+      .required('Amount is required')
+      .max(maxAmount, 'Amount exceeds remaining balance'),
+  }), [maxAmount]);
+
+  const formik = useFormik({
+    initialValues: { amount: '' },
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      if (selectedWalletId === null) return;
+      setSaving(true);
+      try {
+        await onSave({
+          amount: Number(values.amount),
+          date: toIsoDate(date),
+          walletId: selectedWalletId,
+          note: note.trim(),
+        });
+        onClose();
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!visible) return;
-    setAmount('');
     setDate(new Date());
     setShowAndroidDatePicker(false);
     setSelectedWalletId(pickDefaultWallet(wallets));
     setNote('');
+    formik.resetForm({ values: { amount: '' } });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, wallets]);
-
-  const amountValue = useMemo(() => Number(amount || '0'), [amount]);
-  const isValid =
-    Number.isFinite(amountValue) &&
-    amountValue > 0 &&
-    amountValue <= Math.max(0, maxAmount) &&
-    selectedWalletId !== null;
-
-  const validationMessage = useMemo(() => {
-    if (amount === '') return null;
-    if (!Number.isFinite(amountValue) || amountValue <= 0) {
-      return 'Enter an amount greater than 0.';
-    }
-    if (amountValue > maxAmount) {
-      return 'Amount exceeds remaining goal balance.';
-    }
-    if (!selectedWalletId) {
-      return 'Select a wallet to continue.';
-    }
-    return null;
-  }, [amount, amountValue, maxAmount, selectedWalletId]);
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -109,24 +130,8 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
     }
   };
 
-  const handleSave = async () => {
-    if (!isValid || saving) return;
-    setSaving(true);
-    try {
-      await onSave({
-        amount: amountValue,
-        date: toIsoDate(date),
-        walletId: selectedWalletId,
-        note: note.trim(),
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -152,7 +157,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                   <Text style={[s.modalTitle, { color: theme.text }]}>Log contribution</Text>
                   <Text style={[s.subtitle, { color: theme.secondary }]}>Record money allocated to {goalTitle}.</Text>
                 </View>
-                <Pressable onPress={onClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -162,11 +167,15 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>CONTRIBUTION AMOUNT</Text>
                   <Text style={[s.maxText, { color: theme.tertiary }]}>Max: {currencySymbol}{maxAmount.toFixed(2)}</Text>
                 </View>
-                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
-                  <Text style={[s.currencyPrefix, { color: amount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
+                <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <Text style={[s.currencyPrefix, { color: formik.values.amount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
                   <TextInput
-                    value={amount}
-                    onChangeText={(value) => setAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                    value={formik.values.amount}
+                    onChangeText={(value) => {
+                      const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                      void formik.setFieldValue('amount', cleaned);
+                    }}
+                    onBlur={() => void formik.setFieldTouched('amount', true)}
                     keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
@@ -174,11 +183,16 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                     selectionColor={theme.lime}
                   />
                 </View>
+                {formik.touched.amount && formik.errors.amount ? (
+                  <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                    {formik.errors.amount}
+                  </Text>
+                ) : null}
               </View>
 
               <View style={s.fieldGroup}>
                 <Text style={[s.fieldLabel, { color: theme.secondary }]}>DATE</Text>
-                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                   <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
                   {Platform.OS === 'ios' ? (
                     <DateTimePicker
@@ -244,7 +258,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                               >
                                 {wallet.name}
                               </Text>
-                              <Text style={[s.walletCardBalance, { color: theme.secondary }]}> 
+                              <Text style={[s.walletCardBalance, { color: theme.secondary }]}>
                                 {currencySymbol}{formatBalance(wallet.current_balance ?? 0)}
                               </Text>
                             </View>
@@ -259,7 +273,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
 
               <View style={s.fieldGroup}>
                 <Text style={[s.fieldLabel, { color: theme.secondary }]}>NOTE (OPTIONAL)</Text>
-                <View style={[s.inputWrap, s.noteWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
+                <View style={[s.inputWrap, s.noteWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                   <TextInput
                     value={note}
                     onChangeText={setNote}
@@ -274,19 +288,13 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                 </View>
               </View>
 
-              {validationMessage ? (
-                <Text style={[s.validationText, { color: theme.red }]}>{validationMessage}</Text>
-              ) : null}
-
               <Pressable
-                onPress={() => {
-                  void handleSave();
-                }}
-                disabled={!isValid || saving}
+                onPress={() => void formik.handleSubmit()}
+                disabled={saving}
                 style={[
                   s.saveBtn,
                   {
-                    backgroundColor: !isValid || saving
+                    backgroundColor: saving
                       ? isDark ? '#2C3122' : '#E4E6D6'
                       : isDark ? theme.lime : '#3F7D36',
                   },
@@ -302,6 +310,16 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
+
+      <ConfirmDeleteModal
+        visible={discardVisible}
+        title="Discard changes?"
+        message="You have unsaved changes. If you leave now, your progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+        onCancel={() => setDiscardVisible(false)}
+        onConfirm={() => { setDiscardVisible(false); onClose(); }}
+      />
     </Modal>
   );
 }
@@ -459,12 +477,6 @@ const s = StyleSheet.create({
     paddingTop: 10,
     fontSize: 14,
     fontWeight: '500',
-  },
-  validationText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: -2,
-    marginBottom: 12,
   },
   saveBtn: {
     height: 48,

@@ -5,6 +5,7 @@ import { BudgetEditorModal } from '@/components/Profile/BudgetEditorModal';
 import { CategoryBudgetRow } from '@/components/Profile/CategoryBudgetRow';
 import { CategoryEditorModal } from '@/components/Profile/CategoryEditorModal';
 import { useFinanceData } from '@/context/FinanceDataContext';
+import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import type { BudgetPeriod, BudgetRecord, CategoryRecord } from '@/types/finance';
@@ -56,6 +57,7 @@ export default function ManageBudgetsScreen() {
   const theme = useTheme();
   const finance = useFinanceSelectors();
   const { state, loading, addCategory, addBudget, updateBudget } = useFinanceData();
+  const toast = useToast();
 
   const [categoryEditorVisible, setCategoryEditorVisible] = useState(false);
   const [budgetEditorVisible, setBudgetEditorVisible] = useState(false);
@@ -148,22 +150,26 @@ export default function ManageBudgetsScreen() {
 
   const handleSaveBudget = async (input: { amountLimit: number; period: BudgetPeriod }) => {
     if (!selectedCategory) return;
-
-    if (selectedBudget) {
-      await updateBudget({
-        id: selectedBudget.id,
+    try {
+      if (selectedBudget) {
+        await updateBudget({
+          id: selectedBudget.id,
+          amountLimit: input.amountLimit,
+          period: input.period,
+          categoryId: selectedCategory.id,
+        });
+        toast.show('Budget updated', 'success');
+        return;
+      }
+      await addBudget({
+        categoryId: selectedCategory.id,
         amountLimit: input.amountLimit,
         period: input.period,
-        categoryId: selectedCategory.id,
       });
-      return;
+      toast.show('Budget created', 'success');
+    } catch {
+      toast.show('Failed to save budget', 'error');
     }
-
-    await addBudget({
-      categoryId: selectedCategory.id,
-      amountLimit: input.amountLimit,
-      period: input.period,
-    });
   };
 
   return (
