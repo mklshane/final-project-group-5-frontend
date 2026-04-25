@@ -232,7 +232,7 @@ export function useNotificationScheduler() {
       }
     }
 
-    // Goal milestones
+    // Goal milestones — only notify at the highest milestone reached to avoid redundant lower-tier notifs
     if (prefs.goalMilestones) {
       for (const goal of finance.goals) {
         const pct =
@@ -241,25 +241,25 @@ export function useNotificationScheduler() {
             : 0;
 
         const milestones = [25, 50, 75, 100] as const;
-        for (const milestone of milestones) {
-          if (pct < milestone) continue;
-          if (sent.goals[goal.id] && Number(sent.goals[goal.id]) >= milestone) continue;
+        const highest = [...milestones].reverse().find((m) => pct >= m) ?? null;
+        if (!highest) continue;
 
-          fires.push(
-            fireAndRecord(
-              'goalMilestones',
-              milestone === 100
-                ? `"${goal.title}" goal reached!`
-                : `"${goal.title}" is ${milestone}% complete`,
-              milestone === 100
-                ? `You saved ${finance.formatCurrency(goal.saved_amount)}. Goal complete!`
-                : `${finance.formatCurrency(goal.saved_amount)} of ${finance.formatCurrency(goal.target_amount)} saved.`,
-            ),
-          );
-          if (!updates.goals) updates.goals = { ...sent.goals };
-          updates.goals[goal.id] = String(milestone);
-          break;
-        }
+        const alreadySent = sent.goals[goal.id];
+        if (alreadySent && Number(alreadySent) >= highest) continue;
+
+        fires.push(
+          fireAndRecord(
+            'goalMilestones',
+            highest === 100
+              ? `"${goal.title}" goal reached!`
+              : `"${goal.title}" is ${highest}% complete`,
+            highest === 100
+              ? `You saved ${finance.formatCurrency(goal.saved_amount)}. Goal complete!`
+              : `${finance.formatCurrency(goal.saved_amount)} of ${finance.formatCurrency(goal.target_amount)} saved.`,
+          ),
+        );
+        if (!updates.goals) updates.goals = { ...sent.goals };
+        updates.goals[goal.id] = String(highest);
       }
     }
 
