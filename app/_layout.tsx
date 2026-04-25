@@ -57,7 +57,7 @@ function RootLayoutNav() {
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
-      {__DEV__ && <DevPanel />}
+      {/* __DEV__ && <DevPanel /> */}
     </View>
   );
 }
