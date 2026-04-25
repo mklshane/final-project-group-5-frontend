@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, PanResponder, Animated as RNAnimated, type PanResponderGestureState } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, PanResponder, Animated as RNAnimated, type PanResponderGestureState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,6 @@ import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
 import { GoalSummaryCard } from '@/components/Home/GoalSummaryCard';
@@ -51,7 +50,6 @@ export default function HomeScreen() {
   const toast = useToast();
   const finance = useFinanceSelectors();
 
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
@@ -96,10 +94,6 @@ export default function HomeScreen() {
   const heroSub = '#8A8F7C';
   const loadingBorder = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(26, 30, 20, 0.12)';
 
-  const deleteTarget = useMemo(
-    () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
-    [finance.allTransactions, deleteTargetId]
-  );
 
   const handleQuickScan = async () => {
     setEntryMode('expense');
@@ -449,7 +443,21 @@ export default function HomeScreen() {
                   amountLabel={amountLabel}
                   timeLabel={tx.relativeDay}
                   kind={kind}
-                  onDeletePress={() => setDeleteTargetId(tx.id)}
+                  onDeletePress={() => Alert.alert(
+                    'Delete transaction?',
+                    `Delete "${tx.title}"?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: async () => {
+                        try {
+                          await deleteTransaction(tx.id);
+                          toast.show('Transaction deleted', 'success');
+                        } catch {
+                          toast.show('Failed to delete transaction', 'error');
+                        }
+                      }},
+                    ],
+                  )}
                 />
               );
             })
@@ -727,23 +735,6 @@ export default function HomeScreen() {
         </RNAnimated.View>
       </Modal>
 
-      <ConfirmDeleteModal
-        visible={Boolean(deleteTargetId)}
-        message={deleteTarget ? `Delete "${deleteTarget.title}"?` : 'Delete this transaction?'}
-        onCancel={() => setDeleteTargetId(null)}
-        onConfirm={async () => {
-          const id = deleteTargetId;
-          setDeleteTargetId(null);
-          if (id) {
-            try {
-              await deleteTransaction(id);
-              toast.show('Transaction deleted', 'success');
-            } catch {
-              toast.show('Failed to delete transaction', 'error');
-            }
-          }
-        }}
-      />
 
       <QuickActionFab onQuickScan={handleQuickScan} onAddExpense={handleAddExpense} onAddIncome={handleAddIncome} />
       <TransactionEntryModal

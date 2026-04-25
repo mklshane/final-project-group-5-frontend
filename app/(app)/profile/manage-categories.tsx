@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CategoryEditorModal } from '@/components/Profile/CategoryEditorModal';
 import { CategoryListSection } from '@/components/Profile/CategoryListSection';
 import { useFinanceData } from '@/context/FinanceDataContext';
@@ -16,7 +15,6 @@ export default function ManageCategoriesScreen() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [selectedCategory, setSelectedCategory] = useState<CategoryRecord | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<CategoryRecord | null>(null);
 
   const activeCategories = useMemo(
     () => state.categories.filter((category) => !category.deleted_at),
@@ -70,15 +68,13 @@ export default function ManageCategoriesScreen() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  const handleDelete = async (target: CategoryRecord) => {
     try {
-      await deleteCategory(deleteTarget.id);
+      await deleteCategory(target.id);
       toast.show('Category deleted', 'success');
     } catch {
       toast.show('Failed to delete category', 'error');
     }
-    setDeleteTarget(null);
   };
 
   return (
@@ -121,7 +117,14 @@ export default function ManageCategoriesScreen() {
               emptyText="No expense categories yet."
               titleColor={theme.secondary}
               onEdit={openEditModal}
-              onDelete={setDeleteTarget}
+              onDelete={(category) => Alert.alert(
+                'Delete category?',
+                `Delete "${category.name}"? Existing transactions will remain but may appear as uncategorized.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => void handleDelete(category) },
+                ],
+              )}
             />
 
             <CategoryListSection
@@ -130,7 +133,14 @@ export default function ManageCategoriesScreen() {
               emptyText="No income categories yet."
               titleColor={theme.secondary}
               onEdit={openEditModal}
-              onDelete={setDeleteTarget}
+              onDelete={(category) => Alert.alert(
+                'Delete category?',
+                `Delete "${category.name}"? Existing transactions will remain but may appear as uncategorized.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => void handleDelete(category) },
+                ],
+              )}
             />
 
             <CategoryListSection
@@ -139,7 +149,14 @@ export default function ManageCategoriesScreen() {
               emptyText="No shared categories yet."
               titleColor={theme.secondary}
               onEdit={openEditModal}
-              onDelete={setDeleteTarget}
+              onDelete={(category) => Alert.alert(
+                'Delete category?',
+                `Delete "${category.name}"? Existing transactions will remain but may appear as uncategorized.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => void handleDelete(category) },
+                ],
+              )}
             />
           </>
         )}
@@ -153,19 +170,6 @@ export default function ManageCategoriesScreen() {
         onSave={handleSave}
       />
 
-      <ConfirmDeleteModal
-        visible={Boolean(deleteTarget)}
-        title="Delete category?"
-        message={
-          deleteTarget
-            ? `Delete "${deleteTarget.name}"? Existing transactions will remain but may appear as uncategorized.`
-            : 'Delete this category? Existing transactions will remain but may appear as uncategorized.'
-        }
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          void handleDelete();
-        }}
-      />
     </SafeAreaView>
   );
 }

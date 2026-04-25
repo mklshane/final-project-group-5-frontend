@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -57,11 +57,17 @@ export function CategoryEditorModal({
   const [icon, setIcon] = useState('apps-outline');
   const [color, setColor] = useState('#6C757D');
   const [saving, setSaving] = useState(false);
-  const [discardVisible, setDiscardVisible] = useState(false);
 
   const handleRequestClose = () => {
     if (mode === 'create' && formik.dirty) {
-      setDiscardVisible(true);
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. If you leave now, your progress will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+        ],
+      );
     } else {
       onClose();
     }
@@ -258,15 +264,6 @@ export function CategoryEditorModal({
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      <ConfirmDeleteModal
-        visible={discardVisible}
-        title="Discard changes?"
-        message="You have unsaved changes. If you leave now, your progress will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        onCancel={() => setDiscardVisible(false)}
-        onConfirm={() => { setDiscardVisible(false); onClose(); }}
-      />
     </Modal>
   );
 }

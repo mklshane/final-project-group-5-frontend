@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import {
+  Alert,
   Animated,
   Keyboard,
   KeyboardAvoidingView,
@@ -21,7 +22,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import * as Haptics from 'expo-haptics';
@@ -240,7 +240,6 @@ export function TransactionEntryModal({
   const [scannerVisible, setScannerVisible] = useState(false);
   const [awaitingFreshScanResult, setAwaitingFreshScanResult] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [discardVisible, setDiscardVisible] = useState(false);
 
   const {
     status: scanStatus,
@@ -592,7 +591,14 @@ export function TransactionEntryModal({
     if (isClosing) return;
     const isDirty = expression !== '0' || formik.values.title.trim() !== '';
     if (isDirty) {
-      setDiscardVisible(true);
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. If you leave now, your progress will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: handleClose },
+        ],
+      );
     } else {
       handleClose();
     }
@@ -1053,15 +1059,6 @@ export function TransactionEntryModal({
       </View>
       ) : null}
 
-      <ConfirmDeleteModal
-        visible={discardVisible}
-        title="Discard changes?"
-        message="You have unsaved changes. If you leave now, your progress will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        onCancel={() => setDiscardVisible(false)}
-        onConfirm={() => { setDiscardVisible(false); handleClose(); }}
-      />
 
       {/* Warning Modal */}
       <Modal

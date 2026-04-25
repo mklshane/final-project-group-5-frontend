@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Keyboard,
   KeyboardAvoidingView,
@@ -19,7 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { CURRENCIES } from '@/constants/currencies';
 import type { WalletRecord } from '@/types/finance';
@@ -71,11 +71,16 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
   const [saving, setSaving] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [note, setNote] = useState('');
-  const [discardVisible, setDiscardVisible] = useState(false);
-
   const handleRequestClose = () => {
     if (formik.values.amount !== '' || note !== '') {
-      setDiscardVisible(true);
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. If you leave now, your progress will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+        ],
+      );
     } else {
       onClose();
     }
@@ -311,15 +316,6 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      <ConfirmDeleteModal
-        visible={discardVisible}
-        title="Discard changes?"
-        message="You have unsaved changes. If you leave now, your progress will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        onCancel={() => setDiscardVisible(false)}
-        onConfirm={() => { setDiscardVisible(false); onClose(); }}
-      />
     </Modal>
   );
 }

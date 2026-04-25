@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DebtEditorModal } from '@/components/Profile/DebtEditorModal';
 import { PaymentLogModal } from '@/components/Profile/PaymentLogModal';
 import { useTheme } from '@/hooks/useTheme';
@@ -50,7 +49,6 @@ export default function DebtDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const [paymentVisible, setPaymentVisible] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
-  const [deleteVisible, setDeleteVisible] = useState(false);
 
   const debtId = useMemo(() => {
     if (!params.id) return '';
@@ -177,7 +175,6 @@ export default function DebtDetailScreen() {
   };
 
   const confirmDeleteDebt = async () => {
-    setDeleteVisible(false);
     await deleteDebt(debt.id);
     router.back();
   };
@@ -327,7 +324,14 @@ export default function DebtDetailScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => setDeleteVisible(true)}
+            onPress={() => Alert.alert(
+              'Delete debt entry?',
+              `Delete debt entry for "${personName}"?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => void confirmDeleteDebt() },
+              ],
+            )}
             style={[s.footerActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
             hitSlop={8}
           >
@@ -376,15 +380,6 @@ export default function DebtDetailScreen() {
           onSave={saveDebtEdits}
         />
 
-        <ConfirmDeleteModal
-          visible={deleteVisible}
-          title="Delete debt entry?"
-          message={`Delete debt entry for "${personName}"?`}
-          onCancel={() => setDeleteVisible(false)}
-          onConfirm={() => {
-            void confirmDeleteDebt();
-          }}
-        />
       </SafeAreaView>
     </>
   );

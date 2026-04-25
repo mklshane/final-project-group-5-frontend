@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { GoalEditorModal } from '@/components/Profile/GoalEditorModal';
 import { GoalContributionModal } from '@/components/Profile/GoalContributionModal';
 
@@ -46,7 +45,6 @@ export default function GoalDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const [contributionVisible, setContributionVisible] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
-  const [deleteVisible, setDeleteVisible] = useState(false);
 
   const goalId = useMemo(() => {
     if (!params.id) return '';
@@ -153,7 +151,6 @@ export default function GoalDetailScreen() {
   };
 
   const confirmDeleteGoal = async () => {
-    setDeleteVisible(false);
     await deleteGoal(goal.id);
     router.back();
   };
@@ -272,7 +269,14 @@ export default function GoalDetailScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => setDeleteVisible(true)}
+            onPress={() => Alert.alert(
+              'Delete goal?',
+              `Delete "${goal.title}"?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => void confirmDeleteGoal() },
+              ],
+            )}
             style={[s.footerActionBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
             hitSlop={8}
           >
@@ -312,15 +316,6 @@ export default function GoalDetailScreen() {
           onSave={saveGoalEdits}
         />
 
-        <ConfirmDeleteModal
-          visible={deleteVisible}
-          title="Delete goal?"
-          message={`Delete "${goal.title}"?`}
-          onCancel={() => setDeleteVisible(false)}
-          onConfirm={() => {
-            void confirmDeleteGoal();
-          }}
-        />
       </SafeAreaView>
     </>
   );

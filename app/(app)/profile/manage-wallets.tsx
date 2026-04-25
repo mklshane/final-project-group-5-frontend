@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useToast } from '@/context/ToastContext';
 import { WalletEditorModal } from '@/components/Profile/WalletEditorModal';
 import { WalletListSection } from '@/components/Profile/WalletListSection';
@@ -19,7 +18,6 @@ export default function ManageWalletsScreen() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [selectedWallet, setSelectedWallet] = useState<WalletRecord | null>(null);
-  const [archiveTarget, setArchiveTarget] = useState<WalletRecord | null>(null);
 
   const addBg = theme.isDark ? theme.lime : '#3F7D36';
   const addTextColor = theme.isDark ? theme.bg : '#FFFFFF';
@@ -64,15 +62,13 @@ export default function ManageWalletsScreen() {
     }
   };
 
-  const handleArchive = async () => {
-    if (!archiveTarget) return;
+  const handleArchive = async (target: WalletRecord) => {
     try {
-      await archiveWallet(archiveTarget.id);
+      await archiveWallet(target.id);
       toast.show('Wallet archived', 'success');
     } catch {
       toast.show('Failed to archive wallet', 'error');
     }
-    setArchiveTarget(null);
   };
 
   return (
@@ -116,7 +112,14 @@ export default function ManageWalletsScreen() {
               emptyDescription="Create a default wallet for everyday spending and quick cashflow tracking."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
-              onArchive={setArchiveTarget}
+              onArchive={(wallet) => Alert.alert(
+                'Archive wallet?',
+                `Archive "${wallet.name}"? Historical transactions remain, but this wallet won't be selectable for new entries.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Archive', style: 'destructive', onPress: () => void handleArchive(wallet) },
+                ],
+              )}
             />
 
             <WalletListSection
@@ -127,7 +130,14 @@ export default function ManageWalletsScreen() {
               emptyDescription="Link your bank balances to keep account totals and transfers in one place."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
-              onArchive={setArchiveTarget}
+              onArchive={(wallet) => Alert.alert(
+                'Archive wallet?',
+                `Archive "${wallet.name}"? Historical transactions remain, but this wallet won't be selectable for new entries.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Archive', style: 'destructive', onPress: () => void handleArchive(wallet) },
+                ],
+              )}
             />
 
             <WalletListSection
@@ -138,7 +148,14 @@ export default function ManageWalletsScreen() {
               emptyDescription="Track digital wallet balances and spending activity in real time."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
-              onArchive={setArchiveTarget}
+              onArchive={(wallet) => Alert.alert(
+                'Archive wallet?',
+                `Archive "${wallet.name}"? Historical transactions remain, but this wallet won't be selectable for new entries.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Archive', style: 'destructive', onPress: () => void handleArchive(wallet) },
+                ],
+              )}
             />
 
             <WalletListSection
@@ -149,7 +166,14 @@ export default function ManageWalletsScreen() {
               emptyDescription="Create a dedicated cash wallet to separate physical spending from digital funds."
               formatCurrency={finance.formatCurrency}
               onEdit={openEditModal}
-              onArchive={setArchiveTarget}
+              onArchive={(wallet) => Alert.alert(
+                'Archive wallet?',
+                `Archive "${wallet.name}"? Historical transactions remain, but this wallet won't be selectable for new entries.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Archive', style: 'destructive', onPress: () => void handleArchive(wallet) },
+                ],
+              )}
             />
           </>
         )}
@@ -163,20 +187,6 @@ export default function ManageWalletsScreen() {
         onSave={handleSave}
       />
 
-      <ConfirmDeleteModal
-        visible={Boolean(archiveTarget)}
-        title="Archive wallet?"
-        message={
-          archiveTarget
-            ? `Archive \"${archiveTarget.name}\"? Historical transactions remain, but this wallet won't be selectable for new entries.`
-            : "Archive this wallet?"
-        }
-        confirmLabel="Archive"
-        onCancel={() => setArchiveTarget(null)}
-        onConfirm={() => {
-          void handleArchive();
-        }}
-      />
     </SafeAreaView>
   );
 }

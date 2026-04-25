@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -16,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import type { BudgetPeriod, BudgetRecord, CategoryRecord } from '@/types/finance';
 
 interface BudgetEditorModalProps {
@@ -60,11 +60,17 @@ export function BudgetEditorModal({
 
   const [period, setPeriod] = useState<BudgetPeriod>('monthly');
   const [saving, setSaving] = useState(false);
-  const [discardVisible, setDiscardVisible] = useState(false);
 
   const handleRequestClose = () => {
     if (!initialBudget && formik.dirty) {
-      setDiscardVisible(true);
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. If you leave now, your progress will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+        ],
+      );
     } else {
       onClose();
     }
@@ -206,15 +212,6 @@ export function BudgetEditorModal({
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      <ConfirmDeleteModal
-        visible={discardVisible}
-        title="Discard changes?"
-        message="You have unsaved changes. If you leave now, your progress will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        onCancel={() => setDiscardVisible(false)}
-        onConfirm={() => { setDiscardVisible(false); onClose(); }}
-      />
     </Modal>
   );
 }

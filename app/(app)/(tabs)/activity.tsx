@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -16,7 +17,6 @@ import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
 import { TransactionCard } from '@/components/Base/TransactionCard';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
 
 type FilterKey = 'all' | 'today' | 'week' | 'month';
@@ -70,15 +70,10 @@ export default function ActivityScreen() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterKey>('all');
   const [filterPanelVisible, setFilterPanelVisible] = useState(false);
   const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
 
-  const deleteTarget = useMemo(
-    () => finance.allTransactions.find((tx) => tx.id === deleteTargetId) ?? null,
-    [finance.allTransactions, deleteTargetId]
-  );
 
   const categoryFilters = useMemo(
     () => {
@@ -216,13 +211,20 @@ export default function ActivityScreen() {
       date: input.loggedAt.toISOString(),
     });
   };
-  const requestDelete = (id: string) => setDeleteTargetId(id);
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
-    const targetId = deleteTargetId;
-    setDeleteTargetId(null);
+  const requestDelete = (id: string) => {
+    const target = finance.allTransactions.find((tx) => tx.id === id);
+    Alert.alert(
+      'Delete transaction?',
+      target ? `Delete "${target.title}"? This action cannot be undone.` : 'Delete this transaction? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => void confirmDelete(id) },
+      ],
+    );
+  };
+  const confirmDelete = async (id: string) => {
     try {
-      await deleteTransaction(targetId);
+      await deleteTransaction(id);
       toast.show('Transaction deleted', 'success');
     } catch {
       toast.show('Failed to delete transaction', 'error');
@@ -564,18 +566,6 @@ export default function ActivityScreen() {
         )}
       </View>
 
-      <ConfirmDeleteModal
-        visible={Boolean(deleteTargetId)}
-        message={
-          deleteTarget
-            ? `Delete "${deleteTarget.title}"? This action cannot be undone.`
-            : 'Delete this transaction? This action cannot be undone.'
-        }
-        onCancel={() => setDeleteTargetId(null)}
-        onConfirm={() => {
-          void confirmDelete();
-        }}
-      />
 
       <QuickActionFab
         onQuickScan={handleQuickScan}

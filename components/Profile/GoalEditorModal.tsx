@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -17,7 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import type { GoalRecord } from '@/types/finance';
 
 interface GoalEditorModalProps {
@@ -65,7 +65,6 @@ const GoalSchema = Yup.object({
   savedAmount: Yup.number()
     .typeError('Enter a valid amount')
     .min(0, 'Cannot be negative')
-    .required('Already saved is required')
     .test('saved-lte-target', 'Cannot exceed target amount', function (value) {
       const { targetAmount } = this.parent;
       if (value === undefined || value === null) return true;
@@ -81,7 +80,6 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
   const [deadline, setDeadline] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [discardVisible, setDiscardVisible] = useState(false);
 
   const formik = useFormik({
     initialValues: { title: '', targetAmount: '', savedAmount: '' },
@@ -119,7 +117,14 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
 
   const handleRequestClose = () => {
     if (!initialGoal && formik.dirty) {
-      setDiscardVisible(true);
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. If you leave now, your progress will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+        ],
+      );
     } else {
       onClose();
     }
@@ -205,7 +210,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                   </View>
 
                   <View style={[s.fieldGroup, { flex: 1 }]}>
-                    <Text style={[s.sectionLabel, { color: theme.secondary }]}>ALREADY SAVED</Text>
+                    <Text style={[s.sectionLabel, { color: theme.secondary }]}>ALREADY SAVED <Text style={s.optionalLabel}>(Optional)</Text></Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                       <Text style={[s.currencyPrefix, { color: formik.values.savedAmount ? theme.text : theme.tertiary }]}>PHP</Text>
                       <TextInput
@@ -280,15 +285,6 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      <ConfirmDeleteModal
-        visible={discardVisible}
-        title="Discard changes?"
-        message="You have unsaved changes. If you leave now, your progress will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        onCancel={() => setDiscardVisible(false)}
-        onConfirm={() => { setDiscardVisible(false); onClose(); }}
-      />
     </Modal>
   );
 }
@@ -391,6 +387,12 @@ const s = StyleSheet.create({
   dateButtonText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  optionalLabel: {
+    fontSize: 9,
+    fontWeight: '500',
+    letterSpacing: 0,
+    opacity: 0.55,
   },
   fieldError: {
     color: '#FF6B6B',

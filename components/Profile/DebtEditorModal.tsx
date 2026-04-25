@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -17,7 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
-import { ConfirmDeleteModal } from '@/components/Base/ConfirmDeleteModal';
 import type { DebtCounterpartyKind, DebtRecord } from '@/types/finance';
 
 type DebtEditorMode = 'owe' | 'owed';
@@ -73,7 +73,6 @@ const DebtSchema = Yup.object({
   amountPaid: Yup.number()
     .typeError('Enter a valid amount')
     .min(0, 'Cannot be negative')
-    .required('This field is required')
     .test('paid-lte-total', 'Cannot exceed total amount', function (value) {
       const { totalAmount } = this.parent;
       if (value === undefined || value === null) return true;
@@ -91,7 +90,6 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
   const [dueDate, setDueDate] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [discardVisible, setDiscardVisible] = useState(false);
 
   const formik = useFormik({
     initialValues: { counterpartyName: '', totalAmount: '', amountPaid: '', notes: '' },
@@ -144,7 +142,14 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
 
   const handleRequestClose = () => {
     if (!initialDebt && formik.dirty) {
-      setDiscardVisible(true);
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. If you leave now, your progress will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+        ],
+      );
     } else {
       onClose();
     }
@@ -256,7 +261,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                   </View>
 
                   <View style={[s.fieldGroup, { flex: 1 }]}>
-                    <Text style={[s.sectionLabel, { color: theme.secondary }]}>{paidLabel}</Text>
+                    <Text style={[s.sectionLabel, { color: theme.secondary }]}>{paidLabel} <Text style={s.optionalLabel}>(Optional)</Text></Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                       <Text style={[s.currencyPrefix, { color: formik.values.amountPaid ? theme.text : theme.tertiary }]}>₱</Text>
                       <TextInput
@@ -348,15 +353,6 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      <ConfirmDeleteModal
-        visible={discardVisible}
-        title="Discard changes?"
-        message="You have unsaved changes. If you leave now, your progress will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        onCancel={() => setDiscardVisible(false)}
-        onConfirm={() => { setDiscardVisible(false); onClose(); }}
-      />
     </Modal>
   );
 }
@@ -486,6 +482,12 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     minHeight: 52,
+  },
+  optionalLabel: {
+    fontSize: 9,
+    fontWeight: '500',
+    letterSpacing: 0,
+    opacity: 0.55,
   },
   fieldError: {
     color: '#FF6B6B',
