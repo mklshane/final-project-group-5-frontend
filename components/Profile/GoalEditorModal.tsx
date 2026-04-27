@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppPreferences } from '@/context/AppPreferencesContext';
+import { CURRENCIES } from '@/constants/currencies';
 import type { GoalRecord } from '@/types/finance';
 
 interface GoalEditorModalProps {
@@ -76,10 +78,12 @@ const GoalSchema = Yup.object({
 export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalEditorModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
+  const { currencyCode } = useAppPreferences();
 
   const [deadline, setDeadline] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const currencySymbol = CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? currencyCode;
 
   const formik = useFormik({
     initialValues: { title: '', targetAmount: '', savedAmount: '' },
@@ -187,7 +191,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>TARGET AMOUNT</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: formik.values.targetAmount ? theme.text : theme.tertiary }]}>PHP</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.targetAmount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
                       <TextInput
                         value={formik.values.targetAmount}
                         onChangeText={(value) =>
@@ -198,6 +202,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                         }
                         onBlur={() => formik.setFieldTouched('targetAmount', true)}
                         keyboardType="decimal-pad"
+                        inputMode="decimal"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
                         style={[s.input, { color: theme.text }]}
@@ -212,7 +217,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>ALREADY SAVED <Text style={s.optionalLabel}>(Optional)</Text></Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: formik.values.savedAmount ? theme.text : theme.tertiary }]}>PHP</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.savedAmount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
                       <TextInput
                         value={formik.values.savedAmount}
                         onChangeText={(value) =>
@@ -223,6 +228,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                         }
                         onBlur={() => formik.setFieldTouched('savedAmount', true)}
                         keyboardType="decimal-pad"
+                        inputMode="decimal"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
                         style={[s.input, { color: theme.text }]}

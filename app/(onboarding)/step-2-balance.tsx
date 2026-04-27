@@ -129,6 +129,7 @@ export default function Step2Balance() {
             value={formik.values.balance}
             onChangeText={handleBalanceChange}
             keyboardType="decimal-pad"
+            inputMode="decimal"
             placeholder="0.00"
             placeholderTextColor="#C8CCB8"
             selectionColor="#1A1E14"

@@ -67,8 +67,8 @@ const formatRelativeDay = (value: string) => {
 };
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 0,
-  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+  minimumFractionDigits: 2,
 });
 
 const currencySymbol = (currencyCode: string) => {

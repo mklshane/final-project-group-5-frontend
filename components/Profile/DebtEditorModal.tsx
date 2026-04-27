@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppPreferences } from '@/context/AppPreferencesContext';
+import { CURRENCIES } from '@/constants/currencies';
 import type { DebtCounterpartyKind, DebtRecord } from '@/types/finance';
 
 type DebtEditorMode = 'owe' | 'owed';
@@ -85,11 +87,13 @@ const DebtSchema = Yup.object({
 export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }: DebtEditorModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
+  const { currencyCode } = useAppPreferences();
 
   const [counterpartyKind, setCounterpartyKind] = useState<DebtCounterpartyKind>('person');
   const [dueDate, setDueDate] = useState(new Date());
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const currencySymbol = CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? currencyCode;
 
   const formik = useFormik({
     initialValues: { counterpartyName: '', totalAmount: '', amountPaid: '', notes: '' },
@@ -238,7 +242,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>{mode === 'owe' ? 'TOTAL DEBT' : 'TOTAL OWED'}</Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: formik.values.totalAmount ? theme.text : theme.tertiary }]}>₱</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.totalAmount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
                       <TextInput
                         value={formik.values.totalAmount}
                         onChangeText={(value) =>
@@ -249,6 +253,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                         }
                         onBlur={() => formik.setFieldTouched('totalAmount', true)}
                         keyboardType="decimal-pad"
+                        inputMode="decimal"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
                         style={[s.input, { color: theme.text }]}
@@ -263,7 +268,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                   <View style={[s.fieldGroup, { flex: 1 }]}>
                     <Text style={[s.sectionLabel, { color: theme.secondary }]}>{paidLabel} <Text style={s.optionalLabel}>(Optional)</Text></Text>
                     <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                      <Text style={[s.currencyPrefix, { color: formik.values.amountPaid ? theme.text : theme.tertiary }]}>₱</Text>
+                      <Text style={[s.currencyPrefix, { color: formik.values.amountPaid ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
                       <TextInput
                         value={formik.values.amountPaid}
                         onChangeText={(value) =>
@@ -274,6 +279,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                         }
                         onBlur={() => formik.setFieldTouched('amountPaid', true)}
                         keyboardType="decimal-pad"
+                        inputMode="decimal"
                         placeholder="0.00"
                         placeholderTextColor={theme.tertiary}
                         style={[s.input, { color: theme.text }]}

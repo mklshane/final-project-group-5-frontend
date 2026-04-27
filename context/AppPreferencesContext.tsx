@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 type ThemeMode = 'system' | 'light' | 'dark';
 
 interface NotificationPreferences {
+  inAppAlerts: boolean;
   budgetAlerts: boolean;
   largeExpenseWarnings: boolean;
   dailySummary: boolean;
@@ -31,6 +32,7 @@ const defaultState: AppPreferencesState = {
   themeMode: 'system',
   currencyCode: 'PHP',
   notifications: {
+    inAppAlerts: true,
     budgetAlerts: true,
     largeExpenseWarnings: true,
     dailySummary: false,

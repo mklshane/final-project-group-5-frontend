@@ -2,7 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useTheme } from '@/hooks/useTheme';
+import { appendNotificationHistory, type NotificationItemType } from '@/lib/notificationHistory';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -15,6 +17,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { notifications } = useAppPreferences();
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [type, setType] = useState<ToastType>('success');
@@ -32,6 +35,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const show = useCallback(
     (msg: string, toastType: ToastType = 'success') => {
       if (timerRef.current) clearTimeout(timerRef.current);
+
+      const historyType: NotificationItemType =
+        toastType === 'success' ? 'inAppSuccess' : toastType === 'error' ? 'inAppError' : 'inAppInfo';
+      const historyTitle =
+        toastType === 'success' ? 'Success' : toastType === 'error' ? 'Error' : 'Notice';
+      void appendNotificationHistory({
+        type: historyType,
+        title: historyTitle,
+        body: msg,
+        source: 'inApp',
+      });
+
+      if (!notifications.inAppAlerts) return;
+
       setMessage(msg);
       setType(toastType);
       setVisible(true);
@@ -44,7 +61,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }).start();
       timerRef.current = setTimeout(hide, 3000);
     },
-    [translateY, hide],
+    [translateY, hide, notifications.inAppAlerts],
   );
 
   useEffect(

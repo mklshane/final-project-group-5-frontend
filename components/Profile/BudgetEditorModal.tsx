@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppPreferences } from '@/context/AppPreferencesContext';
+import { CURRENCIES } from '@/constants/currencies';
 import type { BudgetPeriod, BudgetRecord, CategoryRecord } from '@/types/finance';
 
 interface BudgetEditorModalProps {
@@ -57,9 +59,11 @@ export function BudgetEditorModal({
 }: BudgetEditorModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
+  const { currencyCode } = useAppPreferences();
 
   const [period, setPeriod] = useState<BudgetPeriod>('monthly');
   const [saving, setSaving] = useState(false);
+  const currencySymbol = CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? currencyCode;
 
   const handleRequestClose = () => {
     if (!initialBudget && formik.dirty) {
@@ -132,7 +136,7 @@ export function BudgetEditorModal({
               <View style={s.fieldGroup}>
                 <Text style={[s.sectionLabel, { color: theme.secondary }]}>AMOUNT</Text>
                 <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                  <Text style={[s.currencyPrefix, { color: formik.values.amount ? theme.text : theme.tertiary }]}>PHP</Text>
+                  <Text style={[s.currencyPrefix, { color: formik.values.amount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
                   <TextInput
                     value={formik.values.amount}
                     onChangeText={(value) =>
@@ -143,6 +147,7 @@ export function BudgetEditorModal({
                     }
                     onBlur={formik.handleBlur('amount')}
                     keyboardType="decimal-pad"
+                    inputMode="decimal"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
                     style={[s.input, { color: theme.text }]}

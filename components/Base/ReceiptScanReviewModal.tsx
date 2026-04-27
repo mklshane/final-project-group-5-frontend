@@ -29,6 +29,7 @@ interface ReceiptScanReviewModalProps {
   imageUri: string | null;
   draft: ReceiptScanReviewDraft | null;
   categoryOptions: string[];
+  warningMessage?: string | null;
   onClose: () => void;
   onRescan: () => void;
   onApply: (nextDraft: ReceiptScanReviewDraft) => void;
@@ -45,6 +46,7 @@ export function ReceiptScanReviewModal({
   imageUri,
   draft,
   categoryOptions,
+  warningMessage,
   onClose,
   onRescan,
   onApply,
@@ -99,6 +101,21 @@ export function ReceiptScanReviewModal({
               <Image source={{ uri: imageUri }} style={[s.preview, { borderColor: theme.border }]} resizeMode="cover" />
             ) : null}
 
+            {warningMessage ? (
+              <View
+                style={[
+                  s.warningCard,
+                  {
+                    backgroundColor: theme.isDark ? 'rgba(230,108,106,0.12)' : 'rgba(230,108,106,0.08)',
+                    borderColor: theme.red,
+                  },
+                ]}
+              >
+                <Ionicons name="alert-circle" size={18} color={theme.red} />
+                <Text style={[s.warningText, { color: theme.red }]}>{warningMessage}</Text>
+              </View>
+            ) : null}
+
             <View style={s.fieldBlock}>
               <Text style={[s.label, { color: theme.secondary }]}>Store or title</Text>
               <TextInput
@@ -115,10 +132,13 @@ export function ReceiptScanReviewModal({
                 <Text style={[s.label, { color: theme.secondary }]}>Amount</Text>
                 <TextInput
                   value={localDraft.amount}
-                  onChangeText={(text) => update('amount', text)}
+                  onChangeText={(text) =>
+                    update('amount', text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))
+                  }
                   style={[s.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
                   placeholder="0.00"
                   keyboardType="decimal-pad"
+                  inputMode="decimal"
                   placeholderTextColor={theme.secondary}
                 />
               </View>
@@ -262,6 +282,21 @@ const s = StyleSheet.create({
     height: 170,
     borderRadius: 14,
     borderWidth: 1,
+  },
+  warningCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   fieldBlock: {
     gap: 6,
