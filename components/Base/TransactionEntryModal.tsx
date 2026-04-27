@@ -26,6 +26,7 @@ import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import * as Haptics from 'expo-haptics';
 import type { CategoryRecord, WalletRecord } from '@/types/finance';
+import { ReceiptScanReviewModal, type ReceiptScanReviewDraft } from '@/components/Base/ReceiptScanReviewModal';
 import { useReceiptScanner } from '@/hooks/useReceiptScanner';
 
 type TransactionMode = 'expense' | 'income';
@@ -240,6 +241,9 @@ export function TransactionEntryModal({
   const [scannerVisible, setScannerVisible] = useState(false);
   const [awaitingFreshScanResult, setAwaitingFreshScanResult] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
+  const [receiptReviewDraft, setReceiptReviewDraft] = useState<ReceiptScanReviewDraft | null>(null);
+  const [receiptReviewWarning, setReceiptReviewWarning] = useState<string | null>(null);
 
   const {
     status: scanStatus,
@@ -310,6 +314,9 @@ export function TransactionEntryModal({
     setScannerVisible(false);
     setAwaitingFreshScanResult(false);
     setIsClosing(false);
+    setReceiptReviewVisible(false);
+    setReceiptReviewDraft(null);
+    setReceiptReviewWarning(null);
     resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
@@ -370,12 +377,110 @@ export function TransactionEntryModal({
 
   const computedAmount = useMemo(() => evaluateExpression(expression) ?? 0, [expression]);
   const expressionText = getExpressionText(expression, historyExpression);
+  const categoryOptionNames = useMemo(
+    () => availableCategories.map((category) => category.name),
+    [availableCategories]
+  );
+
+  const openReceiptReview = (draft: ReceiptScanReviewDraft, warningMessage: string | null) => {
+    setReceiptReviewDraft(draft);
+    setReceiptReviewWarning(warningMessage);
+    setAwaitingFreshScanResult(false);
+    setScannerVisible(false);
+    setReceiptReviewVisible(true);
+    setActiveField('other');
+    Keyboard.dismiss();
+  };
+
+  const buildReceiptReviewDraft = (
+    source: typeof scanResult,
+    errorMessage?: string | null,
+  ): { draft: ReceiptScanReviewDraft; warningMessage: string | null } => {
+    const fallbackDate = toIsoDate(new Date());
+    const autoCategory = source
+      ? guessCategoryNameFromReceipt(
+          source.suggestedCategory,
+          `${source.rawText} ${source.storeName ?? ''}`,
+          availableCategories
+        )
+      : '';
+
+    const draft: ReceiptScanReviewDraft = {
+      title: source?.storeName?.trim() || '',
+      amount:
+        typeof source?.totalAmount === 'number' && Number.isFinite(source.totalAmount) && source.totalAmount > 0
+          ? String(Math.round(source.totalAmount * 100) / 100)
+          : '',
+      category: autoCategory || '',
+      date: source?.date ?? fallbackDate,
+      note: source?.items.length
+        ? source.items.map((item) => `${item.name} (${currencySymbol}${item.totalPrice.toFixed(2)})`).join(', ')
+        : '',
+      confidence: source?.confidence ?? 'low',
+      items: source?.items ?? [],
+    };
+
+    const missingFields: string[] = [];
+    if (!draft.title.trim()) missingFields.push('store or title');
+    if (!draft.amount.trim()) missingFields.push('total amount');
+    if (!source?.date) missingFields.push('date');
+
+    const warningMessage = errorMessage
+      ? `${errorMessage} Fill in the missing details below or rescan the receipt.`
+      : missingFields.length > 0
+        ? `Some fields couldn't be read: ${missingFields.join(', ')}. Please review and complete them below.`
+        : draft.confidence === 'low'
+          ? 'Some fields may need a quick review before saving.'
+          : null;
+
+    return { draft, warningMessage };
+  };
+
+  const applyReceiptDraftToForm = (draft: ReceiptScanReviewDraft) => {
+    const normalizedTitle = draft.title.trim() || 'Scanned receipt';
+    const normalizedAmount = evaluateExpression(draft.amount);
+    const matchedCategoryId = findCategoryIdByExactName(draft.category, availableCategories);
+    const parsedDate = parseIsoDate(draft.date);
+
+    void formik.setFieldValue('title', normalizedTitle);
+    if (normalizedAmount !== null && normalizedAmount > 0) {
+      setExpression(String(normalizedAmount));
+      setHistoryExpression('');
+      void formik.setFieldValue('amount', normalizedAmount);
+    } else {
+      setExpression('0');
+      setHistoryExpression('');
+      void formik.setFieldValue('amount', 0);
+    }
+
+    setSelectedCategoryId(matchedCategoryId);
+
+    if (parsedDate) {
+      setCustomLoggedAt((prev) => {
+        const base = prev ?? new Date();
+        const next = new Date(base);
+        next.setFullYear(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+        return next;
+      });
+    }
+
+    setReceiptReviewVisible(false);
+    setReceiptReviewDraft(null);
+    setReceiptReviewWarning(null);
+    resetScanner();
+    setActiveField('title');
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  };
 
   useEffect(() => {
     if (!scannerVisible) return;
     if (!awaitingFreshScanResult) return;
     if (scanStatus !== 'done' || !scanResult) return;
+    const { draft, warningMessage } = buildReceiptReviewDraft(scanResult);
+    openReceiptReview(draft, warningMessage);
+    return;
 
+    /*
     const itemNote = scanResult.items.length
       ? scanResult.items.map((item) => `${item.name} (₱${item.totalPrice.toFixed(2)})`).join(', ')
       : '';
@@ -420,15 +525,24 @@ export function TransactionEntryModal({
     setScannerVisible(false);
     setActiveField('title');
     setTimeout(() => titleInputRef.current?.focus(), 0);
+    */
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanStatus, scanResult, availableCategories, scannerVisible, awaitingFreshScanResult]);
 
   useEffect(() => {
     if (!awaitingFreshScanResult) return;
-    if (scanStatus === 'error' || scanStatus === 'idle') {
+    if (scanStatus === 'error') {
+      const { draft, warningMessage } = buildReceiptReviewDraft(
+        null,
+        scanError ?? "Some fields couldn't be read.",
+      );
+      openReceiptReview(draft, warningMessage);
+      return;
+    }
+    if (scanStatus === 'idle') {
       setAwaitingFreshScanResult(false);
     }
-  }, [scanStatus, awaitingFreshScanResult]);
+  }, [scanStatus, awaitingFreshScanResult, scanError]);
 
   const canSave =
     !submitting &&
@@ -571,6 +685,9 @@ export function TransactionEntryModal({
     dismissKeypad();
     Keyboard.dismiss();
     setAwaitingFreshScanResult(false);
+    setReceiptReviewVisible(false);
+    setReceiptReviewDraft(null);
+    setReceiptReviewWarning(null);
     resetScanner();
     setScannerVisible(true);
   };
@@ -1046,18 +1163,52 @@ export function TransactionEntryModal({
                 <Ionicons name="alert-circle-outline" size={34} color={theme.red} />
                 <Text style={[s.scanProcessingTitle, { color: theme.text }]}>Could not read receipt</Text>
                 <Text style={[s.scanBody, { color: theme.secondary }]}>{scanError ?? 'Try another image.'}</Text>
-                <TouchableOpacity
-                  onPress={resetScanner}
-                  style={[s.scanRetryBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
-                >
-                  <Text style={[s.scanRetryText, { color: theme.text }]}>Try again</Text>
-                </TouchableOpacity>
+                <View style={s.scanErrorActions}>
+                  <TouchableOpacity
+                    onPress={resetScanner}
+                    style={[s.scanRetryBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
+                  >
+                    <Text style={[s.scanRetryText, { color: theme.text }]}>Try again</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const { draft, warningMessage } = buildReceiptReviewDraft(
+                        null,
+                        scanError ?? "Some fields couldn't be read.",
+                      );
+                      openReceiptReview(draft, warningMessage);
+                    }}
+                    style={[s.scanManualBtn, { backgroundColor: theme.lime }]}
+                  >
+                    <Text style={s.scanManualText}>Fill manually</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
         </View>
       </View>
       ) : null}
+
+      <ReceiptScanReviewModal
+        visible={receiptReviewVisible}
+        imageUri={scanImageUri}
+        draft={receiptReviewDraft}
+        categoryOptions={categoryOptionNames}
+        warningMessage={receiptReviewWarning}
+        onClose={() => {
+          setReceiptReviewVisible(false);
+          setReceiptReviewDraft(null);
+          setReceiptReviewWarning(null);
+        }}
+        onRescan={() => {
+          setReceiptReviewVisible(false);
+          setReceiptReviewDraft(null);
+          setReceiptReviewWarning(null);
+          openScanner();
+        }}
+        onApply={applyReceiptDraftToForm}
+      />
 
 
       {/* Warning Modal */}
@@ -1500,9 +1651,28 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
+  scanErrorActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
   scanRetryText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  scanManualBtn: {
+    marginTop: 6,
+    height: 44,
+    minWidth: 120,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  scanManualText: {
+    color: '#1A1E14',
+    fontSize: 14,
+    fontWeight: '800',
   },
 
   // Actions
