@@ -56,6 +56,14 @@ const formatBalance = (value: number) => {
   });
 };
 
+const formatMoneyValue = (value: number) => {
+  const rounded = Math.round(value * 100) / 100;
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, onClose, onSave }: GoalContributionModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
@@ -170,7 +178,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
               <View style={s.fieldGroup}>
                 <View style={s.amountLabelRow}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>CONTRIBUTION AMOUNT</Text>
-                  <Text style={[s.maxText, { color: theme.tertiary }]}>Max: {currencySymbol}{maxAmount.toFixed(2)}</Text>
+                  <Text style={[s.maxText, { color: theme.tertiary }]}>Max: {currencySymbol}{formatMoneyValue(maxAmount)}</Text>
                 </View>
                 <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
                   <Text style={[s.currencyPrefix, { color: formik.values.amount ? theme.text : theme.tertiary }]}>{currencySymbol}</Text>
@@ -182,6 +190,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                     }}
                     onBlur={() => void formik.setFieldTouched('amount', true)}
                     keyboardType="decimal-pad"
+                    inputMode="decimal"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
                     style={[s.input, { color: theme.text }]}

@@ -132,10 +132,13 @@ export function ReceiptScanReviewModal({
                 <Text style={[s.label, { color: theme.secondary }]}>Amount</Text>
                 <TextInput
                   value={localDraft.amount}
-                  onChangeText={(text) => update('amount', text)}
+                  onChangeText={(text) =>
+                    update('amount', text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))
+                  }
                   style={[s.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
                   placeholder="0.00"
                   keyboardType="decimal-pad"
+                  inputMode="decimal"
                   placeholderTextColor={theme.secondary}
                 />
               </View>

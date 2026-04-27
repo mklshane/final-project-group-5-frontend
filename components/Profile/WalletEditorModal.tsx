@@ -234,6 +234,7 @@ export function WalletEditorModal({
                       }
                       onBlur={formik.handleBlur('currentBalance')}
                       keyboardType="decimal-pad"
+                      inputMode="decimal"
                       placeholder="0.00"
                       placeholderTextColor={theme.tertiary}
                       style={[s.input, { color: theme.text }]}

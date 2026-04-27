@@ -67,6 +67,14 @@ const formatBalance = (value: number) => {
   });
 };
 
+const formatMoneyValue = (value: number) => {
+  const rounded = Math.round(value * 100) / 100;
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 export function PaymentLogModal({
   visible,
   mode,
@@ -197,7 +205,7 @@ export function PaymentLogModal({
                 <View style={s.amountLabelRow}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>{amountLabel}</Text>
                   <Text style={[s.maxText, { color: theme.tertiary }]}>
-                    Max: {currencySymbol}{maxAmount.toFixed(2)}
+                    Max: {currencySymbol}{formatMoneyValue(maxAmount)}
                   </Text>
                 </View>
                 <View style={[s.inputWrap, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
@@ -212,6 +220,7 @@ export function PaymentLogModal({
                     }}
                     onBlur={() => void formik.setFieldTouched('amount', true)}
                     keyboardType="decimal-pad"
+                    inputMode="decimal"
                     placeholder="0.00"
                     placeholderTextColor={theme.tertiary}
                     style={[s.input, { color: theme.text }]}

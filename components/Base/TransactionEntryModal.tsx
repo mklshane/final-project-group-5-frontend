@@ -61,7 +61,7 @@ const KEYPAD_ROWS: KeyLabel[][] = [
 const formatCurrency = (value: number, _symbol: string) => {
   const rounded = Math.round(value * 100) / 100;
   return `${rounded < 0 ? '-' : ''}${Math.abs(rounded).toLocaleString(undefined, {
-    minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 };
