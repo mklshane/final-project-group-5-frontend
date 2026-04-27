@@ -140,6 +140,8 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
   }, [visible, initialDebt]);
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
+  const primaryBg = isDark ? theme.lime : '#3F7D36';
+  const primaryText = isDark ? '#1A1E14' : '#FFFFFF';
   const dueDateLabel = mode === 'owe' ? 'DUE DATE' : 'EXPECTED BY';
   const paidLabel = mode === 'owe' ? 'ALREADY PAID' : 'ALREADY COLLECTED';
   const counterpartyLabel = mode === 'owe' ? 'WHO IS THIS OWED TO?' : 'WHO OWES TO YOU?';
@@ -205,12 +207,12 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                             style={[
                               s.kindChip,
                               {
-                                backgroundColor: active ? theme.lime : theme.surfaceAlt,
-                                borderColor: active ? theme.lime : theme.border,
+                                backgroundColor: active ? primaryBg : theme.surfaceAlt,
+                                borderColor: active ? primaryBg : theme.border,
                               },
                             ]}
                           >
-                            <Text style={[s.kindLabel, { color: active ? '#1A1E14' : theme.secondary }]}>
+                            <Text style={[s.kindLabel, { color: active ? primaryText : theme.secondary }]}>
                               {kind.toUpperCase()}
                             </Text>
                           </Pressable>
@@ -294,8 +296,10 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
 
                 <View style={s.fieldGroup}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>{dueDateLabel}</Text>
-                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                    <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(dueDate)}</Text>
+                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'space-between' }]}>
+                    {Platform.OS !== 'ios' && (
+                      <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(dueDate)}</Text>
+                    )}
                     {Platform.OS === 'ios' ? (
                       <DateTimePicker
                         value={dueDate}
@@ -306,7 +310,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                       />
                     ) : (
                       <Pressable onPress={() => setShowAndroidDatePicker(true)} style={s.dateButton}>
-                        <Text style={[s.dateButtonText, { color: theme.lime }]}>Pick date</Text>
+                        <Text style={[s.dateButtonText, { color: primaryBg }]}>Pick date</Text>
                       </Pressable>
                     )}
                   </View>
@@ -341,14 +345,14 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: saving ? submitDisabledColor : theme.lime,
+                      backgroundColor: saving ? submitDisabledColor : primaryBg,
                     },
                   ]}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color="#1A1E14" />
+                    <ActivityIndicator size="small" color={primaryText} />
                   ) : (
-                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : primaryText }]}>
                       {initialDebt ? 'Save Changes' : 'Create Entry'}
                     </Text>
                   )}
@@ -358,7 +362,6 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
     </Modal>
   );
 }
@@ -459,7 +462,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   dateValue: {
     fontSize: 15,

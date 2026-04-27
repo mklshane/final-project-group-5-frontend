@@ -156,6 +156,8 @@ export function PaymentLogModal({
   }, [visible, wallets]);
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
+  const primaryBg = isDark ? theme.lime : '#3F7D36';
+  const primaryText = isDark ? '#1A1E14' : '#FFFFFF';
   const title = mode === 'owe' ? 'Log payment' : 'Log collection';
   const subtitle =
     mode === 'owe'
@@ -237,8 +239,10 @@ export function PaymentLogModal({
               {/* Date */}
               <View style={s.fieldGroup}>
                 <Text style={[s.sectionLabel, { color: theme.secondary }]}>DATE</Text>
-                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                  <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
+                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'space-between' }]}>
+                  {Platform.OS !== 'ios' && (
+                    <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
+                  )}
                   {Platform.OS === 'ios' ? (
                     <DateTimePicker
                       value={date}
@@ -249,7 +253,7 @@ export function PaymentLogModal({
                     />
                   ) : (
                     <Pressable onPress={() => setShowAndroidDatePicker(true)} style={s.dateButton}>
-                      <Text style={[s.dateButtonText, { color: theme.lime }]}>Pick date</Text>
+                      <Text style={[s.dateButtonText, { color: primaryBg }]}>Pick date</Text>
                     </Pressable>
                   )}
                 </View>
@@ -395,13 +399,13 @@ export function PaymentLogModal({
                   disabled={saving}
                   style={[
                     s.actionButton,
-                    { backgroundColor: saving ? submitDisabledColor : theme.lime },
+                    { backgroundColor: saving ? submitDisabledColor : primaryBg },
                   ]}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color="#1A1E14" />
+                    <ActivityIndicator size="small" color={primaryText} />
                   ) : (
-                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : primaryText }]}>
                       Save
                     </Text>
                   )}
@@ -411,7 +415,6 @@ export function PaymentLogModal({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
     </Modal>
   );
 }
@@ -512,7 +515,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   dateValue: {
     fontSize: 15,

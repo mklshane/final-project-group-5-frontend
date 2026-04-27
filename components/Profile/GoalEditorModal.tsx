@@ -144,6 +144,8 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
   };
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
+  const primaryBg = isDark ? theme.lime : '#3F7D36';
+  const primaryText = isDark ? '#1A1E14' : '#FFFFFF';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
@@ -243,8 +245,10 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
 
                 <View style={s.fieldGroup}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>TARGET DATE</Text>
-                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                    <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(deadline)}</Text>
+                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'space-between' }]}>
+                    {Platform.OS !== 'ios' && (
+                      <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(deadline)}</Text>
+                    )}
                     {Platform.OS === 'ios' ? (
                       <DateTimePicker
                         value={deadline}
@@ -255,7 +259,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                       />
                     ) : (
                       <Pressable onPress={() => setShowAndroidDatePicker(true)} style={s.dateButton}>
-                        <Text style={[s.dateButtonText, { color: theme.lime }]}>Pick date</Text>
+                        <Text style={[s.dateButtonText, { color: primaryBg }]}>Pick date</Text>
                       </Pressable>
                     )}
                   </View>
@@ -273,14 +277,14 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: saving ? submitDisabledColor : theme.lime,
+                      backgroundColor: saving ? submitDisabledColor : primaryBg,
                     },
                   ]}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color="#1A1E14" />
+                    <ActivityIndicator size="small" color={primaryText} />
                   ) : (
-                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : primaryText }]}>
                       {initialGoal ? 'Save Changes' : 'Create Goal'}
                     </Text>
                   )}
@@ -290,7 +294,6 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
     </Modal>
   );
 }
@@ -376,7 +379,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   dateValue: {
     fontSize: 15,

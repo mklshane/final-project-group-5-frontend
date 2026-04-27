@@ -187,12 +187,12 @@ export function WalletEditorModal({
                           style={[
                             s.chip,
                             {
-                              backgroundColor: active ? theme.lime : theme.surfaceAlt,
-                              borderColor: active ? theme.lime : theme.border,
+                              backgroundColor: active ? (isDark ? theme.lime : '#3F7D36') : theme.surfaceAlt,
+                              borderColor: active ? (isDark ? theme.lime : '#3F7D36') : theme.border,
                             },
                           ]}
                         >
-                          <Text style={[s.chipText, { color: active ? '#1A1E14' : theme.secondary }]}>
+                          <Text style={[s.chipText, { color: active ? (isDark ? '#1A1E14' : '#FFFFFF') : theme.secondary }]}>
                             {WALLET_TYPE_LABELS[option].toUpperCase()}
                           </Text>
                         </Pressable>
@@ -257,12 +257,12 @@ export function WalletEditorModal({
                     style={[
                       s.checkbox,
                       {
-                        borderColor: isDefault ? theme.lime : theme.borderHighlight,
-                        backgroundColor: isDefault ? theme.lime : 'transparent',
+                        borderColor: isDefault ? (isDark ? theme.lime : '#3F7D36') : theme.borderHighlight,
+                        backgroundColor: isDefault ? (isDark ? theme.lime : '#3F7D36') : 'transparent',
                       }
                     ]}
                   >
-                    {isDefault && <Ionicons name="checkmark" size={14} color="#1A1E14" />}
+                    {isDefault && <Ionicons name="checkmark" size={14} color={isDark ? "#1A1E14" : "#FFFFFF"} />}
                   </View>
                 </Pressable>
               </View>
@@ -274,14 +274,14 @@ export function WalletEditorModal({
                   style={[
                     s.actionButton,
                     {
-                      backgroundColor: saving ? submitDisabledColor : theme.lime,
+                      backgroundColor: saving ? submitDisabledColor : (isDark ? theme.lime : '#3F7D36'),
                     },
                   ]}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color="#1A1E14" />
+                    <ActivityIndicator size="small" color={isDark ? '#1A1E14' : '#FFFFFF'} />
                   ) : (
-                    <Text style={[s.actionText, { color: saving ? theme.tertiary : '#1A1E14' }]}>
+                    <Text style={[s.actionText, { color: saving ? theme.tertiary : (isDark ? '#1A1E14' : '#FFFFFF') }]}>
                       {mode === 'create' ? 'Create Wallet' : 'Save Changes'}
                     </Text>
                   )}
@@ -291,7 +291,6 @@ export function WalletEditorModal({
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
     </Modal>
   );
 }

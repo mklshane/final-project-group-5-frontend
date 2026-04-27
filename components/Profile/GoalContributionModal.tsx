@@ -206,8 +206,10 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
 
               <View style={s.fieldGroup}>
                 <Text style={[s.fieldLabel, { color: theme.secondary }]}>DATE</Text>
-                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                  <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
+                <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'space-between' }]}>
+                  {Platform.OS !== 'ios' && (
+                    <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
+                  )}
                   {Platform.OS === 'ios' ? (
                     <DateTimePicker
                       value={date}
@@ -218,7 +220,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                     />
                   ) : (
                     <Pressable onPress={() => setShowAndroidDatePicker(true)} style={s.dateButton}>
-                      <Text style={[s.dateButtonText, { color: theme.lime }]}>Pick date</Text>
+                      <Text style={[s.dateButtonText, { color: isDark ? theme.lime : '#3F7D36' }]}>Pick date</Text>
                     </Pressable>
                   )}
                 </View>
@@ -324,7 +326,6 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-
     </Modal>
   );
 }
@@ -420,7 +421,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   dateValue: {
     fontSize: 15,
