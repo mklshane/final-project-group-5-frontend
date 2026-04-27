@@ -756,10 +756,7 @@ const s = StyleSheet.create({
     flex: 1,
   },
   dropdownMenu: {
-    position: 'absolute',
-    top: 48,
-    left: 4,
-    right: 4,
+    marginTop: 8,
     maxHeight: 280,
     borderWidth: 1,
     borderRadius: 18,
