@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
-import type { NotificationHistoryItem, NotificationItemType } from '@/hooks/useNotificationScheduler';
+import { loadNotificationHistory, type NotificationHistoryItem, type NotificationItemType } from '@/lib/notificationHistory';
 import type { CategoryRecord } from '@/types/finance';
-
-const HISTORY_KEY = 'budgy_notification_history_v1';
 
 interface AppAlert {
   id: string;
@@ -51,9 +48,13 @@ const TYPE_META: Record<
   goalMilestones: { icon: 'trophy', color: (t) => t.green },
   weeklyReport: { icon: 'calendar-outline', color: (t) => t.blue },
   dailySummary: { icon: 'sunny-outline', color: (t) => '#F4A018' },
+  inAppSuccess: { icon: 'checkmark-circle', color: (t) => (t.isDark ? t.lime : t.limeDark) },
+  inAppError: { icon: 'alert-circle', color: (t) => t.red },
+  inAppInfo: { icon: 'information-circle', color: (t) => t.blue },
 };
 
 export default function NotificationsScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const { state } = useFinanceData();
   const finance = useFinanceSelectors();
@@ -65,8 +66,8 @@ export default function NotificationsScreen() {
   // Reload history every time screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.getItem(HISTORY_KEY)
-        .then((raw) => setHistory(raw ? JSON.parse(raw) : []))
+      loadNotificationHistory()
+        .then((items) => setHistory(items))
         .catch(() => undefined);
     }, []),
   );
@@ -214,6 +215,8 @@ export default function NotificationsScreen() {
     return result.sort((a, b) => order[a.severity] - order[b.severity]);
   }, [finance, prefs, categoriesById, theme]);
 
+  const recentHistory = history.slice(0, 5);
+  const pastHistory = history.slice(5);
   const isEmpty = history.length === 0 && alerts.length === 0;
 
   const alertBg = (severity: AppAlert['severity']) => {
@@ -225,8 +228,21 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-
-        
+        <View style={s.pageHeader}>
+          <View style={s.pageHeaderText}>
+            <Text style={[s.pageTitle, { color: theme.text }]}>Notification Inbox</Text>
+            <Text style={[s.pageSubtitle, { color: theme.secondary }]}>
+              Review your latest reminders, smart alerts, and in-app success or error feedback.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/profile/notification-settings')}
+            style={[s.headerAction, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <Ionicons name="options-outline" size={16} color={theme.text} />
+            <Text style={[s.headerActionText, { color: theme.text }]}>Manage</Text>
+          </Pressable>
+        </View>
 
         {/* Permission denied banner */}
         {permDenied && (
@@ -242,10 +258,39 @@ export default function NotificationsScreen() {
         )}
 
         {/* Recent notification history */}
-        {history.length > 0 && (
+        {recentHistory.length > 0 && (
           <>
             <Text style={[s.sectionLabel, { color: theme.secondary }]}>RECENT</Text>
-            {history.map((item) => {
+            {recentHistory.map((item) => {
+              const meta = TYPE_META[item.type] ?? TYPE_META.weeklyReport;
+              const color = meta.color(theme);
+              return (
+                <View
+                  key={item.id}
+                  style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
+                  <View style={[s.iconWrap, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+                    <Ionicons name={meta.icon} size={20} color={color} />
+                  </View>
+                  <View style={s.cardBody}>
+                    <Text style={[s.cardTitle, { color: theme.text }]}>{item.title}</Text>
+                    <Text style={[s.cardDesc, { color: theme.secondary }]}>{item.body}</Text>
+                    <Text style={[s.cardTime, { color: theme.tertiary ?? theme.secondary }]}>
+                      {relativeTime(item.firedAt)}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </>
+        )}
+
+        {pastHistory.length > 0 && (
+          <>
+            <Text style={[s.sectionLabel, { color: theme.secondary, marginTop: recentHistory.length > 0 ? 20 : 0 }]}>
+              PAST
+            </Text>
+            {pastHistory.map((item) => {
               const meta = TYPE_META[item.type] ?? TYPE_META.weeklyReport;
               const color = meta.color(theme);
               return (
@@ -320,7 +365,14 @@ const s = StyleSheet.create({
     paddingBottom: 36,
   },
   pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: 24,
+    gap: 12,
+  },
+  pageHeaderText: {
+    flex: 1,
   },
   pageTitle: {
     fontSize: 28,
@@ -332,6 +384,19 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
+  },
+  headerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  headerActionText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   permBanner: {
     flexDirection: 'row',

@@ -5,25 +5,12 @@ import * as Notifications from 'expo-notifications';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import {
+  appendNotificationHistory,
+  type NotificationItemType,
+} from '@/lib/notificationHistory';
 
-const HISTORY_KEY = 'budgy_notification_history_v1';
 const SENT_KEY = 'budgy_notification_sent_v1';
-const MAX_HISTORY = 50;
-
-export type NotificationItemType =
-  | 'budgetAlerts'
-  | 'largeExpenseWarnings'
-  | 'goalMilestones'
-  | 'weeklyReport'
-  | 'dailySummary';
-
-export interface NotificationHistoryItem {
-  id: string;
-  title: string;
-  body: string;
-  type: NotificationItemType;
-  firedAt: string;
-}
 
 interface SentState {
   budgets: Record<string, string>;
@@ -52,26 +39,6 @@ async function saveSentState(state: SentState): Promise<void> {
   await AsyncStorage.setItem(SENT_KEY, JSON.stringify(state)).catch(() => undefined);
 }
 
-async function loadHistory(): Promise<NotificationHistoryItem[]> {
-  try {
-    const raw = await AsyncStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function appendHistory(item: Omit<NotificationHistoryItem, 'id' | 'firedAt'>): Promise<void> {
-  const history = await loadHistory();
-  const entry: NotificationHistoryItem = {
-    ...item,
-    id: Date.now().toString(),
-    firedAt: new Date().toISOString(),
-  };
-  const updated = [entry, ...history].slice(0, MAX_HISTORY);
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated)).catch(() => undefined);
-}
-
 async function fireAndRecord(
   type: NotificationItemType,
   title: string,
@@ -81,7 +48,7 @@ async function fireAndRecord(
     content: { title, body, sound: true },
     trigger: null,
   });
-  await appendHistory({ type, title, body });
+  await appendNotificationHistory({ type, title, body, source: 'system' });
 }
 
 async function syncScheduled(
