@@ -49,9 +49,6 @@ export default function NotificationSettingsScreen() {
     <SafeAreaView style={[s.screen, { backgroundColor: theme.bg }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.header}>
-          <View style={[s.heroIcon, { backgroundColor: theme.isDark ? theme.surfaceAlt : theme.surfaceDeep, borderColor: theme.border }]}>
-            <Ionicons name="notifications-outline" size={22} color={theme.isDark ? theme.lime : theme.limeDark} />
-          </View>
           <Text style={[s.title, { color: theme.text }]}>Notification Settings</Text>
           <Text style={[s.subtitle, { color: theme.secondary }]}>
             Choose which alerts appear in-app and which reminders Budgy keeps sending to you.

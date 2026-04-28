@@ -422,7 +422,7 @@ const s = StyleSheet.create({
   },
   card: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
     borderWidth: 1,
     borderRadius: 16,

@@ -70,11 +70,10 @@ function UnderlineInput({
 export default function SignupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signUpWithEmail, signInWithGoogle } = useAuth();
+  const { signUpWithEmail } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [apiError, setApiError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -102,12 +101,6 @@ export default function SignupScreen() {
       }
     },
   });
-
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    await signInWithGoogle();
-    setGoogleLoading(false);
-  };
 
   return (
     <KeyboardAvoidingView
@@ -195,37 +188,14 @@ export default function SignupScreen() {
           }
         />
 
-        {/* Create account button */}
         <Pressable
           onPress={() => formik.handleSubmit()}
-          disabled={loading || googleLoading}
-          style={[s.primaryBtn, (loading || googleLoading) && { opacity: 0.7 }]}
+          disabled={loading}
+          style={[s.primaryBtn, loading && { opacity: 0.7 }]}
         >
           {loading
             ? <ActivityIndicator color="#1A1E14" />
             : <Text style={s.primaryBtnText}>Create Account</Text>}
-        </Pressable>
-
-        {/* Divider */}
-        <View style={s.divider}>
-          <View style={s.dividerLine} />
-          <Text style={s.dividerText}>or</Text>
-          <View style={s.dividerLine} />
-        </View>
-
-        {/* Google */}
-        <Pressable
-          onPress={handleGoogle}
-          disabled={loading || googleLoading}
-          style={[s.googleBtn, (loading || googleLoading) && { opacity: 0.6 }]}
-        >
-          {googleLoading
-            ? <ActivityIndicator color="#6B7060" size="small" />
-            : <>
-                <Ionicons name="logo-google" size={18} color="#6B7060" />
-                <Text style={s.googleBtnText}>Continue with Google</Text>
-              </>
-          }
         </Pressable>
 
         {/* Footer link */}
@@ -314,17 +284,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   primaryBtnText: { color: '#1A1E14', fontSize: 16, fontWeight: '800', letterSpacing: 0.1 },
-
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E4E6D6' },
-  dividerText: { color: '#9DA28F', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
-
-  googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderWidth: 1.5, borderColor: '#E4E6D6', borderRadius: 16, height: 52,
-    backgroundColor: '#fff', marginBottom: 32,
-  },
-  googleBtnText: { color: '#1A1E14', fontSize: 15, fontWeight: '600' },
 
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { color: '#9DA28F', fontSize: 14, fontWeight: '500' },

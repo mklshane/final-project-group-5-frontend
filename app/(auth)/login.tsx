@@ -162,17 +162,6 @@ export default function LoginScreen() {
             : <Text style={s.primaryBtnText}>Sign In</Text>}
         </Pressable>
 
-        <View style={s.divider}>
-          <View style={s.dividerLine} />
-          <Text style={s.dividerText}>or</Text>
-          <View style={s.dividerLine} />
-        </View>
-
-        <Pressable style={s.googleBtn}>
-          <Ionicons name="logo-google" size={18} color="#6B7060" />
-          <Text style={s.googleBtnText}>Continue with Google</Text>
-        </Pressable>
-
         <View style={s.footer}>
           <Text style={s.footerText}>Don't have an account?</Text>
           <Pressable onPress={() => router.push('/(auth)/signup')} hitSlop={8}>
@@ -239,15 +228,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   primaryBtnText: { color: '#1A1E14', fontSize: 16, fontWeight: '800', letterSpacing: 0.1 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E4E6D6' },
-  dividerText: { color: '#9DA28F', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
-  googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderWidth: 1.5, borderColor: '#E4E6D6', borderRadius: 16, height: 52,
-    backgroundColor: '#fff', marginBottom: 32,
-  },
-  googleBtnText: { color: '#1A1E14', fontSize: 15, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { color: '#9DA28F', fontSize: 14, fontWeight: '500' },
   footerLink: { color: '#1A1E14', fontSize: 14, fontWeight: '700' },
