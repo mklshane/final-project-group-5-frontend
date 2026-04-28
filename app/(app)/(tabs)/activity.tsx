@@ -202,14 +202,19 @@ export default function ActivityScreen() {
     categoryId: string | null;
     loggedAt: Date;
   }) => {
-    await addTransaction({
-      title: input.title,
-      amount: input.amount,
-      type: input.type,
-      walletId: input.walletId,
-      categoryId: input.categoryId,
-      date: input.loggedAt.toISOString(),
-    });
+    try {
+      await addTransaction({
+        title: input.title,
+        amount: input.amount,
+        type: input.type,
+        walletId: input.walletId,
+        categoryId: input.categoryId,
+        date: input.loggedAt.toISOString(),
+      });
+      toast.show('Transaction saved', 'success');
+    } catch {
+      toast.show('Failed to save transaction', 'error');
+    }
   };
   const requestDelete = (id: string) => {
     const target = finance.allTransactions.find((tx) => tx.id === id);

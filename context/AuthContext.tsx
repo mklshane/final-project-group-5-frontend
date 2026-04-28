@@ -169,12 +169,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email: normalizeEmail(email),
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    return { error: normalizeSignUpErrorMessage(error?.message) };
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: normalizeEmail(email),
+        password,
+        options: { data: { full_name: fullName } },
+      });
+      return { error: normalizeSignUpErrorMessage(error?.message) };
+    } catch {
+      return { error: 'Network issue during sign up. Please try again.' };
+    }
   };
 
   const signInWithGoogle = async () => {
@@ -201,10 +205,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      const p = await fetchProfile(session.access_token);
-      setProfile(p);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const p = await fetchProfile(session.access_token);
+        setProfile(p);
+      }
+    } catch {
+      // best-effort — silent
     }
   };
 

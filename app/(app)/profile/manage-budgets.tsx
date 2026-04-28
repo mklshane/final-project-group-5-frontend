@@ -139,8 +139,13 @@ export default function ManageBudgetsScreen() {
     color: string;
     type: 'expense' | 'income' | 'both';
   }) => {
-    const nextType = input.type === 'income' ? 'expense' : input.type;
-    await addCategory({ ...input, type: nextType });
+    try {
+      const nextType = input.type === 'income' ? 'expense' : input.type;
+      await addCategory({ ...input, type: nextType });
+      toast.show('Category created', 'success');
+    } catch {
+      toast.show('Failed to create category', 'error');
+    }
   };
 
   const handleOpenBudgetModal = (category: CategoryRecord) => {

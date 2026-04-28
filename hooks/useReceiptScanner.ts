@@ -128,7 +128,9 @@ export function useReceiptScanner(): UseReceiptScannerReturn {
         return;
       }
 
-      await processImage(pickerResult.assets[0].uri);
+      const cameraUri = pickerResult.assets[0]?.uri;
+      if (!cameraUri) { setStatus('idle'); return; }
+      await processImage(cameraUri);
     } catch (err) {
       console.error('Camera launch failed:', err);
       setError('Failed to open camera.');
@@ -160,7 +162,9 @@ export function useReceiptScanner(): UseReceiptScannerReturn {
         return;
       }
 
-      await processImage(pickerResult.assets[0].uri);
+      const galleryUri = pickerResult.assets[0]?.uri;
+      if (!galleryUri) { setStatus('idle'); return; }
+      await processImage(galleryUri);
     } catch (err) {
       console.error('Gallery launch failed:', err);
       setError('Failed to open gallery.');

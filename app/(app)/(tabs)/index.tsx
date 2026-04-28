@@ -56,7 +56,7 @@ export default function HomeScreen() {
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
   const [layoutEditorVisible, setLayoutEditorVisible] = useState(false);
   const [sectionOrder, setSectionOrder] = useState<HomeSectionKey[]>(DEFAULT_HOME_SECTION_ORDER);
-  const sectionOrderHydrated = useRef(false);
+  const [sectionOrderHydrated, setSectionOrderHydrated] = useState(false);
   const [draggedSectionKey, setDraggedSectionKey] = useState<HomeSectionKey | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -69,14 +69,18 @@ export default function HomeScreen() {
   const draggedKeyRef = useRef<HomeSectionKey | null>(null);
   const dragStartIndexRef = useRef(0);
   const sectionOrderRef = useRef(sectionOrder);
+  const userId = profile?.id ?? null;
 
   useEffect(() => {
     sectionOrderRef.current = sectionOrder;
   }, [sectionOrder]);
 
-  // Load persisted section order on mount
+  // Load persisted section order whenever the logged-in user changes
   useEffect(() => {
-    AsyncStorage.getItem('budgy_home_section_order_v1')
+    if (!userId) return;
+    setSectionOrderHydrated(false);
+    setSectionOrder(DEFAULT_HOME_SECTION_ORDER);
+    AsyncStorage.getItem(`budgy_home_section_order_v1_${userId}`)
       .then((raw) => {
         if (raw) {
           const parsed: HomeSectionKey[] = JSON.parse(raw);
@@ -85,14 +89,14 @@ export default function HomeScreen() {
         }
       })
       .catch(() => undefined)
-      .finally(() => { sectionOrderHydrated.current = true; });
-  }, []);
+      .finally(() => setSectionOrderHydrated(true));
+  }, [userId]);
 
-  // Persist section order whenever it changes (skip initial default)
+  // Persist section order whenever it changes (skip until initial load completes)
   useEffect(() => {
-    if (!sectionOrderHydrated.current) return;
-    AsyncStorage.setItem('budgy_home_section_order_v1', JSON.stringify(sectionOrder)).catch(() => undefined);
-  }, [sectionOrder]);
+    if (!sectionOrderHydrated || !userId) return;
+    AsyncStorage.setItem(`budgy_home_section_order_v1_${userId}`, JSON.stringify(sectionOrder)).catch(() => undefined);
+  }, [sectionOrder, sectionOrderHydrated, userId]);
 
   // Sheet open animation
   useEffect(() => {

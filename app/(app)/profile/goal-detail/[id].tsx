@@ -5,6 +5,7 @@ import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } fr
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import { useToast } from '@/context/ToastContext';
 import { GoalEditorModal } from '@/components/Profile/GoalEditorModal';
 import { GoalContributionModal } from '@/components/Profile/GoalContributionModal';
 
@@ -42,6 +43,7 @@ export default function GoalDetailScreen() {
   const { state, updateGoal, deleteGoal, addTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const router = useRouter();
+  const toast = useToast();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const [contributionVisible, setContributionVisible] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
@@ -115,24 +117,29 @@ export default function GoalDetailScreen() {
       ? `${input.note} ${goalMarker}`
       : goalMarker;
 
-    await Promise.all([
-      updateGoal({
-        id: goal.id,
-        title: goal.title,
-        targetAmount,
-        savedAmount: nextSaved,
-        deadline: goal.deadline ?? null,
-      }),
-      addTransaction({
-        title: `Goal Contribution - ${goal.title}`,
-        amount,
-        type: 'expense',
-        walletId: input.walletId,
-        categoryId: fixedGoalCategory?.id ?? null,
-        date: input.date,
-        note: linkedNote,
-      }),
-    ]);
+    try {
+      await Promise.all([
+        updateGoal({
+          id: goal.id,
+          title: goal.title,
+          targetAmount,
+          savedAmount: nextSaved,
+          deadline: goal.deadline ?? null,
+        }),
+        addTransaction({
+          title: `Goal Contribution - ${goal.title}`,
+          amount,
+          type: 'expense',
+          walletId: input.walletId,
+          categoryId: fixedGoalCategory?.id ?? null,
+          date: input.date,
+          note: linkedNote,
+        }),
+      ]);
+      toast.show('Contribution saved', 'success');
+    } catch {
+      toast.show('Failed to save contribution', 'error');
+    }
   };
 
   const saveGoalEdits = async (input: {
@@ -141,18 +148,27 @@ export default function GoalDetailScreen() {
     savedAmount: number;
     deadline?: string | null;
   }) => {
-    await updateGoal({
-      id: goal.id,
-      title: input.title,
-      targetAmount: input.targetAmount,
-      savedAmount: input.savedAmount,
-      deadline: input.deadline,
-    });
+    try {
+      await updateGoal({
+        id: goal.id,
+        title: input.title,
+        targetAmount: input.targetAmount,
+        savedAmount: input.savedAmount,
+        deadline: input.deadline,
+      });
+      toast.show('Goal updated', 'success');
+    } catch {
+      toast.show('Failed to update goal', 'error');
+    }
   };
 
   const confirmDeleteGoal = async () => {
-    await deleteGoal(goal.id);
-    router.back();
+    try {
+      await deleteGoal(goal.id);
+      router.back();
+    } catch {
+      toast.show('Failed to delete goal', 'error');
+    }
   };
 
   return (

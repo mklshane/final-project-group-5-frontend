@@ -7,6 +7,7 @@ import { PaymentLogModal } from '@/components/Profile/PaymentLogModal';
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
+import { useToast } from '@/context/ToastContext';
 import {
   DEBT_COLLECTION_CATEGORY_NAME,
   DEBT_PAYMENT_CATEGORY_NAME,
@@ -46,6 +47,7 @@ export default function DebtDetailScreen() {
   const { state, updateDebt, deleteDebt, addTransaction } = useFinanceData();
   const finance = useFinanceSelectors();
   const router = useRouter();
+  const toast = useToast();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const [paymentVisible, setPaymentVisible] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
@@ -136,23 +138,28 @@ export default function DebtDetailScreen() {
       ? `Debt Payment - ${personName}`
       : `Payment from ${personName}`;
 
-    await Promise.all([
-      updateDebt({
-        id: debt.id,
-        amountPaid: nextPaid,
-        dueDate: debt.due_date,
-        notes: debt.notes ?? undefined,
-      }),
-      addTransaction({
-        title: txTitle,
-        amount: input.amount,
-        type: isOwe ? 'expense' : 'income',
-        walletId: input.walletId,
-        categoryId: input.categoryId,
-        date: input.date,
-        note: linkedNote,
-      }),
-    ]);
+    try {
+      await Promise.all([
+        updateDebt({
+          id: debt.id,
+          amountPaid: nextPaid,
+          dueDate: debt.due_date,
+          notes: debt.notes ?? undefined,
+        }),
+        addTransaction({
+          title: txTitle,
+          amount: input.amount,
+          type: isOwe ? 'expense' : 'income',
+          walletId: input.walletId,
+          categoryId: input.categoryId,
+          date: input.date,
+          note: linkedNote,
+        }),
+      ]);
+      toast.show('Payment recorded', 'success');
+    } catch {
+      toast.show('Failed to record payment', 'error');
+    }
   };
 
   const saveDebtEdits = async (input: {
@@ -163,20 +170,29 @@ export default function DebtDetailScreen() {
     dueDate: string;
     notes?: string;
   }) => {
-    await updateDebt({
-      id: debt.id,
-      counterpartyKind: input.counterpartyKind,
-      counterpartyName: input.counterpartyName,
-      totalAmount: input.totalAmount,
-      amountPaid: input.amountPaid,
-      dueDate: input.dueDate,
-      notes: input.notes,
-    });
+    try {
+      await updateDebt({
+        id: debt.id,
+        counterpartyKind: input.counterpartyKind,
+        counterpartyName: input.counterpartyName,
+        totalAmount: input.totalAmount,
+        amountPaid: input.amountPaid,
+        dueDate: input.dueDate,
+        notes: input.notes,
+      });
+      toast.show('Debt updated', 'success');
+    } catch {
+      toast.show('Failed to update debt', 'error');
+    }
   };
 
   const confirmDeleteDebt = async () => {
-    await deleteDebt(debt.id);
-    router.back();
+    try {
+      await deleteDebt(debt.id);
+      router.back();
+    } catch {
+      toast.show('Failed to delete debt', 'error');
+    }
   };
 
   return (
