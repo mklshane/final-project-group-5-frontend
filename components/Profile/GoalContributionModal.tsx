@@ -79,6 +79,11 @@ const formatAmountInput = (value: string) => {
   return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
 };
 
+const getSafeDate = (value: Date) => {
+  if (Number.isFinite(value.getTime()) && value.getTime() > 0) return value;
+  return new Date();
+};
+
 export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, onClose, onSave }: GoalContributionModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
@@ -133,9 +138,10 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
       if (selectedWalletId === null || isOverBalance) return;
       setSaving(true);
       try {
+        const safeDate = getSafeDate(date);
         await onSave({
           amount: parseAmountInput(values.amount),
-          date: toIsoDate(date),
+          date: toIsoDate(safeDate),
           walletId: selectedWalletId,
           note: note.trim(),
         });
@@ -177,6 +183,8 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
       setDate(selected);
     }
   };
+
+  const displayDate = getSafeDate(date);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
@@ -247,11 +255,11 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                 <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: 'space-between' }]}> 
                   <Ionicons name="calendar-outline" size={16} color={theme.secondary} style={s.dateIcon} />
                   {Platform.OS !== 'ios' && (
-                    <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(date)}</Text>
+                    <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(displayDate)}</Text>
                   )}
                   {Platform.OS === 'ios' ? (
                     <DateTimePicker
-                      value={date}
+                      value={displayDate}
                       mode="date"
                       display="compact"
                       onChange={handleDateChange}
@@ -266,7 +274,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
               </View>
 
               {Platform.OS === 'android' && showAndroidDatePicker ? (
-                <DateTimePicker value={date} mode="date" display="default" onChange={handleDateChange} />
+                <DateTimePicker value={displayDate} mode="date" display="default" onChange={handleDateChange} />
               ) : null}
 
               <View style={s.fieldGroup}>
