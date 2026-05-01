@@ -14,6 +14,7 @@ interface TransactionCardProps {
   amountLabel: string;
   timeLabel: string;
   kind: TransactionKind;
+  onEditPress?: () => void;
   onDeletePress?: () => void;
 }
 
@@ -25,6 +26,7 @@ export function TransactionCard({
   amountLabel,
   timeLabel,
   kind,
+  onEditPress,
   onDeletePress,
 }: TransactionCardProps) {
   const theme = useTheme();
@@ -65,24 +67,48 @@ export function TransactionCard({
     </View>
   );
 
-  if (!onDeletePress) return CardContent;
+  if (!onEditPress && !onDeletePress) return CardContent;
 
   return (
     <Swipeable
       ref={swipeRef}
       renderRightActions={() => (
-        <Pressable
-          style={[s.deleteAction, { backgroundColor: theme.red }]}
-          onPress={() => {
-            swipeRef.current?.close();
-            onDeletePress();
-          }}
-        >
-          <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-          <Text style={s.deleteLabel}>Delete</Text>
-        </Pressable>
+        <View style={s.actionsContainer}>
+          {onEditPress && (
+            <Pressable
+              onPress={() => {
+                swipeRef.current?.close();
+                onEditPress();
+              }}
+              style={s.actionPressable}
+            >
+              {({ pressed }) => (
+                <View style={[s.actionBtn, { backgroundColor: theme.isDark ? '#0A84FF' : '#007AFF' }, pressed && s.actionBtnPressed]}>
+                  <Ionicons name="pencil" size={18} color="#FFFFFF" />
+                  <Text style={s.actionLabel}>Edit</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+          {onDeletePress && (
+            <Pressable
+              onPress={() => {
+                swipeRef.current?.close();
+                onDeletePress();
+              }}
+              style={s.actionPressable}
+            >
+              {({ pressed }) => (
+                <View style={[s.actionBtn, { backgroundColor: theme.isDark ? '#FF453A' : '#FF3B30' }, pressed && s.actionBtnPressed]}>
+                  <Ionicons name="trash" size={18} color="#FFFFFF" />
+                  <Text style={s.actionLabel}>Delete</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+        </View>
       )}
-      rightThreshold={26}
+      rightThreshold={40}
       overshootRight={false}
     >
       {CardContent}
@@ -132,18 +158,31 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
-  deleteAction: {
-    width: 84,
-    borderRadius: 18,
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 6,
+    paddingLeft: 8,
+  },
+  actionPressable: {
+    alignSelf: 'stretch',
+  },
+  actionBtn: {
+    flex: 1,
+    width: 72,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
-    paddingHorizontal: 8,
+    gap: 5,
   },
-  deleteLabel: {
-    marginTop: 4,
+  actionBtnPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.96 }],
+  },
+  actionLabel: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
 });

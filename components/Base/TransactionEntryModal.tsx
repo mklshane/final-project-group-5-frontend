@@ -40,6 +40,7 @@ interface TransactionEntryModalProps {
   scanRequestId?: number | null;
   wallets: WalletRecord[];
   categories: CategoryRecord[];
+  initialTransaction?: { id: string; title: string; amount: number; walletId: string | null; categoryId: string | null; date: string } | null;
   onClose: () => void;
   onSubmit: (input: {
     title: string;
@@ -245,6 +246,7 @@ export function TransactionEntryModal({
   scanRequestId,
   wallets,
   categories,
+  initialTransaction,
   onClose,
   onSubmit,
 }: TransactionEntryModalProps) {
@@ -331,10 +333,13 @@ export function TransactionEntryModal({
     if (wasVisibleRef.current) return;
     wasVisibleRef.current = true;
 
-    const defaultWalletId = pickDefaultWallet(wallets);
-    const defaultCategoryId = null;
+    const defaultWalletId = initialTransaction?.walletId ?? pickDefaultWallet(wallets);
+    const defaultCategoryId = initialTransaction?.categoryId ?? null;
+    const defaultAmount = initialTransaction?.amount ?? 0;
+    const defaultTitle = initialTransaction?.title ?? '';
+    const defaultLoggedAt = initialTransaction?.date ? parseIsoDate(initialTransaction.date.slice(0, 10)) : null;
 
-    setExpression('0');
+    setExpression(defaultAmount > 0 ? String(defaultAmount) : '0');
     setHistoryExpression('');
     setSelectedWalletId(defaultWalletId);
     setSelectedCategoryId(defaultCategoryId);
@@ -342,7 +347,7 @@ export function TransactionEntryModal({
     setWalletDropdownOpen(false);
     setInsufficientFundsVisible(false);
     setActiveField('amount');
-    setCustomLoggedAt(null);
+    setCustomLoggedAt(defaultLoggedAt);
     setScannerVisible(false);
     setAwaitingFreshScanResult(false);
     setIsClosing(false);
@@ -352,7 +357,7 @@ export function TransactionEntryModal({
     resetScanner();
     keypadAnim.setValue(0);
     Keyboard.dismiss();
-    formik.resetForm({ values: { amount: 0, title: '' } });
+    formik.resetForm({ values: { amount: defaultAmount, title: defaultTitle } });
 
     // Slide the sheet up
     slideAnim.setValue(700);
@@ -908,7 +913,7 @@ export function TransactionEntryModal({
               </Text>
             ) : null}
 
-              {isExpense ? (
+              {/* {isExpense ? (
                 <Pressable
                   onPress={openScanner}
                   style={[s.scanTrigger, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
@@ -922,7 +927,7 @@ export function TransactionEntryModal({
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={theme.secondary} />
                 </Pressable>
-              ) : null}
+              ) : null} */}
 
             {/* Title Input */}
             <View style={[s.inputRow, { borderBottomColor: activeField === 'title' ? theme.text : theme.border }]}>

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -16,8 +15,8 @@ import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { useTheme } from '@/hooks/useTheme';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
-import { TransactionCard } from '@/components/Base/TransactionCard';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
+import { TransactionListItem, type TransactionListItemTx } from '@/components/Base/TransactionListItem';
 
 type FilterKey = 'all' | 'today' | 'week' | 'month';
 type TypeFilterKey = 'all' | 'expense' | 'income';
@@ -60,7 +59,7 @@ const toIoniconName = (icon: string | null | undefined): keyof typeof Ionicons.g
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { state, addTransaction, deleteTransaction } = useFinanceData();
+  const { state, addTransaction, updateTransaction, deleteTransaction } = useFinanceData();
   const toast = useToast();
   const finance = useFinanceSelectors();
 
@@ -73,6 +72,9 @@ export default function ActivityScreen() {
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<{
+    id: string; title: string; amount: number; walletId: string | null; categoryId: string | null; date: string;
+  } | null>(null);
 
 
   const categoryFilters = useMemo(
@@ -194,6 +196,29 @@ export default function ActivityScreen() {
     setScanRequestId(null);
     setEntryVisible(true);
   };
+  const handleEditTransaction = (tx: TransactionListItemTx) => {
+    setEditingTransaction({
+      id: tx.id,
+      title: tx.title,
+      amount: tx.amount,
+      walletId: tx.wallet_id ?? null,
+      categoryId: tx.category_id,
+      date: tx.date,
+    });
+    setEntryMode(tx.type);
+    setScanRequestId(null);
+    setEntryVisible(true);
+  };
+
+  const handleDeleteTransaction = async (tx: TransactionListItemTx) => {
+    try {
+      await deleteTransaction(tx.id);
+      toast.show('Transaction deleted', 'success');
+    } catch {
+      toast.show('Failed to delete transaction', 'error');
+    }
+  };
+
   const handleSubmitEntry = async (input: {
     title: string;
     amount: number;
@@ -203,36 +228,30 @@ export default function ActivityScreen() {
     loggedAt: Date;
   }) => {
     try {
-      await addTransaction({
-        title: input.title,
-        amount: input.amount,
-        type: input.type,
-        walletId: input.walletId,
-        categoryId: input.categoryId,
-        date: input.loggedAt.toISOString(),
-      });
-      toast.show('Transaction saved', 'success');
+      if (editingTransaction) {
+        await updateTransaction({
+          id: editingTransaction.id,
+          title: input.title,
+          amount: input.amount,
+          type: input.type,
+          walletId: input.walletId,
+          categoryId: input.categoryId,
+          date: input.loggedAt.toISOString(),
+        });
+        toast.show('Transaction updated', 'success');
+      } else {
+        await addTransaction({
+          title: input.title,
+          amount: input.amount,
+          type: input.type,
+          walletId: input.walletId,
+          categoryId: input.categoryId,
+          date: input.loggedAt.toISOString(),
+        });
+        toast.show('Transaction saved', 'success');
+      }
     } catch {
-      toast.show('Failed to save transaction', 'error');
-    }
-  };
-  const requestDelete = (id: string) => {
-    const target = finance.allTransactions.find((tx) => tx.id === id);
-    Alert.alert(
-      'Delete transaction?',
-      target ? `Delete "${target.title}"? This action cannot be undone.` : 'Delete this transaction? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => void confirmDelete(id) },
-      ],
-    );
-  };
-  const confirmDelete = async (id: string) => {
-    try {
-      await deleteTransaction(id);
-      toast.show('Transaction deleted', 'success');
-    } catch {
-      toast.show('Failed to delete transaction', 'error');
+      toast.show(editingTransaction ? 'Failed to update transaction' : 'Failed to save transaction', 'error');
     }
   };
 
@@ -546,22 +565,12 @@ export default function ActivityScreen() {
                 </View>
                 <View style={s.groupCards}>
                   {item.txs.map((tx) => (
-                    <TransactionCard
+                    <TransactionListItem
                       key={tx.id}
-                      title={tx.title}
-                      categoryName={`${tx.categoryName} • ${tx.walletName}`}
-                      categoryIcon={tx.categoryIcon}
-                      categoryColor={tx.categoryColor}
-                      amountLabel={`${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`}
-                      timeLabel={tx.relativeDay}
-                      kind={
-                        tx.title.toLowerCase().includes('scan')
-                          ? 'scan'
-                          : tx.type === 'income'
-                            ? 'income'
-                            : 'expense'
-                      }
-                      onDeletePress={() => requestDelete(tx.id)}
+                      tx={tx}
+                      formatCurrency={finance.formatCurrency}
+                      onEditPress={handleEditTransaction}
+                      onDeletePress={handleDeleteTransaction}
                     />
                   ))}
                 </View>
@@ -584,9 +593,11 @@ export default function ActivityScreen() {
         scanRequestId={scanRequestId}
         wallets={finance.wallets}
         categories={state.categories}
+        initialTransaction={editingTransaction}
         onClose={() => {
           setEntryVisible(false);
           setScanRequestId(null);
+          setEditingTransaction(null);
         }}
         onSubmit={handleSubmitEntry}
       />

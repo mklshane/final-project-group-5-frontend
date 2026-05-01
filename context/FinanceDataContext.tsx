@@ -38,6 +38,16 @@ interface AddTransactionInput {
   note?: string;
 }
 
+interface UpdateTransactionInput {
+  id: string;
+  title?: string;
+  amount?: number;
+  type?: 'expense' | 'income';
+  walletId?: string | null;
+  categoryId?: string | null;
+  date?: string;
+}
+
 interface AddWalletInput {
   name: string;
   type?: WalletType;
@@ -131,6 +141,7 @@ interface FinanceDataContextValue {
   error: string | null;
   syncNow: () => Promise<void>;
   addTransaction: (input: AddTransactionInput) => Promise<void>;
+  updateTransaction: (input: UpdateTransactionInput) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addWallet: (input: AddWalletInput) => Promise<void>;
   updateWallet: (input: UpdateWalletInput) => Promise<void>;
@@ -905,6 +916,110 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
     [runSync, state.lastSyncedAt, state.transactions, state.wallets, state.goals]
   );
 
+  const updateTransaction = useCallback(
+    async (input: UpdateTransactionInput) => {
+      const existing = state.transactions.find((tx) => tx.id === input.id && !tx.deleted_at);
+      if (!existing) return;
+
+      const title = input.title !== undefined ? input.title.trim() : existing.title;
+      const amount = input.amount !== undefined ? Math.max(0, toNumber(input.amount)) : toNumber(existing.amount);
+      const type = input.type !== undefined ? input.type : existing.type;
+      const walletId = input.walletId !== undefined ? input.walletId : existing.wallet_id;
+      const categoryId = input.categoryId !== undefined ? input.categoryId : existing.category_id;
+      const date = input.date !== undefined ? input.date : existing.date;
+
+      if (!title || amount <= 0) return;
+
+      const nextVersion = Math.max(1, existing.version + 1);
+      const timestamp = nowIso();
+
+      const updated: TransactionRecord = {
+        ...existing,
+        title,
+        amount,
+        type,
+        wallet_id: walletId ?? null,
+        category_id: categoryId ?? null,
+        date,
+        version: nextVersion,
+        updated_at: timestamp,
+      };
+
+      const oldWallet = existing.wallet_id
+        ? state.wallets.find((w) => w.id === existing.wallet_id && !w.deleted_at)
+        : null;
+      const newWallet = walletId
+        ? state.wallets.find((w) => w.id === walletId && !w.deleted_at)
+        : null;
+
+      const oldDelta = existing.type === 'income' ? -existing.amount : existing.amount;
+      const newDelta = type === 'income' ? amount : -amount;
+
+      let updatedOldWallet = null;
+      let updatedNewWallet = null;
+
+      if (existing.wallet_id === walletId) {
+        if (oldWallet) {
+          updatedNewWallet = {
+            ...oldWallet,
+            current_balance: toNumber(oldWallet.current_balance) + oldDelta + newDelta,
+            version: Math.max(1, oldWallet.version + 1),
+            updated_at: timestamp,
+          };
+        }
+      } else {
+        if (oldWallet) {
+          updatedOldWallet = {
+            ...oldWallet,
+            current_balance: toNumber(oldWallet.current_balance) + oldDelta,
+            version: Math.max(1, oldWallet.version + 1),
+            updated_at: timestamp,
+          };
+        }
+        if (newWallet) {
+          updatedNewWallet = {
+            ...newWallet,
+            current_balance: toNumber(newWallet.current_balance) + newDelta,
+            version: Math.max(1, newWallet.version + 1),
+            updated_at: timestamp,
+          };
+        }
+      }
+
+      const change: SyncChange = {
+        table: 'transactions',
+        action: 'update',
+        record_id: updated.id,
+        record: updated as unknown as Record<string, unknown>,
+        version: nextVersion,
+      };
+
+      const walletChanges: SyncChange[] = [
+        updatedOldWallet
+          ? { table: 'wallets', action: 'update', record_id: updatedOldWallet.id, record: updatedOldWallet as unknown as Record<string, unknown>, version: updatedOldWallet.version }
+          : null,
+        updatedNewWallet
+          ? { table: 'wallets', action: 'update', record_id: updatedNewWallet.id, record: updatedNewWallet as unknown as Record<string, unknown>, version: updatedNewWallet.version }
+          : null,
+      ].filter(Boolean) as SyncChange[];
+
+      setState((prev) => {
+        let wallets = prev.wallets;
+        if (updatedOldWallet) wallets = upsertById(wallets, updatedOldWallet);
+        if (updatedNewWallet) wallets = upsertById(wallets, updatedNewWallet);
+        return {
+          ...prev,
+          transactions: upsertById(prev.transactions, updated),
+          wallets,
+          pendingChanges: [...prev.pendingChanges, ...walletChanges, change],
+        };
+      });
+
+      void runSync([...walletChanges, change], state.lastSyncedAt);
+    },
+    [runSync, state.transactions, state.wallets, state.lastSyncedAt]
+  );
+
   const addCategory = useCallback(
     async (input: AddCategoryInput) => {
       if (!session) return;
@@ -1655,6 +1770,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       error,
       syncNow,
       addTransaction,
+      updateTransaction,
       deleteTransaction,
       addWallet,
       updateWallet,
@@ -1679,6 +1795,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       error,
       syncNow,
       addTransaction,
+      updateTransaction,
       deleteTransaction,
       addWallet,
       updateWallet,

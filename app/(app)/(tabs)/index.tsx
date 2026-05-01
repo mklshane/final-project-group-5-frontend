@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, PanResponder, Animated as RNAnimated, type PanResponderGestureState } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, PanResponder, Animated as RNAnimated, type PanResponderGestureState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,8 +11,8 @@ import { useFinanceData } from '@/context/FinanceDataContext';
 import { useToast } from '@/context/ToastContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
 import { QuickActionFab } from '@/components/Base/QuickActionFab';
-import { TransactionCard } from '@/components/Base/TransactionCard';
 import { TransactionEntryModal } from '@/components/Base/TransactionEntryModal';
+import { TransactionListItem, type TransactionListItemTx } from '@/components/Base/TransactionListItem';
 import { DebtSummaryCard } from '@/components/Home/DebtSummaryCard';
 import { GoalSummaryCard } from '@/components/Home/GoalSummaryCard';
 import { BudgetSummaryCard } from '@/components/Home/BudgetSummaryCard';
@@ -47,13 +47,16 @@ export default function HomeScreen() {
   const theme = useTheme();
   const { isDark } = theme;
   const { profile } = useAuth();
-  const { state, addTransaction, deleteTransaction, error: financeError } = useFinanceData();
+  const { state, addTransaction, updateTransaction, deleteTransaction, error: financeError } = useFinanceData();
   const toast = useToast();
   const finance = useFinanceSelectors();
 
   const [entryMode, setEntryMode] = useState<'expense' | 'income'>('expense');
   const [entryVisible, setEntryVisible] = useState(false);
   const [scanRequestId, setScanRequestId] = useState<number | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<{
+    id: string; title: string; amount: number; walletId: string | null; categoryId: string | null; date: string;
+  } | null>(null);
   const [layoutEditorVisible, setLayoutEditorVisible] = useState(false);
   const [sectionOrder, setSectionOrder] = useState<HomeSectionKey[]>(DEFAULT_HOME_SECTION_ORDER);
   const [sectionOrderHydrated, setSectionOrderHydrated] = useState(false);
@@ -139,19 +142,55 @@ export default function HomeScreen() {
     setEntryVisible(true);
   };
 
+  const handleEditTransaction = (tx: TransactionListItemTx) => {
+    setEditingTransaction({
+      id: tx.id,
+      title: tx.title,
+      amount: tx.amount,
+      walletId: tx.wallet_id ?? null,
+      categoryId: tx.category_id,
+      date: tx.date,
+    });
+    setEntryMode(tx.type);
+    setScanRequestId(null);
+    setEntryVisible(true);
+  };
+
+  const handleDeleteTransaction = async (tx: TransactionListItemTx) => {
+    try {
+      await deleteTransaction(tx.id);
+      toast.show('Transaction deleted', 'success');
+    } catch {
+      toast.show('Failed to delete transaction', 'error');
+    }
+  };
+
   const handleSubmitEntry = async (input: any) => {
     try {
-      await addTransaction({
-        title: input.title,
-        amount: input.amount,
-        type: input.type,
-        walletId: input.walletId,
-        categoryId: input.categoryId,
-        date: input.loggedAt.toISOString(),
-      });
-      toast.show('Transaction saved', 'success');
+      if (editingTransaction) {
+        await updateTransaction({
+          id: editingTransaction.id,
+          title: input.title,
+          amount: input.amount,
+          type: input.type,
+          walletId: input.walletId,
+          categoryId: input.categoryId,
+          date: input.loggedAt.toISOString(),
+        });
+        toast.show('Transaction updated', 'success');
+      } else {
+        await addTransaction({
+          title: input.title,
+          amount: input.amount,
+          type: input.type,
+          walletId: input.walletId,
+          categoryId: input.categoryId,
+          date: input.loggedAt.toISOString(),
+        });
+        toast.show('Transaction saved', 'success');
+      }
     } catch {
-      toast.show('Failed to save transaction', 'error');
+      toast.show(editingTransaction ? 'Failed to update transaction' : 'Failed to save transaction', 'error');
     }
   };
 
@@ -454,39 +493,15 @@ export default function HomeScreen() {
               <Text style={[s.emptyStateBody, { color: theme.tertiary }]}>Start tracking by adding your first expense.</Text>
             </View>
           ) : (
-            finance.recentTransactions.map((tx) => {
-              const amountLabel = `${tx.type === 'income' ? '+' : ''}${finance.formatCurrency(tx.amount)}`;
-              const normalized = tx.title.toLowerCase();
-              const kind = normalized.includes('scan') ? 'scan' : tx.type === 'income' ? 'income' : 'expense';
-
-              return (
-                <TransactionCard
-                  key={tx.id}
-                  title={tx.title}
-                  categoryName={`${tx.categoryName} • ${tx.walletName}`}
-                  categoryIcon={tx.categoryIcon}
-                  categoryColor={tx.categoryColor}
-                  amountLabel={amountLabel}
-                  timeLabel={tx.relativeDay}
-                  kind={kind}
-                  onDeletePress={() => Alert.alert(
-                    'Delete transaction?',
-                    `Delete "${tx.title}"?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: async () => {
-                        try {
-                          await deleteTransaction(tx.id);
-                          toast.show('Transaction deleted', 'success');
-                        } catch {
-                          toast.show('Failed to delete transaction', 'error');
-                        }
-                      }},
-                    ],
-                  )}
-                />
-              );
-            })
+            finance.recentTransactions.map((tx) => (
+              <TransactionListItem
+                key={tx.id}
+                tx={tx}
+                formatCurrency={finance.formatCurrency}
+                onEditPress={handleEditTransaction}
+                onDeletePress={handleDeleteTransaction}
+              />
+            ))
           )}
         </View>
       </>
@@ -769,7 +784,12 @@ export default function HomeScreen() {
         scanRequestId={scanRequestId}
         wallets={finance.wallets}
         categories={state.categories}
-        onClose={() => { setEntryVisible(false); setScanRequestId(null); }}
+        initialTransaction={editingTransaction}
+        onClose={() => {
+          setEntryVisible(false);
+          setScanRequestId(null);
+          setEditingTransaction(null);
+        }}
         onSubmit={handleSubmitEntry}
       />
     </View>
