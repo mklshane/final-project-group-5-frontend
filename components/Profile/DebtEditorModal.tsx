@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -13,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { handleRequestClose } from '@/utils/handleRequestClose';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
@@ -173,19 +173,8 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
   const paidLabel = mode === 'owe' ? 'ALREADY PAID' : 'ALREADY COLLECTED';
   const counterpartyLabel = mode === 'owe' ? 'WHO IS THIS OWED TO?' : 'WHO OWES TO YOU?';
 
-  const handleRequestClose = () => {
-    if (!initialDebt && formik.dirty) {
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. If you leave now, your progress will be lost.',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: onClose },
-        ],
-      );
-    } else {
-      onClose();
-    }
+  const handleClose = () => {
+    handleRequestClose({ mode: initialDebt ? 'edit' : 'create', formik, onClose });
   };
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
@@ -198,7 +187,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -215,7 +204,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                     Track remaining balances and due dates.
                   </Text>
                 </View>
-                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>

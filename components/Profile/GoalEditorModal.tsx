@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -20,6 +19,7 @@ import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { CURRENCIES } from '@/constants/currencies';
+import { handleRequestClose } from '@/utils/handleRequestClose';
 import type { GoalRecord } from '@/types/finance';
 
 interface GoalEditorModalProps {
@@ -119,19 +119,8 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
     });
   }, [visible, initialGoal]);
 
-  const handleRequestClose = () => {
-    if (!initialGoal && formik.dirty) {
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. If you leave now, your progress will be lost.',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: onClose },
-        ],
-      );
-    } else {
-      onClose();
-    }
+  const handleClose = () => {
+    handleRequestClose({ mode: initialGoal ? 'edit' : 'create', formik, onClose });
   };
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
@@ -148,7 +137,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
   const primaryText = isDark ? '#1A1E14' : '#FFFFFF';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -165,7 +154,7 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                     Track your progress toward personal savings milestones.
                   </Text>
                 </View>
-                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>

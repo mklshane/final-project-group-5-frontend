@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -19,6 +18,7 @@ import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { CURRENCIES } from '@/constants/currencies';
+import { handleRequestClose } from '@/utils/handleRequestClose';
 import type { BudgetPeriod, BudgetRecord, CategoryRecord } from '@/types/finance';
 
 interface BudgetEditorModalProps {
@@ -88,19 +88,8 @@ export function BudgetEditorModal({
   const [saving, setSaving] = useState(false);
   const currencySymbol = CURRENCIES.find((currency) => currency.code === currencyCode)?.symbol ?? currencyCode;
 
-  const handleRequestClose = () => {
-    if (!initialBudget && formik.dirty) {
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. If you leave now, your progress will be lost.',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: onClose },
-        ],
-      );
-    } else {
-      onClose();
-    }
+  const handleClose = () => {
+    handleRequestClose({ mode: initialBudget ? 'edit' : 'create', formik, onClose });
   };
 
   const formik = useFormik({
@@ -134,7 +123,7 @@ export function BudgetEditorModal({
   const isEdit = Boolean(initialBudget);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -151,7 +140,7 @@ export function BudgetEditorModal({
                     {category?.name ?? 'Category'}
                   </Text>
                 </View>
-                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>

@@ -194,8 +194,16 @@ export default function InsightsScreen() {
     const expenses = finance.allTransactionsView.filter((tx) => tx.type === 'expense');
 
     if (period === 'day') {
-      const labels = ['12 AM', '4 AM', '8 AM', '12 PM', '4 PM', '8 PM'];
-      const totals = Array(labels.length).fill(0) as number[];
+      const bucketSize = 2;
+      const bucketCount = Math.ceil(24 / bucketSize);
+      const labels = Array.from({ length: bucketCount }, (_, i) => {
+        const hour = i * bucketSize;
+        const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+        const suffix = hour < 12 ? 'AM' : 'PM';
+        return `${hour12} ${suffix}`;
+      });
+      const displayLabels = labels.map((label, i) => (i % 2 === 0 ? label : ''));
+      const totals = Array(bucketCount).fill(0) as number[];
       const dayStart = new Date(anchor);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart);
@@ -204,20 +212,19 @@ export default function InsightsScreen() {
       for (const tx of expenses) {
         const d = new Date(tx.date);
         if (d < dayStart || d >= dayEnd) continue;
-        // date-only strings (e.g. "2026-04-24") are parsed as UTC midnight,
-        // which becomes 8 AM in UTC+8. Use created_at for the hour instead.
-        const timeSource = tx.date.includes('T') ? d : (tx.created_at ? new Date(tx.created_at) : d);
-        const bucket = Math.floor(timeSource.getHours() / 4);
-        totals[Math.min(Math.max(bucket, 0), 5)] += tx.amount;
+        // Prefer created_at for hour placement when available.
+        const timeSource = tx.created_at ? new Date(tx.created_at) : d;
+        const bucket = Math.floor(timeSource.getHours() / bucketSize);
+        totals[Math.min(Math.max(bucket, 0), bucketCount - 1)] += tx.amount;
       }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const highlightIndex = dayStart.getTime() === today.getTime() ? Math.floor(now.getHours() / 4) : -1;
-      const points = labels.map((label, i) => ({ label, total: totals[i] }));
+      const highlightIndex = dayStart.getTime() === today.getTime() ? Math.floor(now.getHours() / bucketSize) : -1;
+      const points = displayLabels.map((label, i) => ({ label, total: totals[i] }));
 
       return {
-        title: 'SPENDING TREND · DAY (4H)',
+        title: 'SPENDING TREND · DAY (2H)',
         points,
         maxValue: Math.max(...totals, 1),
         highlightIndex,

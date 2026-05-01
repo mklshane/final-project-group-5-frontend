@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useTheme } from '@/hooks/useTheme';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -17,9 +15,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { useTheme } from '@/hooks/useTheme';
 import { WALLET_TYPE_LABELS } from '@/constants/defaultWallets';
 import { CURRENCIES } from '@/constants/currencies';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
+import { handleRequestClose } from '@/utils/handleRequestClose';
 import type { WalletRecord, WalletType } from '@/types/finance';
 
 const WALLET_TYPES: WalletType[] = ['general', 'bank', 'ewallet', 'cash'];
@@ -89,19 +89,8 @@ export function WalletEditorModal({
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const handleRequestClose = () => {
-    if (mode === 'create' && formik.dirty) {
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. If you leave now, your progress will be lost.',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: onClose },
-        ],
-      );
-    } else {
-      onClose();
-    }
+  const handleClose = () => {
+    handleRequestClose({ mode, formik, onClose });
   };
 
   const currencySymbol = useMemo(
@@ -151,7 +140,7 @@ export function WalletEditorModal({
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -169,7 +158,7 @@ export function WalletEditorModal({
                     Manage where your funds are stored.
                   </Text>
                 </View>
-                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>

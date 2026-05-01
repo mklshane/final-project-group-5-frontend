@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useTheme';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -16,6 +13,9 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
+import { handleRequestClose } from '@/utils/handleRequestClose';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { DEFAULT_SYSTEM_CATEGORIES } from '@/constants/defaultCategories';
@@ -58,19 +58,8 @@ export function CategoryEditorModal({
   const [color, setColor] = useState('#6C757D');
   const [saving, setSaving] = useState(false);
 
-  const handleRequestClose = () => {
-    if (mode === 'create' && formik.dirty) {
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. If you leave now, your progress will be lost.',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: onClose },
-        ],
-      );
-    } else {
-      onClose();
-    }
+  const handleClose = () => {
+    handleRequestClose({ mode, formik, onClose });
   };
 
   const formik = useFormik({
@@ -113,7 +102,7 @@ export function CategoryEditorModal({
   const submitLabel = mode === 'create' ? 'Create Category' : 'Save Changes';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -129,7 +118,7 @@ export function CategoryEditorModal({
                     Customize category details, icon, and colors.
                   </Text>
                 </View>
-                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>

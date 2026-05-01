@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Keyboard,
   KeyboardAvoidingView,
@@ -22,6 +21,7 @@ import * as Yup from 'yup';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { CURRENCIES } from '@/constants/currencies';
+import { handleRequestClose } from '@/utils/handleRequestClose';
 import type { WalletRecord } from '@/types/finance';
 
 interface GoalContributionModalProps {
@@ -102,19 +102,9 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
   const walletTriggerRef = useRef<View>(null);
   const [walletDropdownPos, setWalletDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const [note, setNote] = useState('');
-  const handleRequestClose = () => {
-    if (formik.values.amount !== '' || note !== '') {
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. If you leave now, your progress will be lost.',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: onClose },
-        ],
-      );
-    } else {
-      onClose();
-    }
+  const maxSelectableDate = new Date();
+  const handleClose = () => {
+    handleRequestClose({ mode: 'create', formik, onClose });
   };
 
   const validationSchema = useMemo(() => Yup.object({
@@ -187,7 +177,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
   const displayDate = getSafeDate(date);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={[s.overlay, { backgroundColor: theme.overlayModal }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -213,7 +203,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                   <Text style={[s.modalTitle, { color: theme.text }]}>Log contribution</Text>
                   <Text style={[s.subtitle, { color: theme.secondary }]}>Record money allocated to {goalTitle}.</Text>
                 </View>
-                <Pressable onPress={handleRequestClose} style={s.closeBtn} hitSlop={12}>
+                <Pressable onPress={handleClose} style={s.closeBtn} hitSlop={12}>
                   <Ionicons name="close" size={24} color={theme.tertiary} />
                 </Pressable>
               </View>
@@ -263,6 +253,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                       mode="date"
                       display="compact"
                       onChange={handleDateChange}
+                      maximumDate={maxSelectableDate}
                       themeVariant={isDark ? 'dark' : 'light'}
                     />
                   ) : (
@@ -274,7 +265,13 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
               </View>
 
               {Platform.OS === 'android' && showAndroidDatePicker ? (
-                <DateTimePicker value={displayDate} mode="date" display="default" onChange={handleDateChange} />
+                <DateTimePicker
+                  value={displayDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                  maximumDate={maxSelectableDate}
+                />
               ) : null}
 
               <View style={s.fieldGroup}>

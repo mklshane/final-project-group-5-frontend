@@ -230,23 +230,55 @@ const normalizeAlertThreshold = (value: unknown, fallback = 0.8) => {
   return Math.min(1, Math.max(0, ratio));
 };
 
-const toTransaction = (record: Record<string, unknown>): TransactionRecord => ({
-  id: String(record.id),
-  user_id: record.user_id ? String(record.user_id) : undefined,
-  type: record.type === 'income' ? 'income' : 'expense',
-  amount: toNumber(record.amount),
-  title: String(record.title ?? 'Untitled'),
-  wallet_id: record.wallet_id ? String(record.wallet_id) : null,
-  category_id: record.category_id ? String(record.category_id) : null,
-  date: String(record.date ?? nowIso()),
-  note: record.note ? String(record.note) : null,
-  is_recurring: Boolean(record.is_recurring),
-  recurring_interval: record.recurring_interval ? String(record.recurring_interval) : null,
-  version: toNumber(record.version, 1),
-  created_at: record.created_at ? String(record.created_at) : undefined,
-  updated_at: record.updated_at ? String(record.updated_at) : undefined,
-  deleted_at: record.deleted_at ? String(record.deleted_at) : null,
-});
+const normalizeTransactionDate = (value: unknown, fallback: string) => {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return fallback;
+    const millis = value < 1e12 ? value * 1000 : value;
+    const parsed = new Date(millis);
+    return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : fallback;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    if (/^\d+$/.test(trimmed)) {
+      const numeric = Number(trimmed);
+      if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
+      const millis = numeric < 1e12 ? numeric * 1000 : numeric;
+      const parsed = new Date(millis);
+      return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : fallback;
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isFinite(parsed.getTime())) return fallback;
+    return trimmed;
+  }
+
+  return fallback;
+};
+
+const toTransaction = (record: Record<string, unknown>): TransactionRecord => {
+  const fallbackDate = normalizeTransactionDate(record.created_at, nowIso());
+
+  return {
+    id: String(record.id),
+    user_id: record.user_id ? String(record.user_id) : undefined,
+    type: record.type === 'income' ? 'income' : 'expense',
+    amount: toNumber(record.amount),
+    title: String(record.title ?? 'Untitled'),
+    wallet_id: record.wallet_id ? String(record.wallet_id) : null,
+    category_id: record.category_id ? String(record.category_id) : null,
+    date: normalizeTransactionDate(record.date, fallbackDate),
+    note: record.note ? String(record.note) : null,
+    is_recurring: Boolean(record.is_recurring),
+    recurring_interval: record.recurring_interval ? String(record.recurring_interval) : null,
+    version: toNumber(record.version, 1),
+    created_at: record.created_at ? String(record.created_at) : undefined,
+    updated_at: record.updated_at ? String(record.updated_at) : undefined,
+    deleted_at: record.deleted_at ? String(record.deleted_at) : null,
+  };
+};
 
 const toWallet = (record: Record<string, unknown>): WalletRecord => {
   const rawType = String(record.type ?? 'general');
@@ -434,6 +466,17 @@ const parseCachedFinanceState = (raw: string | null): FinanceDataState => {
   }
 };
 
+const normalizeCachedTransactions = (state: FinanceDataState): FinanceDataState => ({
+  ...state,
+  transactions: state.transactions.map((tx) => {
+    const fallbackDate = normalizeTransactionDate(tx.created_at, nowIso());
+    return {
+      ...tx,
+      date: normalizeTransactionDate(tx.date, fallbackDate),
+    };
+  }),
+});
+
 const createDefaultCategoryRecords = (userId: string): CategoryRecord[] => {
   const timestamp = nowIso();
   return DEFAULT_SYSTEM_CATEGORIES.map((category) => ({
@@ -469,6 +512,27 @@ const createDefaultWalletRecord = (userId: string, openingBalance = 0): WalletRe
     updated_at: timestamp,
     deleted_at: null,
   };
+};
+
+const clearDefaultWallets = (wallets: WalletRecord[], nextDefaultId: string, timestamp: string) => {
+  const updates = wallets
+    .filter((wallet) => !wallet.deleted_at && wallet.is_default && wallet.id !== nextDefaultId)
+    .map((wallet) => ({
+      ...wallet,
+      is_default: false,
+      version: Math.max(1, wallet.version + 1),
+      updated_at: timestamp,
+    }));
+
+  const changes: SyncChange[] = updates.map((wallet) => ({
+    table: 'wallets',
+    action: 'update',
+    record_id: wallet.id,
+    record: wallet as unknown as Record<string, unknown>,
+    version: wallet.version,
+  }));
+
+  return { updates, changes };
 };
 
 export function FinanceDataProvider({ children }: { children: React.ReactNode }) {
@@ -572,7 +636,7 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
 
       const key = storageKeyForUser(session.user.id);
       const cachedRaw = await AsyncStorage.getItem(key).catch(() => null);
-      let cachedState = parseCachedFinanceState(cachedRaw);
+      let cachedState = normalizeCachedTransactions(parseCachedFinanceState(cachedRaw));
 
       // Seed any missing default categories synchronously before first render.
       // Doing this here (not in a separate effect) avoids TOKEN_REFRESHED race
@@ -921,6 +985,10 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         deleted_at: null,
       };
 
+      const { updates: clearedDefaults, changes: clearedChanges } = record.is_default
+        ? clearDefaultWallets(state.wallets, record.id, date)
+        : { updates: [], changes: [] };
+
       const change: SyncChange = {
         table: 'wallets',
         action: 'create',
@@ -930,18 +998,18 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       };
 
       setState((prev) => {
-        const nextWallets = record.is_default
-          ? prev.wallets.map((wallet) => ({ ...wallet, is_default: wallet.id === record.id }))
+        const nextWallets = clearedDefaults.length
+          ? prev.wallets.map((wallet) => clearedDefaults.find((w) => w.id === wallet.id) ?? wallet)
           : prev.wallets;
 
         return {
           ...prev,
           wallets: upsertById(nextWallets, record),
-          pendingChanges: [...prev.pendingChanges, change],
+          pendingChanges: [...prev.pendingChanges, ...clearedChanges, change],
         };
       });
 
-      void runSync([change], state.lastSyncedAt);
+      void runSync([...clearedChanges, change], state.lastSyncedAt);
     },
     [runSync, session, state.lastSyncedAt, state.wallets]
   );
@@ -967,6 +1035,10 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
         updated_at: nowIso(),
       };
 
+      const { updates: clearedDefaults, changes: clearedChanges } = updated.is_default
+        ? clearDefaultWallets(state.wallets, updated.id, updated.updated_at ?? nowIso())
+        : { updates: [], changes: [] };
+
       const change: SyncChange = {
         table: 'wallets',
         action: 'update',
@@ -976,18 +1048,18 @@ export function FinanceDataProvider({ children }: { children: React.ReactNode })
       };
 
       setState((prev) => {
-        const nextWallets = updated.is_default
-          ? prev.wallets.map((wallet) => ({ ...wallet, is_default: wallet.id === updated.id }))
+        const nextWallets = clearedDefaults.length
+          ? prev.wallets.map((wallet) => clearedDefaults.find((w) => w.id === wallet.id) ?? wallet)
           : prev.wallets;
 
         return {
           ...prev,
           wallets: upsertById(nextWallets, updated),
-          pendingChanges: [...prev.pendingChanges, change],
+          pendingChanges: [...prev.pendingChanges, ...clearedChanges, change],
         };
       });
 
-      void runSync([change], state.lastSyncedAt);
+      void runSync([...clearedChanges, change], state.lastSyncedAt);
     },
     [runSync, state.lastSyncedAt, state.wallets]
   );

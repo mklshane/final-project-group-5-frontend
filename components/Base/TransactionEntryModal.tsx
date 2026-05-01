@@ -129,7 +129,7 @@ const getExpressionText = (expression: string, historyExpression: string) => {
 };
 
 const pickDefaultWallet = (wallets: WalletRecord[]) => {
-  return wallets.find((wallet) => wallet.is_default && !wallet.deleted_at)?.id ?? wallets[0]?.id ?? null;
+  return wallets.find((wallet) => wallet.is_default && !wallet.deleted_at)?.id ?? null;
 };
 
 const categoryMatchesMode = (category: CategoryRecord, mode: TransactionMode) => {
@@ -194,7 +194,7 @@ const guessCategoryNameFromReceipt = (
   rawText: string,
   availableCategories: CategoryRecord[]
 ) => {
-  if (availableCategories.length === 0) return parserSuggested;
+  if (availableCategories.length === 0) return '';
 
   const normalizedSuggestion = parserSuggested.trim().toLowerCase();
   const exact = availableCategories.find((category) => category.name.trim().toLowerCase() === normalizedSuggestion);
@@ -207,7 +207,7 @@ const guessCategoryNameFromReceipt = (
   if (fuzzyByName) return fuzzyByName.name;
 
   const hintWords = RECEIPT_CATEGORY_HINTS[normalizedSuggestion] ?? [];
-  if (hintWords.length === 0) return parserSuggested;
+  if (hintWords.length === 0) return '';
 
   const receiptTokens = tokenize(rawText);
   const scoreForCategory = (categoryName: string) => {
@@ -236,7 +236,7 @@ const guessCategoryNameFromReceipt = (
     }
   }
 
-  return best ? best.name : parserSuggested;
+  return best ? best.name : '';
 };
 
 export function TransactionEntryModal({
@@ -274,6 +274,7 @@ export function TransactionEntryModal({
   const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
   const [receiptReviewDraft, setReceiptReviewDraft] = useState<ReceiptScanReviewDraft | null>(null);
   const [receiptReviewWarning, setReceiptReviewWarning] = useState<string | null>(null);
+  const [closingFromReview, setClosingFromReview] = useState(false);
 
   const {
     status: scanStatus,
@@ -384,6 +385,13 @@ export function TransactionEntryModal({
   }, [activeField, keypadAnim]);
 
   useEffect(() => {
+    if (!walletDropdownOpen) return;
+    walletTriggerRef.current?.measureInWindow((x, y, width, height) => {
+      setWalletDropdownPos({ top: y + height + 4, left: x, width });
+    });
+  }, [walletDropdownOpen, formik.errors.title, formik.touched.title]);
+
+  useEffect(() => {
     if (!visible || mode !== 'expense') return;
     if (scanRequestId == null) return;
     if (lastHandledScanRequestRef.current === scanRequestId) return;
@@ -408,11 +416,6 @@ export function TransactionEntryModal({
 
   const computedAmount = useMemo(() => evaluateExpression(expression) ?? 0, [expression]);
   const expressionText = getExpressionText(expression, historyExpression);
-  const categoryOptionNames = useMemo(
-    () => availableCategories.map((category) => category.name),
-    [availableCategories]
-  );
-
   const openReceiptReview = (draft: ReceiptScanReviewDraft, warningMessage: string | null) => {
     setReceiptReviewDraft(draft);
     setReceiptReviewWarning(warningMessage);
@@ -428,6 +431,23 @@ export function TransactionEntryModal({
     errorMessage?: string | null,
   ): { draft: ReceiptScanReviewDraft; warningMessage: string | null } => {
     const fallbackDate = toIsoDate(new Date());
+    const today = new Date();
+    const normalizeReceiptDate = (d: string | null | undefined): string => {
+      if (!d) return fallbackDate;
+      // ISO with time: "2026-04-30T..." → strip to date part
+      const isoMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (isoMatch) {
+        const year = Number(isoMatch[1]);
+        if (year >= 2000 && year <= today.getFullYear()) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+        return fallbackDate;
+      }
+      // MM/DD/YYYY or DD/MM/YYYY — try JS Date parse as last resort
+      const parsed = new Date(d);
+      if (!Number.isNaN(parsed.getTime()) && parsed.getFullYear() >= 2000 && parsed.getFullYear() <= today.getFullYear()) {
+        return toIsoDate(parsed);
+      }
+      return fallbackDate;
+    };
     const autoCategory = source
       ? guessCategoryNameFromReceipt(
           source.suggestedCategory,
@@ -443,7 +463,7 @@ export function TransactionEntryModal({
           ? String(Math.round(source.totalAmount * 100) / 100)
           : '',
       category: autoCategory || '',
-      date: source?.date ?? fallbackDate,
+      date: normalizeReceiptDate(source?.date),
       note: source?.items.length
         ? source.items.map((item) => `${item.name} (${currencySymbol}${item.totalPrice.toFixed(2)})`).join(', ')
         : '',
@@ -500,7 +520,27 @@ export function TransactionEntryModal({
     setReceiptReviewWarning(null);
     resetScanner();
     setActiveField('title');
-    setTimeout(() => titleInputRef.current?.focus(), 0);
+
+    // Re-slide the sheet in cleanly so the form is never off-screen after
+    // the nested ReceiptScanReviewModal closes on iOS.
+    slideAnim.setValue(700);
+    backdropAnim.setValue(0);
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 24,
+        stiffness: 300,
+        mass: 0.9,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      titleInputRef.current?.focus();
+    });
   };
 
   useEffect(() => {
@@ -780,21 +820,32 @@ export function TransactionEntryModal({
       }),
     ]).start(() => {
       setIsClosing(false);
+      setClosingFromReview(false);
       onClose();
     });
+  };
+
+  const handleDiscardReviewClose = () => {
+    if (isClosing) return;
+    setClosingFromReview(true);
+    setActiveField('other');
+    setReceiptReviewVisible(false);
+    setReceiptReviewDraft(null);
+    setReceiptReviewWarning(null);
+    handleClose();
   };
 
 
   return (
     <Modal visible={visible || isClosing} transparent animationType="none" onRequestClose={requestClose}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {!scannerVisible ? (
+        {!scannerVisible && !receiptReviewVisible && !closingFromReview ? (
           <Animated.View style={[s.backdrop, { backgroundColor: theme.backdrop, opacity: backdropAnim }]} pointerEvents={isClosing ? 'none' : 'auto'}>
             <Pressable style={s.flex} onPress={requestClose} />
           </Animated.View>
         ) : null}
 
-        {!scannerVisible ? (
+        {!scannerVisible && !receiptReviewVisible && !closingFromReview ? (
         <Animated.View
           style={[
             s.sheet,
@@ -935,7 +986,9 @@ export function TransactionEntryModal({
                     </>
                   )}
                 </View>
-                <Ionicons name={walletDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
+                <View style={s.dropdownChevronWrap}>
+                  <Ionicons name={walletDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
+                </View>
               </Pressable>
             </View>
 
@@ -946,7 +999,7 @@ export function TransactionEntryModal({
                 onPress={() => {
                   dismissKeypad();
                   Keyboard.dismiss();
-                  setCategoryDropdownOpen(!categoryDropdownOpen);
+                  setCategoryDropdownOpen((prev) => !prev);
                 }}
                 style={[
                   s.dropdownTrigger,
@@ -971,7 +1024,9 @@ export function TransactionEntryModal({
                     </>
                   )}
                 </View>
-                <Ionicons name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
+                <View style={s.dropdownChevronWrap}>
+                  <Ionicons name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
+                </View>
               </Pressable>
 
               {/* Dropdown Menu Items */}
@@ -1096,7 +1151,7 @@ export function TransactionEntryModal({
       </KeyboardAvoidingView>
 
       {/* Floating custom keypad — slides up like native keyboard */}
-      {!scannerVisible ? (
+      {!scannerVisible && !receiptReviewVisible && !closingFromReview ? (
       <Animated.View
         style={[
           s.keypadPanel,
@@ -1207,7 +1262,7 @@ export function TransactionEntryModal({
               <View style={s.scanProcessingWrap}>
                 <ActivityIndicator size="large" color={theme.limeDark} />
                 <Text style={[s.scanProcessingTitle, { color: theme.text }]}>Parsing receipt...</Text>
-                <Text style={[s.scanBody, { color: theme.secondary }]}>Please wait while the backend extracts details.</Text>
+                <Text style={[s.scanBody, { color: theme.secondary }]}>Please wait.</Text>
                 {scanImageUri ? (
                   <Image source={{ uri: scanImageUri }} style={[s.scanPreview, { borderColor: theme.border }]} resizeMode="cover" />
                 ) : null}
@@ -1250,12 +1305,10 @@ export function TransactionEntryModal({
         visible={receiptReviewVisible}
         imageUri={scanImageUri}
         draft={receiptReviewDraft}
-        categoryOptions={categoryOptionNames}
+        categoryOptions={availableCategories}
         warningMessage={receiptReviewWarning}
         onClose={() => {
-          setReceiptReviewVisible(false);
-          setReceiptReviewDraft(null);
-          setReceiptReviewWarning(null);
+          handleDiscardReviewClose();
         }}
         onRescan={() => {
           setReceiptReviewVisible(false);
@@ -1309,7 +1362,12 @@ export function TransactionEntryModal({
                   <Ionicons name="wallet" size={14} color={isActive ? theme.limeDark : theme.secondary} />
                 </View>
                 <View style={s.walletCardText}>
-                  <Text style={[s.dropdownOptionText, { color: isActive ? theme.lime : theme.text }]} numberOfLines={1}>{wallet.name}</Text>
+                  <Text
+                    style={[s.dropdownOptionText, { color: isActive ? (isDark ? theme.lime : theme.limeDark) : theme.text }]}
+                    numberOfLines={1}
+                  >
+                    {wallet.name}
+                  </Text>
                   <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatCurrency(wallet.current_balance ?? 0, currencySymbol)}</Text>
                 </View>
                 {isActive && <Ionicons name="checkmark" size={18} color={theme.lime} style={{ marginLeft: 'auto' }} />}
@@ -1542,7 +1600,9 @@ const s = StyleSheet.create({
     height: 60,
     borderRadius: 16,
     borderWidth: 1.5,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 44,
+    position: 'relative',
   },
   dropdownValueWrap: {
     flexDirection: 'row',
@@ -1552,6 +1612,14 @@ const s = StyleSheet.create({
   dropdownValueText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  dropdownChevronWrap: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Logged At
   loggedAtCard: {
