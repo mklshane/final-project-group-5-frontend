@@ -317,7 +317,8 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
 
                 <View style={s.fieldGroup}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>{dueDateLabel}</Text>
-                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'space-between' }]}>
+                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: 'space-between' }]}> 
+                    <Ionicons name="calendar-outline" size={16} color={theme.secondary} style={s.dateIcon} />
                     {Platform.OS !== 'ios' && (
                       <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(dueDate)}</Text>
                     )}
@@ -483,6 +484,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     flexDirection: 'row',
+  },
+  dateIcon: {
+    marginRight: 8,
   },
   dateValue: {
     fontSize: 15,

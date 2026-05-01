@@ -262,6 +262,8 @@ export function TransactionEntryModal({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [walletDropdownOpen, setWalletDropdownOpen] = useState(false);
+  const walletTriggerRef = useRef<View>(null);
+  const [walletDropdownPos, setWalletDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const [insufficientFundsVisible, setInsufficientFundsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActiveField>('amount');
@@ -896,10 +898,14 @@ export function TransactionEntryModal({
             <View style={s.section}>
               <Text style={[s.sectionLabel, { color: theme.secondary }]}>Wallet</Text>
               <Pressable
+                ref={walletTriggerRef}
                 onPress={() => {
                   dismissKeypad();
                   Keyboard.dismiss();
-                  setWalletDropdownOpen(!walletDropdownOpen);
+                  walletTriggerRef.current?.measureInWindow((x, y, width, height) => {
+                    setWalletDropdownPos({ top: y + height + 4, left: x, width });
+                    setWalletDropdownOpen(true);
+                  });
                 }}
                 style={[
                   s.dropdownTrigger,
@@ -931,38 +937,6 @@ export function TransactionEntryModal({
                 </View>
                 <Ionicons name={walletDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
               </Pressable>
-
-              {walletDropdownOpen && (
-                <View style={[s.dropdownMenu, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  {wallets.map((wallet, index) => {
-                    const isLast = index === wallets.length - 1;
-                    const isActive = selectedWalletId === wallet.id;
-                    return (
-                      <Pressable
-                        key={wallet.id}
-                        onPress={() => {
-                          setSelectedWalletId(wallet.id);
-                          setWalletDropdownOpen(false);
-                        }}
-                        style={[
-                          s.dropdownOption,
-                          !isLast && { borderBottomColor: theme.border, borderBottomWidth: 1 },
-                          isActive && { backgroundColor: isDark ? 'rgba(123,228,149,0.06)' : 'rgba(123,228,149,0.10)' },
-                        ]}
-                      >
-                        <View style={[s.walletIconWrap, { backgroundColor: isActive ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}>
-                          <Ionicons name="wallet" size={14} color={isActive ? theme.limeDark : theme.secondary} />
-                        </View>
-                        <View style={s.walletCardText}>
-                          <Text style={[s.dropdownOptionText, { color: isActive ? theme.lime : theme.text }]} numberOfLines={1}>{wallet.name}</Text>
-                          <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatCurrency(wallet.current_balance ?? 0, currencySymbol)}</Text>
-                        </View>
-                        {isActive && <Ionicons name="checkmark" size={18} color={theme.lime} style={{ marginLeft: 'auto' }} />}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
             </View>
 
             {/* Category Dropdown */}
@@ -1292,6 +1266,58 @@ export function TransactionEntryModal({
         onApply={applyReceiptDraftToForm}
       />
 
+
+      {/* Wallet floating dropdown */}
+      <Modal
+        visible={walletDropdownOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setWalletDropdownOpen(false)}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setWalletDropdownOpen(false)} />
+        <ScrollView
+          style={[
+            s.walletFloatingDropdown,
+            {
+              top: walletDropdownPos.top,
+              left: walletDropdownPos.left,
+              width: walletDropdownPos.width,
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {wallets.map((wallet, index) => {
+            const isLast = index === wallets.length - 1;
+            const isActive = selectedWalletId === wallet.id;
+            return (
+              <Pressable
+                key={wallet.id}
+                onPress={() => {
+                  setSelectedWalletId(wallet.id);
+                  setWalletDropdownOpen(false);
+                }}
+                style={[
+                  s.dropdownOption,
+                  !isLast && { borderBottomColor: theme.border, borderBottomWidth: 1 },
+                  isActive && { backgroundColor: isDark ? 'rgba(123,228,149,0.06)' : 'rgba(123,228,149,0.10)' },
+                ]}
+              >
+                <View style={[s.walletIconWrap, { backgroundColor: isActive ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}>
+                  <Ionicons name="wallet" size={14} color={isActive ? theme.limeDark : theme.secondary} />
+                </View>
+                <View style={s.walletCardText}>
+                  <Text style={[s.dropdownOptionText, { color: isActive ? theme.lime : theme.text }]} numberOfLines={1}>{wallet.name}</Text>
+                  <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatCurrency(wallet.current_balance ?? 0, currencySymbol)}</Text>
+                </View>
+                {isActive && <Ionicons name="checkmark" size={18} color={theme.lime} style={{ marginLeft: 'auto' }} />}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </Modal>
 
       {/* Warning Modal */}
       <Modal
@@ -1775,6 +1801,18 @@ const s = StyleSheet.create({
   },
 
   // Warning Modal
+  walletFloatingDropdown: {
+    position: 'absolute',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    maxHeight: 280,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
   warningBackdrop: {
     ...StyleSheet.absoluteFillObject,
   },

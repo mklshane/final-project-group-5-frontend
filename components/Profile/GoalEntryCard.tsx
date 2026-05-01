@@ -85,7 +85,12 @@ export function GoalEntryCard({ goal, formatCurrency, onPressDetails }: GoalEntr
           </View>
 
           <View style={[s.progressTrack, { backgroundColor: theme.surfaceDeep }]}> 
-            <View style={[s.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.lime }]} />
+            <View
+              style={[
+                s.progressFill,
+                { width: `${progress * 100}%`, backgroundColor: theme.isDark ? theme.lime : '#3F7D36' },
+              ]}
+            />
           </View>
 
           <View style={s.footerRow}>

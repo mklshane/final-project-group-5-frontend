@@ -109,7 +109,7 @@ export function CategoryBudgetRow({
                 s.progressFill,
                 {
                   width: `${Math.min(progress, 1) * 100}%`,
-                  backgroundColor: overLimit ? theme.red : theme.lime,
+                  backgroundColor: overLimit ? theme.red : (isDark ? theme.lime : '#3F7D36'),
                 },
               ]}
             />
