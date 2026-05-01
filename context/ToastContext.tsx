@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/context/AuthContext';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useTheme } from '@/hooks/useTheme';
 import { appendNotificationHistory, type NotificationItemType } from '@/lib/notificationHistory';
@@ -17,6 +18,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { notifications } = useAppPreferences();
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
@@ -40,7 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         toastType === 'success' ? 'inAppSuccess' : toastType === 'error' ? 'inAppError' : 'inAppInfo';
       const historyTitle =
         toastType === 'success' ? 'Success' : toastType === 'error' ? 'Error' : 'Notice';
-      void appendNotificationHistory({
+      void appendNotificationHistory(user?.id, {
         type: historyType,
         title: historyTitle,
         body: msg,
@@ -61,7 +63,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }).start();
       timerRef.current = setTimeout(hide, 3000);
     },
-    [translateY, hide, notifications.inAppAlerts],
+    [translateY, hide, notifications.inAppAlerts, user?.id],
   );
 
   useEffect(

@@ -28,9 +28,13 @@ function inferSource(type: NotificationItemType): 'system' | 'inApp' {
   return IN_APP_TYPES.includes(type) ? 'inApp' : 'system';
 }
 
-export async function loadNotificationHistory(): Promise<NotificationHistoryItem[]> {
+const notificationHistoryKeyForUser = (userId: string) => `${NOTIFICATION_HISTORY_KEY}:${userId}`;
+
+export async function loadNotificationHistory(userId: string | null | undefined): Promise<NotificationHistoryItem[]> {
+  if (!userId) return [];
+
   try {
-    const raw = await AsyncStorage.getItem(NOTIFICATION_HISTORY_KEY);
+    const raw = await AsyncStorage.getItem(notificationHistoryKeyForUser(userId));
     if (!raw) return [];
 
     const parsed = JSON.parse(raw) as Array<Partial<NotificationHistoryItem>>;
@@ -54,14 +58,17 @@ export async function loadNotificationHistory(): Promise<NotificationHistoryItem
 }
 
 export async function appendNotificationHistory(
+  userId: string | null | undefined,
   item: Omit<NotificationHistoryItem, 'id' | 'firedAt'>,
 ): Promise<void> {
-  const history = await loadNotificationHistory();
+  if (!userId) return;
+
+  const history = await loadNotificationHistory(userId);
   const entry: NotificationHistoryItem = {
     ...item,
     id: Date.now().toString(),
     firedAt: new Date().toISOString(),
   };
   const updated = [entry, ...history].slice(0, MAX_HISTORY);
-  await AsyncStorage.setItem(NOTIFICATION_HISTORY_KEY, JSON.stringify(updated)).catch(() => undefined);
+  await AsyncStorage.setItem(notificationHistoryKeyForUser(userId), JSON.stringify(updated)).catch(() => undefined);
 }

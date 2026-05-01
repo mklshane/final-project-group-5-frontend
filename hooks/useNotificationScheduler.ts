@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { useAuth } from '@/context/AuthContext';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
@@ -26,20 +27,23 @@ const defaultSentState = (): SentState => ({
   transactions: {},
 });
 
-async function loadSentState(): Promise<SentState> {
+const sentKeyForUser = (userId: string) => `${SENT_KEY}:${userId}`;
+
+async function loadSentState(userId: string): Promise<SentState> {
   try {
-    const raw = await AsyncStorage.getItem(SENT_KEY);
+    const raw = await AsyncStorage.getItem(sentKeyForUser(userId));
     return raw ? { ...defaultSentState(), ...JSON.parse(raw) } : defaultSentState();
   } catch {
     return defaultSentState();
   }
 }
 
-async function saveSentState(state: SentState): Promise<void> {
-  await AsyncStorage.setItem(SENT_KEY, JSON.stringify(state)).catch(() => undefined);
+async function saveSentState(userId: string, state: SentState): Promise<void> {
+  await AsyncStorage.setItem(sentKeyForUser(userId), JSON.stringify(state)).catch(() => undefined);
 }
 
 async function fireAndRecord(
+  userId: string,
   type: NotificationItemType,
   title: string,
   body: string,
@@ -48,7 +52,7 @@ async function fireAndRecord(
     content: { title, body, sound: true },
     trigger: null,
   });
-  await appendNotificationHistory({ type, title, body, source: 'system' });
+  await appendNotificationHistory(userId, { type, title, body, source: 'system' });
 }
 
 async function syncScheduled(
@@ -101,21 +105,36 @@ async function syncScheduled(
 }
 
 export function useNotificationScheduler() {
+  const { user } = useAuth();
   const { notifications: prefs } = useAppPreferences();
   const { state } = useFinanceData();
   const finance = useFinanceSelectors();
+  const userId = user?.id;
 
   const sentRef = useRef<SentState | null>(null);
   const [sentLoaded, setSentLoaded] = useState(false);
 
-  // Load sent-state once from AsyncStorage
+  // Load sent-state for the signed-in user from AsyncStorage.
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    loadSentState().then((s) => {
+    if (!userId) {
+      sentRef.current = null;
+      setSentLoaded(false);
+      return;
+    }
+
+    let active = true;
+    setSentLoaded(false);
+    loadSentState(userId).then((s) => {
+      if (!active) return;
       sentRef.current = s;
       setSentLoaded(true);
     });
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   // Set handler + request permissions on mount (native only)
   useEffect(() => {
@@ -135,20 +154,20 @@ export function useNotificationScheduler() {
   // Sync scheduled (weekly/daily) whenever prefs change or on first load
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    if (!sentLoaded || !sentRef.current) return;
+    if (!userId || !sentLoaded || !sentRef.current) return;
 
     syncScheduled(prefs.weeklyReport, prefs.dailySummary, sentRef.current)
       .then((next) => {
         sentRef.current = next;
-        return saveSentState(next);
+        return saveSentState(userId, next);
       })
       .catch(() => undefined);
-  }, [sentLoaded, prefs.weeklyReport, prefs.dailySummary]);
+  }, [userId, sentLoaded, prefs.weeklyReport, prefs.dailySummary]);
 
   // Fire event-based notifications when finance data changes
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    if (!sentLoaded || !sentRef.current) return;
+    if (!userId || !sentLoaded || !sentRef.current) return;
 
     const sent = sentRef.current;
     const updates: Partial<SentState> = {};
@@ -163,6 +182,7 @@ export function useNotificationScheduler() {
 
         fires.push(
           fireAndRecord(
+            userId,
             'budgetAlerts',
             entry.overLimit ? 'Budget exceeded' : `Budget ${entry.percentage}% used`,
             entry.overLimit
@@ -189,6 +209,7 @@ export function useNotificationScheduler() {
 
         fires.push(
           fireAndRecord(
+            userId,
             'largeExpenseWarnings',
             'Large expense logged',
             `${finance.formatCurrency(tx.amount)} on "${tx.title}" — that's over 15% of your balance.`,
@@ -216,6 +237,7 @@ export function useNotificationScheduler() {
 
         fires.push(
           fireAndRecord(
+            userId,
             'goalMilestones',
             highest === 100
               ? `"${goal.title}" goal reached!`
@@ -241,9 +263,10 @@ export function useNotificationScheduler() {
     sentRef.current = next;
 
     Promise.all(fires)
-      .then(() => saveSentState(next))
+      .then(() => saveSentState(userId, next))
       .catch(() => undefined);
   }, [
+    userId,
     sentLoaded,
     state.transactions,
     state.budgets,

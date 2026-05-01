@@ -3,6 +3,7 @@ import { Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import * as Notifications from 'expo-notifications';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useFinanceData } from '@/context/FinanceDataContext';
 import { useFinanceSelectors } from '@/hooks/useFinanceSelectors';
@@ -56,6 +57,7 @@ const TYPE_META: Record<
 export default function NotificationsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { user } = useAuth();
   const { state } = useFinanceData();
   const finance = useFinanceSelectors();
   const { notifications: prefs } = useAppPreferences();
@@ -66,10 +68,10 @@ export default function NotificationsScreen() {
   // Reload history every time screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadNotificationHistory()
+      loadNotificationHistory(user?.id)
         .then((items) => setHistory(items))
         .catch(() => undefined);
-    }, []),
+    }, [user?.id]),
   );
 
   // Check notification permission status
