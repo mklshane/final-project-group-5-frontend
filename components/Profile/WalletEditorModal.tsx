@@ -41,19 +41,37 @@ interface WalletEditorModalProps {
 
 const toAmountString = (value: number) => {
   if (!Number.isFinite(value) || value === 0) return '';
-  return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
+  const rounded = value % 1 === 0 ? value : Math.round(value * 100) / 100;
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseAmountInput = (value: string) => {
+  const parsed = Number(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const formatAmountInput = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  if (!cleaned) return '';
+
+  const [rawInt, rawDec] = cleaned.split('.');
+  const intPart = rawInt === '' ? '0' : rawInt;
+  const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
 };
 
 const validationSchema = Yup.object({
   name: Yup.string().trim().required('Wallet name is required'),
-  currentBalance: Yup.string().test(
-    'is-valid-balance',
-    'Enter a valid balance (0 or more)',
-    (value) => {
-      const num = Number(value || '0');
-      return Number.isFinite(num) && num >= 0;
-    }
-  ),
+  currentBalance: Yup.number()
+    .transform((_, originalValue) => {
+      if (originalValue === '') return 0;
+      return parseAmountInput(String(originalValue));
+    })
+    .typeError('Enter a valid balance (0 or more)')
+    .min(0, 'Enter a valid balance (0 or more)'),
 });
 
 export function WalletEditorModal({
@@ -99,7 +117,9 @@ export function WalletEditorModal({
     onSubmit: async (values) => {
       setSaving(true);
       try {
-        const balanceValue = Number(values.currentBalance || '0');
+        const balanceValue = values.currentBalance === ''
+          ? 0
+          : parseAmountInput(values.currentBalance);
         await onSave({
           name: values.name.trim(),
           type,
@@ -227,10 +247,7 @@ export function WalletEditorModal({
                     <TextInput
                       value={formik.values.currentBalance}
                       onChangeText={(value) =>
-                        formik.setFieldValue(
-                          'currentBalance',
-                          value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
-                        )
+                        formik.setFieldValue('currentBalance', formatAmountInput(value))
                       }
                       onBlur={formik.handleBlur('currentBalance')}
                       keyboardType="decimal-pad"

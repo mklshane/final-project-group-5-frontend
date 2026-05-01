@@ -261,6 +261,7 @@ export function TransactionEntryModal({
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [walletDropdownOpen, setWalletDropdownOpen] = useState(false);
   const [insufficientFundsVisible, setInsufficientFundsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActiveField>('amount');
@@ -335,6 +336,7 @@ export function TransactionEntryModal({
     setSelectedWalletId(defaultWalletId);
     setSelectedCategoryId(defaultCategoryId);
     setCategoryDropdownOpen(false);
+    setWalletDropdownOpen(false);
     setInsufficientFundsVisible(false);
     setActiveField('amount');
     setCustomLoggedAt(null);
@@ -893,39 +895,74 @@ export function TransactionEntryModal({
             {/* Wallet Selection */}
             <View style={s.section}>
               <Text style={[s.sectionLabel, { color: theme.secondary }]}>Wallet</Text>
-              <View style={s.walletGrid}>
-                {wallets.map((wallet) => {
-                  const active = selectedWalletId === wallet.id;
-                  return (
-                    <Pressable
-                      key={wallet.id}
-                      onPress={() => { dismissKeypad(); setSelectedWalletId(wallet.id); }}
-                      style={[
-                        s.walletCard,
-                        {
-                          backgroundColor: active ? (isDark ? 'rgba(123,228,149,0.10)' : theme.surface) : theme.surfaceAlt,
-                          borderColor: active ? theme.limeDark : theme.border,
-                        },
-                      ]}
-                    >
-                      <View style={s.walletCardInner}>
-                        <View style={[s.walletIconWrap, { backgroundColor: active ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}>
-                          <Ionicons name="wallet" size={15} color={active ? theme.limeDark : theme.secondary} />
+              <Pressable
+                onPress={() => {
+                  dismissKeypad();
+                  Keyboard.dismiss();
+                  setWalletDropdownOpen(!walletDropdownOpen);
+                }}
+                style={[
+                  s.dropdownTrigger,
+                  {
+                    backgroundColor: walletDropdownOpen ? (isDark ? 'rgba(123,228,149,0.06)' : theme.surfaceAlt) : theme.surface,
+                    borderColor: walletDropdownOpen ? theme.lime : theme.border,
+                  },
+                ]}
+              >
+                <View style={s.dropdownValueWrap}>
+                  {selectedWallet ? (
+                    <>
+                      <View style={[s.walletIconWrap, { backgroundColor: 'rgba(123,228,149,0.18)' }]}>
+                        <Ionicons name="wallet" size={14} color={theme.limeDark} />
+                      </View>
+                      <View style={s.walletCardText}>
+                        <Text style={[s.dropdownValueText, { color: theme.text }]} numberOfLines={1}>{selectedWallet.name}</Text>
+                        <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatCurrency(selectedWallet.current_balance ?? 0, currencySymbol)}</Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={[s.walletIconWrap, { backgroundColor: `${theme.secondary}18` }]}>
+                        <Ionicons name="wallet" size={14} color={theme.secondary} />
+                      </View>
+                      <Text style={[s.dropdownValueText, { color: theme.secondary }]}>Select a wallet...</Text>
+                    </>
+                  )}
+                </View>
+                <Ionicons name={walletDropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.secondary} />
+              </Pressable>
+
+              {walletDropdownOpen && (
+                <View style={[s.dropdownMenu, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  {wallets.map((wallet, index) => {
+                    const isLast = index === wallets.length - 1;
+                    const isActive = selectedWalletId === wallet.id;
+                    return (
+                      <Pressable
+                        key={wallet.id}
+                        onPress={() => {
+                          setSelectedWalletId(wallet.id);
+                          setWalletDropdownOpen(false);
+                        }}
+                        style={[
+                          s.dropdownOption,
+                          !isLast && { borderBottomColor: theme.border, borderBottomWidth: 1 },
+                          isActive && { backgroundColor: isDark ? 'rgba(123,228,149,0.06)' : 'rgba(123,228,149,0.10)' },
+                        ]}
+                      >
+                        <View style={[s.walletIconWrap, { backgroundColor: isActive ? 'rgba(123,228,149,0.18)' : `${theme.secondary}18` }]}>
+                          <Ionicons name="wallet" size={14} color={isActive ? theme.limeDark : theme.secondary} />
                         </View>
                         <View style={s.walletCardText}>
-                          <Text style={[s.walletCardName, { color: active ? theme.text : theme.secondary }]} numberOfLines={1}>
-                            {wallet.name}
-                          </Text>
-                          <Text style={[s.walletCardBalance, { color: active ? theme.secondary : theme.secondary }]}>
-                            {currencySymbol}{formatCurrency(wallet.current_balance ?? 0, currencySymbol)}
-                          </Text>
+                          <Text style={[s.dropdownOptionText, { color: isActive ? theme.lime : theme.text }]} numberOfLines={1}>{wallet.name}</Text>
+                          <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatCurrency(wallet.current_balance ?? 0, currencySymbol)}</Text>
                         </View>
-                        {active && <Ionicons name="checkmark-circle" size={15} color={theme.limeDark} />}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        {isActive && <Ionicons name="checkmark" size={18} color={theme.lime} style={{ marginLeft: 'auto' }} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
             {/* Category Dropdown */}

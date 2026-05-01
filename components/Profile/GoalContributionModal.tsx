@@ -93,6 +93,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
   const [showAndroidDatePicker, setShowAndroidDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
+  const [walletDropdownOpen, setWalletDropdownOpen] = useState(false);
   const [note, setNote] = useState('');
   const handleRequestClose = () => {
     if (formik.values.amount !== '' || note !== '') {
@@ -148,6 +149,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
     setDate(new Date());
     setShowAndroidDatePicker(false);
     setSelectedWalletId(pickDefaultWallet(wallets));
+    setWalletDropdownOpen(false);
     setNote('');
     formik.resetForm({ values: { amount: '' } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,55 +271,62 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                 {wallets.length === 0 ? (
                   <Text style={[s.emptyHint, { color: theme.tertiary }]}>No wallets available.</Text>
                 ) : (
-                  <View style={s.walletGrid}>
-                    {wallets.map((wallet) => {
-                      const active = selectedWalletId === wallet.id;
-                      return (
-                        <Pressable
-                          key={wallet.id}
-                          onPress={() => setSelectedWalletId(wallet.id)}
-                          style={[
-                            s.walletCard,
-                            {
-                              backgroundColor: active
-                                ? isDark ? 'rgba(155,194,58,0.1)' : theme.surface
-                                : theme.surfaceAlt,
-                              borderColor: active ? theme.limeDark : theme.border,
-                            },
-                          ]}
-                        >
-                          <View style={s.walletCardInner}>
-                            <View
+                  <>
+                    <Pressable
+                      onPress={() => { Keyboard.dismiss(); setWalletDropdownOpen(!walletDropdownOpen); }}
+                      style={[
+                        s.dropdownTrigger,
+                        {
+                          backgroundColor: theme.surfaceAlt,
+                          borderColor: walletDropdownOpen ? theme.limeDark : theme.border,
+                        },
+                      ]}
+                    >
+                      <View style={s.dropdownValueWrap}>
+                        <View style={[s.walletIconWrap, { backgroundColor: selectedWallet ? 'rgba(155,194,58,0.18)' : `${theme.secondary}18` }]}>
+                          <Ionicons name="wallet" size={14} color={selectedWallet ? theme.limeDark : theme.secondary} />
+                        </View>
+                        {selectedWallet ? (
+                          <View style={s.walletCardText}>
+                            <Text style={[s.dropdownValueText, { color: theme.text }]} numberOfLines={1}>{selectedWallet.name}</Text>
+                            <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatBalance(selectedWallet.current_balance ?? 0)}</Text>
+                          </View>
+                        ) : (
+                          <Text style={[s.dropdownValueText, { color: theme.secondary }]}>Select a wallet...</Text>
+                        )}
+                      </View>
+                      <Ionicons name={walletDropdownOpen ? 'chevron-up' : 'chevron-down'} size={18} color={theme.secondary} />
+                    </Pressable>
+
+                    {walletDropdownOpen && (
+                      <View style={[s.dropdownMenu, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                        {wallets.map((wallet, index) => {
+                          const isLast = index === wallets.length - 1;
+                          const isActive = selectedWalletId === wallet.id;
+                          return (
+                            <Pressable
+                              key={wallet.id}
+                              onPress={() => { setSelectedWalletId(wallet.id); setWalletDropdownOpen(false); }}
                               style={[
-                                s.walletIconWrap,
-                                {
-                                  backgroundColor: active ? 'rgba(155,194,58,0.18)' : `${theme.secondary}18`,
-                                },
+                                s.dropdownOption,
+                                !isLast && { borderBottomColor: theme.border, borderBottomWidth: 1 },
+                                isActive && { backgroundColor: isDark ? 'rgba(155,194,58,0.06)' : 'rgba(155,194,58,0.10)' },
                               ]}
                             >
-                              <Ionicons
-                                name="wallet"
-                                size={14}
-                                color={active ? theme.limeDark : theme.secondary}
-                              />
-                            </View>
-                            <View style={s.walletCardText}>
-                              <Text
-                                style={[s.walletCardName, { color: active ? theme.text : theme.secondary }]}
-                                numberOfLines={1}
-                              >
-                                {wallet.name}
-                              </Text>
-                              <Text style={[s.walletCardBalance, { color: theme.secondary }]}>
-                                {currencySymbol}{formatBalance(wallet.current_balance ?? 0)}
-                              </Text>
-                            </View>
-                            {active ? <Ionicons name="checkmark-circle" size={15} color={theme.limeDark} /> : null}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                              <View style={[s.walletIconWrap, { backgroundColor: isActive ? 'rgba(155,194,58,0.18)' : `${theme.secondary}18` }]}>
+                                <Ionicons name="wallet" size={14} color={isActive ? theme.limeDark : theme.secondary} />
+                              </View>
+                              <View style={s.walletCardText}>
+                                <Text style={[s.dropdownOptionText, { color: isActive ? theme.limeDark : theme.text }]} numberOfLines={1}>{wallet.name}</Text>
+                                <Text style={[s.walletCardBalance, { color: theme.secondary }]}>{currencySymbol}{formatBalance(wallet.current_balance ?? 0)}</Text>
+                              </View>
+                              {isActive && <Ionicons name="checkmark" size={16} color={theme.limeDark} style={{ marginLeft: 'auto' }} />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
 
@@ -468,38 +477,59 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  walletGrid: {
-    gap: 10,
-  },
-  walletCard: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-  },
-  walletCardInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
   walletIconWrap: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
   walletCardText: {
     flex: 1,
-  },
-  walletCardName: {
-    fontSize: 13,
-    fontWeight: '700',
+    minWidth: 0,
   },
   walletCardBalance: {
     marginTop: 1,
     fontSize: 11,
     fontWeight: '500',
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dropdownValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  dropdownValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dropdownMenu: {
+    marginTop: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  dropdownOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   emptyHint: {
     fontSize: 13,
