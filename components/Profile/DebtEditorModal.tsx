@@ -63,16 +63,43 @@ const parseDate = (value: string | null | undefined) => {
 
 const toAmountString = (value: number) => {
   if (!Number.isFinite(value) || value === 0) return '';
-  return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
+  const rounded = value % 1 === 0 ? value : Math.round(value * 100) / 100;
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseAmountInput = (value: string) => {
+  const parsed = Number(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const formatAmountInput = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  if (!cleaned) return '';
+
+  const [rawInt, rawDec] = cleaned.split('.');
+  const intPart = rawInt === '' ? '0' : rawInt;
+  const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
 };
 
 const DebtSchema = Yup.object({
   counterpartyName: Yup.string().trim().required('Name is required'),
   totalAmount: Yup.number()
+    .transform((_, originalValue) => {
+      if (originalValue === '') return undefined;
+      return parseAmountInput(String(originalValue));
+    })
     .typeError('Enter a valid amount')
     .positive('Total must be greater than 0')
     .required('Total amount is required'),
   amountPaid: Yup.number()
+    .transform((_, originalValue) => {
+      if (originalValue === '') return undefined;
+      return parseAmountInput(String(originalValue));
+    })
     .typeError('Enter a valid amount')
     .min(0, 'Cannot be negative')
     .test('paid-lte-total', 'Cannot exceed total amount', function (value) {
@@ -106,8 +133,8 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
         await onSave({
           counterpartyKind: mode === 'owe' ? counterpartyKind : undefined,
           counterpartyName: values.counterpartyName.trim(),
-          totalAmount: Number(values.totalAmount),
-          amountPaid: Number(values.amountPaid),
+          totalAmount: parseAmountInput(values.totalAmount),
+          amountPaid: values.amountPaid === '' ? 0 : parseAmountInput(values.amountPaid),
           dueDate: toIsoDate(dueDate),
           notes: values.notes.trim() || undefined,
         });
@@ -248,10 +275,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                       <TextInput
                         value={formik.values.totalAmount}
                         onChangeText={(value) =>
-                          formik.setFieldValue(
-                            'totalAmount',
-                            value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'),
-                          )
+                          formik.setFieldValue('totalAmount', formatAmountInput(value))
                         }
                         onBlur={() => formik.setFieldTouched('totalAmount', true)}
                         keyboardType="decimal-pad"
@@ -274,10 +298,7 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
                       <TextInput
                         value={formik.values.amountPaid}
                         onChangeText={(value) =>
-                          formik.setFieldValue(
-                            'amountPaid',
-                            value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'),
-                          )
+                          formik.setFieldValue('amountPaid', formatAmountInput(value))
                         }
                         onBlur={() => formik.setFieldTouched('amountPaid', true)}
                         keyboardType="decimal-pad"

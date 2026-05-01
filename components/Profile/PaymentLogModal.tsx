@@ -75,6 +75,21 @@ const formatMoneyValue = (value: number) => {
   });
 };
 
+const parseAmountInput = (value: string) => {
+  const parsed = Number(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const formatAmountInput = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  if (!cleaned) return '';
+
+  const [rawInt, rawDec] = cleaned.split('.');
+  const intPart = rawInt === '' ? '0' : rawInt;
+  const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
+};
+
 export function PaymentLogModal({
   visible,
   mode,
@@ -116,6 +131,10 @@ export function PaymentLogModal({
 
   const validationSchema = useMemo(() => Yup.object({
     amount: Yup.number()
+      .transform((_, originalValue) => {
+        if (originalValue === '') return undefined;
+        return parseAmountInput(String(originalValue));
+      })
       .typeError('Enter a valid amount')
       .positive('Amount must be greater than 0')
       .required('Amount is required')
@@ -128,11 +147,11 @@ export function PaymentLogModal({
     validateOnChange: true,
     validateOnBlur: true,
     onSubmit: async (values) => {
-      if (!fixedCategory) return;
+      if (!fixedCategory || !selectedWalletId || isOverBalance) return;
       setSaving(true);
       try {
         await onSave({
-          amount: Number(values.amount),
+          amount: parseAmountInput(values.amount),
           date: toIsoDate(date),
           walletId: selectedWalletId,
           categoryId: fixedCategory.id,
@@ -154,6 +173,24 @@ export function PaymentLogModal({
     formik.resetForm({ values: { amount: '' } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, wallets]);
+
+  const selectedWallet = useMemo(
+    () => wallets.find((wallet) => wallet.id === selectedWalletId) ?? null,
+    [wallets, selectedWalletId]
+  );
+  const availableBalance = Number.isFinite(Number(selectedWallet?.current_balance))
+    ? Number(selectedWallet?.current_balance)
+    : 0;
+  const parsedEnteredAmount = parseAmountInput(formik.values.amount);
+  const enteredAmount = Number.isFinite(parsedEnteredAmount) ? parsedEnteredAmount : 0;
+  const requiresFunds = mode === 'owe';
+  const isOverBalance = requiresFunds && Boolean(selectedWalletId) && enteredAmount > 0 && enteredAmount > availableBalance;
+  const canSubmit =
+    !saving &&
+    Boolean(selectedWalletId) &&
+    Boolean(fixedCategory) &&
+    formik.isValid &&
+    !isOverBalance;
 
   const submitDisabledColor = isDark ? '#2C3122' : '#E4E6D6';
   const primaryBg = isDark ? theme.lime : '#3F7D36';
@@ -217,8 +254,7 @@ export function PaymentLogModal({
                   <TextInput
                     value={formik.values.amount}
                     onChangeText={(value) => {
-                      const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                      void formik.setFieldValue('amount', cleaned);
+                      void formik.setFieldValue('amount', formatAmountInput(value));
                     }}
                     onBlur={() => void formik.setFieldTouched('amount', true)}
                     keyboardType="decimal-pad"
@@ -229,7 +265,11 @@ export function PaymentLogModal({
                     selectionColor={theme.lime}
                   />
                 </View>
-                {formik.touched.amount && formik.errors.amount ? (
+                {isOverBalance ? (
+                  <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                    Amount exceeds available wallet balance ({currencySymbol}{formatBalance(availableBalance)}).
+                  </Text>
+                ) : formik.touched.amount && formik.errors.amount ? (
                   <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
                     {formik.errors.amount}
                   </Text>
@@ -396,16 +436,16 @@ export function PaymentLogModal({
               <View style={s.actions}>
                 <Pressable
                   onPress={() => void formik.handleSubmit()}
-                  disabled={saving}
+                  disabled={!canSubmit}
                   style={[
                     s.actionButton,
-                    { backgroundColor: saving ? submitDisabledColor : primaryBg },
+                    { backgroundColor: !canSubmit ? submitDisabledColor : primaryBg },
                   ]}
                 >
                   {saving ? (
                     <ActivityIndicator size="small" color={primaryText} />
                   ) : (
-                    <Text style={[s.actionText, { color: saving ? theme.tertiary : primaryText }]}>
+                    <Text style={[s.actionText, { color: !canSubmit ? theme.tertiary : primaryText }]}>
                       Save
                     </Text>
                   )}

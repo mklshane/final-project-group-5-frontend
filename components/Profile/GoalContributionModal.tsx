@@ -64,6 +64,21 @@ const formatMoneyValue = (value: number) => {
   });
 };
 
+const parseAmountInput = (value: string) => {
+  const parsed = Number(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const formatAmountInput = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  if (!cleaned) return '';
+
+  const [rawInt, rawDec] = cleaned.split('.');
+  const intPart = rawInt === '' ? '0' : rawInt;
+  const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
+};
+
 export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, onClose, onSave }: GoalContributionModalProps) {
   const theme = useTheme();
   const { isDark } = theme;
@@ -96,6 +111,10 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
 
   const validationSchema = useMemo(() => Yup.object({
     amount: Yup.number()
+      .transform((_, originalValue) => {
+        if (originalValue === '') return undefined;
+        return parseAmountInput(String(originalValue));
+      })
       .typeError('Enter a valid amount')
       .positive('Amount must be greater than 0')
       .required('Amount is required')
@@ -108,11 +127,11 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
     validateOnChange: true,
     validateOnBlur: true,
     onSubmit: async (values) => {
-      if (selectedWalletId === null) return;
+      if (selectedWalletId === null || isOverBalance) return;
       setSaving(true);
       try {
         await onSave({
-          amount: Number(values.amount),
+          amount: parseAmountInput(values.amount),
           date: toIsoDate(date),
           walletId: selectedWalletId,
           note: note.trim(),
@@ -133,6 +152,18 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
     formik.resetForm({ values: { amount: '' } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, wallets]);
+
+  const selectedWallet = useMemo(
+    () => wallets.find((wallet) => wallet.id === selectedWalletId) ?? null,
+    [wallets, selectedWalletId]
+  );
+  const availableBalance = Number.isFinite(Number(selectedWallet?.current_balance))
+    ? Number(selectedWallet?.current_balance)
+    : 0;
+  const parsedEnteredAmount = parseAmountInput(formik.values.amount);
+  const enteredAmount = Number.isFinite(parsedEnteredAmount) ? parsedEnteredAmount : 0;
+  const isOverBalance = Boolean(selectedWalletId) && enteredAmount > 0 && enteredAmount > availableBalance;
+  const canSubmit = !saving && Boolean(selectedWalletId) && formik.isValid && !isOverBalance;
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -185,8 +216,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                   <TextInput
                     value={formik.values.amount}
                     onChangeText={(value) => {
-                      const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                      void formik.setFieldValue('amount', cleaned);
+                      void formik.setFieldValue('amount', formatAmountInput(value));
                     }}
                     onBlur={() => void formik.setFieldTouched('amount', true)}
                     keyboardType="decimal-pad"
@@ -197,7 +227,11 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                     selectionColor={theme.lime}
                   />
                 </View>
-                {formik.touched.amount && formik.errors.amount ? (
+                {isOverBalance ? (
+                  <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
+                    Amount exceeds available wallet balance ({currencySymbol}{formatBalance(availableBalance)}).
+                  </Text>
+                ) : formik.touched.amount && formik.errors.amount ? (
                   <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 6 }}>
                     {formik.errors.amount}
                   </Text>
@@ -306,11 +340,11 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
 
               <Pressable
                 onPress={() => void formik.handleSubmit()}
-                disabled={saving}
+                disabled={!canSubmit}
                 style={[
                   s.saveBtn,
                   {
-                    backgroundColor: saving
+                    backgroundColor: !canSubmit
                       ? isDark ? '#2C3122' : '#E4E6D6'
                       : isDark ? theme.lime : '#3F7D36',
                   },
@@ -319,7 +353,7 @@ export function GoalContributionModal({ visible, goalTitle, maxAmount, wallets, 
                 {saving ? (
                   <ActivityIndicator size="small" color={isDark ? theme.bg : '#FFFFFF'} />
                 ) : (
-                  <Text style={[s.saveLabel, { color: isDark ? theme.bg : '#FFFFFF' }]}>Save Contribution</Text>
+                  <Text style={[s.saveLabel, { color: !canSubmit ? theme.tertiary : isDark ? theme.bg : '#FFFFFF' }]}>Save Contribution</Text>
                 )}
               </Pressable>
             </ScrollView>

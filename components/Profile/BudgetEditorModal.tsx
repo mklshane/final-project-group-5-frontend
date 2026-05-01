@@ -39,11 +39,34 @@ const PERIOD_OPTIONS: { value: BudgetPeriod; label: string }[] = [
 
 const toAmountString = (value: number) => {
   if (!Number.isFinite(value) || value <= 0) return '';
-  return value % 1 === 0 ? String(value) : String(Math.round(value * 100) / 100);
+  const rounded = value % 1 === 0 ? value : Math.round(value * 100) / 100;
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseAmountInput = (value: string) => {
+  const parsed = Number(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const formatAmountInput = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  if (!cleaned) return '';
+
+  const [rawInt, rawDec] = cleaned.split('.');
+  const intPart = rawInt === '' ? '0' : rawInt;
+  const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
 };
 
 const validationSchema = Yup.object({
   amount: Yup.number()
+    .transform((_, originalValue) => {
+      if (originalValue === '') return undefined;
+      return parseAmountInput(String(originalValue));
+    })
     .typeError('Enter a valid amount')
     .positive('Amount must be greater than 0')
     .required('Amount is required'),
@@ -89,7 +112,7 @@ export function BudgetEditorModal({
       setSaving(true);
       try {
         await onSave({
-          amountLimit: Number(values.amount),
+          amountLimit: parseAmountInput(values.amount),
           period,
         });
         onClose();
@@ -140,10 +163,7 @@ export function BudgetEditorModal({
                   <TextInput
                     value={formik.values.amount}
                     onChangeText={(value) =>
-                      formik.setFieldValue(
-                        'amount',
-                        value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
-                      )
+                      formik.setFieldValue('amount', formatAmountInput(value))
                     }
                     onBlur={formik.handleBlur('amount')}
                     keyboardType="decimal-pad"

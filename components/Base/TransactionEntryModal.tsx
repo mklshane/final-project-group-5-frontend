@@ -66,6 +66,28 @@ const formatCurrency = (value: number, _symbol: string) => {
   })}`;
 };
 
+const formatAmountDisplay = (expr: string): string => {
+  const hasOperator = expr.includes('+') || expr.indexOf('-') > 0;
+
+  if (!hasOperator) {
+    const dotIdx = expr.indexOf('.');
+    if (dotIdx === -1) {
+      return (parseFloat(expr) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+    const intNum = parseFloat(expr.slice(0, dotIdx)) || 0;
+    const decPart = expr.slice(dotIdx + 1);
+    return `${intNum.toLocaleString(undefined, { maximumFractionDigits: 0 })}.${decPart}`;
+  }
+
+  const result = Math.round((evaluateExpression(expr) ?? 0) * 100) / 100;
+  const absVal = Math.abs(result);
+  const decLen = (String(absVal).split('.')[1] ?? '').length;
+  return (result < 0 ? '-' : '') + absVal.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: Math.min(decLen, 2),
+  });
+};
+
 const normalizeExpression = (value: string) => value.replace(/[^0-9.+-]/g, '').replace(/\s+/g, '');
 
 const evaluateExpression = (value: string): number | null => {
@@ -549,18 +571,21 @@ export function TransactionEntryModal({
     }
   }, [scanStatus, awaitingFreshScanResult, scanError]);
 
+  const isExpense = mode === 'expense';
+  const modeColor = isExpense ? theme.red : theme.green;
+
   const effectiveLoggedAt = customLoggedAt ?? new Date();
   const isFutureLoggedAt = effectiveLoggedAt > new Date();
+  const availableBalance = toNumber(selectedWallet?.current_balance);
+  const isOverBalance = isExpense && Boolean(selectedWalletId) && computedAmount > availableBalance;
 
   const canSave =
     !submitting &&
     !isFutureLoggedAt &&
+    !isOverBalance &&
     Boolean(selectedWalletId) &&
     formik.values.amount > 0 &&
     formik.values.title.trim().length > 0;
-
-  const isExpense = mode === 'expense';
-  const modeColor = isExpense ? theme.red : theme.green;
 
   const submitTransaction = async () => {
     if (!canSave) return;
@@ -571,7 +596,6 @@ export function TransactionEntryModal({
       return;
     }
 
-    const availableBalance = toNumber(selectedWallet?.current_balance);
     const isOverBalance = mode === 'expense' && computedAmount > availableBalance;
     if (isOverBalance) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -810,7 +834,7 @@ export function TransactionEntryModal({
                   numberOfLines={1}
                   adjustsFontSizeToFit
                 >
-                  {formatCurrency(computedAmount, '')}
+                  {formatAmountDisplay(expression)}
                 </Text>
               </View>
               {expressionText ? (
@@ -822,6 +846,11 @@ export function TransactionEntryModal({
             {formik.touched.amount && formik.errors.amount ? (
               <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 4, textAlign: 'center' }}>
                 {formik.errors.amount}
+              </Text>
+            ) : null}
+            {isOverBalance ? (
+              <Text style={{ color: '#FF6B6B', fontSize: 12, fontWeight: '500', marginTop: 4, textAlign: 'center' }}>
+                Amount exceeds available balance ({currencySymbol}{formatCurrency(availableBalance, currencySymbol)}).
               </Text>
             ) : null}
 
