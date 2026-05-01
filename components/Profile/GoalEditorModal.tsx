@@ -234,11 +234,11 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
 
                 <View style={s.fieldGroup}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>TARGET DATE</Text>
-                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: 'space-between' }]}> 
+                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: 'space-between' }]}>
                     <Ionicons name="calendar-outline" size={16} color={theme.secondary} style={s.dateIcon} />
-                    {Platform.OS !== 'ios' && (
-                      <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(deadline)}</Text>
-                    )}
+                    <Text style={[s.dateValue, { color: theme.text, flex: 1 }]}>
+                      {deadline.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </Text>
                     {Platform.OS === 'ios' ? (
                       <DateTimePicker
                         value={deadline}
@@ -256,7 +256,12 @@ export function GoalEditorModal({ visible, initialGoal, onClose, onSave }: GoalE
                 </View>
 
                 {Platform.OS === 'android' && showAndroidDatePicker ? (
-                  <DateTimePicker value={deadline} mode="date" display="default" onChange={handleDateChange} />
+                  <DateTimePicker
+                    value={deadline}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateChange}
+                  />
                 ) : null}
               </View>
 

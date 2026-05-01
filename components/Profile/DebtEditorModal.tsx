@@ -306,11 +306,11 @@ export function DebtEditorModal({ visible, mode, initialDebt, onClose, onSave }:
 
                 <View style={s.fieldGroup}>
                   <Text style={[s.sectionLabel, { color: theme.secondary }]}>{dueDateLabel}</Text>
-                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: 'space-between' }]}> 
+                  <View style={[s.dateRow, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, justifyContent: 'space-between' }]}>
                     <Ionicons name="calendar-outline" size={16} color={theme.secondary} style={s.dateIcon} />
-                    {Platform.OS !== 'ios' && (
-                      <Text style={[s.dateValue, { color: theme.text }]}>{toIsoDate(dueDate)}</Text>
-                    )}
+                    <Text style={[s.dateValue, { color: theme.text, flex: 1 }]}>
+                      {dueDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </Text>
                     {Platform.OS === 'ios' ? (
                       <DateTimePicker
                         value={dueDate}

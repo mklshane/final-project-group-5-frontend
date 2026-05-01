@@ -828,7 +828,6 @@ export function TransactionEntryModal({
   const handleDiscardReviewClose = () => {
     if (isClosing) return;
     setClosingFromReview(true);
-    setActiveField('other');
     setReceiptReviewVisible(false);
     setReceiptReviewDraft(null);
     setReceiptReviewWarning(null);
@@ -1151,7 +1150,7 @@ export function TransactionEntryModal({
       </KeyboardAvoidingView>
 
       {/* Floating custom keypad — slides up like native keyboard */}
-      {!scannerVisible && !receiptReviewVisible && !closingFromReview ? (
+      {!scannerVisible && !receiptReviewVisible ? (
       <Animated.View
         style={[
           s.keypadPanel,

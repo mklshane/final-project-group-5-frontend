@@ -638,7 +638,6 @@ const s = StyleSheet.create({
     marginLeft: 2,
   },
 
-  // Category dropdown
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
