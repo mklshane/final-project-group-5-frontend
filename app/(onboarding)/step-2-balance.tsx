@@ -84,9 +84,19 @@ export default function Step2Balance() {
     },
   });
 
-  const handleBalanceChange = (text: string) => {
+  const formatAmountInput = (text: string) => {
     const cleaned = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-    formik.setFieldValue('balance', cleaned);
+    if (!cleaned) return '';
+
+    const [rawInt, rawDec] = cleaned.split('.');
+    const intPart = rawInt === '' ? '0' : rawInt;
+    const intWithCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    return rawDec !== undefined ? `${intWithCommas}.${rawDec}` : intWithCommas;
+  };
+
+  const handleBalanceChange = (text: string) => {
+    formik.setFieldValue('balance', formatAmountInput(text));
   };
 
   return (
@@ -147,8 +157,8 @@ export default function Step2Balance() {
               key={amt}
               onPress={() => {
                 Haptics.selectionAsync();
-                formik.setFieldValue('balance', amt);
-                formik.setFieldTouched('balance', true);
+                formik.setFieldValue('balance', formatAmountInput(amt), true);
+                formik.setFieldTouched('balance', true, false);
               }}
               style={s.chip}
             >

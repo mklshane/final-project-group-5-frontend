@@ -100,39 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (error) {
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.access_token) {
-        fetchProfileWithRetry(session.access_token).then((p) => {
-          setProfile(p);
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESH_FAILED') {
-        await supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
       setSession(session);
       setUser(session?.user ?? null);
-      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
         const p = await fetchProfileWithRetry(session.access_token);
         setProfile(p);
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
         setProfile(null);
       }
       setLoading(false);

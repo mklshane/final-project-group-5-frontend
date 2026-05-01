@@ -129,6 +129,11 @@ const toIsoDate = (date: Date) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const clampToNow = (value: Date) => {
+  const now = new Date();
+  return value > now ? now : value;
+};
+
 const parseIsoDate = (value: string | null): Date | null => {
   if (!value) return null;
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -544,8 +549,12 @@ export function TransactionEntryModal({
     }
   }, [scanStatus, awaitingFreshScanResult, scanError]);
 
+  const effectiveLoggedAt = customLoggedAt ?? new Date();
+  const isFutureLoggedAt = effectiveLoggedAt > new Date();
+
   const canSave =
     !submitting &&
+    !isFutureLoggedAt &&
     Boolean(selectedWalletId) &&
     formik.values.amount > 0 &&
     formik.values.title.trim().length > 0;
@@ -555,6 +564,12 @@ export function TransactionEntryModal({
 
   const submitTransaction = async () => {
     if (!canSave) return;
+
+    if (isFutureLoggedAt) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert('Invalid date', 'Transactions can only be logged for today or past dates.');
+      return;
+    }
 
     const availableBalance = toNumber(selectedWallet?.current_balance);
     const isOverBalance = mode === 'expense' && computedAmount > availableBalance;
@@ -572,7 +587,7 @@ export function TransactionEntryModal({
         type: mode,
         walletId: selectedWalletId,
         categoryId: selectedCategoryId,
-        loggedAt: customLoggedAt ?? new Date(),
+        loggedAt: effectiveLoggedAt,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       resetScanner();
@@ -976,13 +991,14 @@ export function TransactionEntryModal({
                     value={customLoggedAt ?? new Date()}
                     mode="date"
                     display={Platform.OS === 'ios' ? 'compact' : 'default'}
+                    maximumDate={new Date()}
                     onChange={(_: DateTimePickerEvent, selected?: Date) => {
                       dismissKeypad();
                       if (selected) setCustomLoggedAt(prev => {
                         const base = prev ?? new Date();
                         const next = new Date(base);
                         next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
-                        return next;
+                        return clampToNow(next);
                       });
                     }}
                     themeVariant={isDark ? 'dark' : 'light'}
@@ -1001,7 +1017,7 @@ export function TransactionEntryModal({
                         const base = prev ?? new Date();
                         const next = new Date(base);
                         next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
-                        return next;
+                        return clampToNow(next);
                       });
                     }}
                     themeVariant={isDark ? 'dark' : 'light'}
