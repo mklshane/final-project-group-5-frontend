@@ -506,7 +506,7 @@ export default function InsightsScreen() {
 
         <SmartInsightsSection insights={smartInsights} />
 
-        <AIInsightsCard summary={aiSummary} />
+        {/* <AIInsightsCard summary={aiSummary} /> */}
       </ScrollView>
     </View>
   );
